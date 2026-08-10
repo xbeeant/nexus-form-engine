@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus Form Designer Example</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .nexus-editor {
+      background: #f5f5f5;
+      padding: 2rem;
+      border-radius: 8px;
+    }
+    .nexus-property-panel {
+      background: #ffffff;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .nexus-field {
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      border: 1px solid #e5e5e5;
+      border-radius: 4px;
+      background: #ffffff;
+    }
+    .nexus-field:hover {
+      border-color: #3b82f6;
+    }
+    .nexus-field-label {
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      color: #1f2937;
+    }
+    .nexus-field-value {
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="container mx-auto py-8">
+    <h1 class="text-3xl font-bold text-center mb-8">Nexus Form Designer</h1>
+
+    <div class="grid grid-cols-3 gap-6">
+      <!-- Schema Editor -->
+      <div class="col-span-2">
+        <div class="nexus-editor">
+          <h2 class="text-xl font-semibold mb-4">Schema Editor</h2>
+          <textarea
+            id="schema-editor"
+            class="w-full h-96 p-4 font-mono text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Enter JSON schema here..."
+          ></textarea>
+          <div class="mt-4 flex gap-2">
+            <button
+              id="btn-load-schema"
+              class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Load Schema
+            </button>
+            <button
+              id="btn-reset"
+              class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            >
+              Reset
+            </button>
+            <button
+              id="btn-export"
+              class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+            >
+              Export Schema
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Property Panel -->
+      <div class="col-span-1">
+        <div class="nexus-property-panel">
+          <h2 class="text-xl font-semibold mb-4">Properties</h2>
+          <div id="property-panel" class="space-y-4">
+            <p class="text-gray-500">Select a field to edit its properties</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Preview -->
+    <div class="mt-8">
+      <div class="nexus-editor">
+        <h2 class="text-xl font-semibold mb-4">Form Preview</h2>
+        <div id="form-preview" class="space-y-4">
+          <p class="text-gray-500">Preview will appear here</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { NexusEngine, SchemaParser, SchemaSerializer } from '../../core/dist/es/index.js';
+
+    // Default schema
+    const defaultSchema = {
+      type: 'object',
+      properties: {
+        profile: {
+          type: 'object',
+          properties: {
+            name: {
+              type: 'string',
+              widget: 'input',
+              title: 'Name',
+              required: true,
+              placeholder: 'Enter your name',
+            },
+            email: {
+              type: 'string',
+              widget: 'input',
+              title: 'Email',
+              required: true,
+              placeholder: 'Enter your email',
+            },
+          },
+        },
+        address: {
+          type: 'object',
+          properties: {
+            street: {
+              type: 'string',
+              widget: 'input',
+              title: 'Street',
+            },
+            city: {
+              type: 'string',
+              widget: 'input',
+              title: 'City',
+            },
+          },
+        },
+        hobbies: {
+          type: 'array',
+          widget: 'list',
+          title: 'Hobbies',
+          items: {
+            type: 'string',
+            widget: 'input',
+          },
+        },
+      },
+    };
+
+    // Initialize editor
+    const schemaEditor = document.getElementById('schema-editor');
+    const propertyPanel = document.getElementById('property-panel');
+    const formPreview = document.getElementById('form-preview');
+    const btnLoadSchema = document.getElementById('btn-load-schema');
+    const btnReset = document.getElementById('btn-reset');
+    const btnExport = document.getElementById('btn-export');
+
+    let engine = null;
+
+    // Load default schema
+    schemaEditor.value = JSON.stringify(defaultSchema, null, 2);
+    loadSchema(defaultSchema);
+
+    // Load schema button
+    btnLoadSchema.addEventListener('click', () => {
+      try {
+        const schema = JSON.parse(schemaEditor.value);
+        loadSchema(schema);
+      } catch (error) {
+        alert('Invalid JSON schema: ' + error.message);
+      }
+    });
+
+    // Reset button
+    btnReset.addEventListener('click', () => {
+      schemaEditor.value = JSON.stringify(defaultSchema, null, 2);
+      loadSchema(defaultSchema);
+    });
+
+    // Export button
+    btnExport.addEventListener('click', () => {
+      const serialized = SchemaSerializer.serialize(defaultSchema);
+      const compressed = SchemaSerializer.compressToBase64(defaultSchema);
+      alert(
+        `Original size: ${SchemaSerializer.sizeOf(defaultSchema)} bytes\n` +
+        `Serialized: ${serialized.length} bytes\n` +
+        `Compressed (base64): ${compressed.length} characters\n` +
+        `Compression rate: ${SchemaSerializer.compressionRate(defaultSchema).toFixed(2)}%`
+      );
+    });
+
+    // Load schema
+    function loadSchema(schema) {
+      engine = new NexusEngine();
+      engine.init(schema, {});
+
+      // Generate form preview
+      const renderTree = engine.getRenderTree();
+      formPreview.innerHTML = buildFormPreview(renderTree);
+
+      // Generate property panel
+      generatePropertyPanel(schema.properties);
+    }
+
+    // Build form preview
+    function buildFormPreview(tree) {
+      if (!tree || tree.length === 0) {
+        return '<p class="text-gray-500">No fields</p>';
+      }
+
+      return tree.map(node => buildNodePreview(node)).join('');
+    }
+
+    // Build node preview
+    function buildNodePreview(node) {
+      if (node.type === 'field') {
+        const state = engine.getFieldState(node.dataPath);
+        return `
+          <div class="nexus-field">
+            <div class="nexus-field-label">${state?.meta.title || node.dataPath}</div>
+            <div class="nexus-field-value">${String(state?.value ?? 'N/A')}</div>
+          </div>
+        `;
+      } else if (node.type === 'object') {
+        return `
+          <div class="nexus-object" data-path="${node.dataPath}">
+            <h3 class="font-semibold mb-2">${node.title || node.dataPath}</h3>
+            ${buildNodePreview(node.children)}
+          </div>
+        `;
+      } else if (node.type === 'layout') {
+        return `
+          <div class="nexus-layout" data-path="${node.dataPath}">
+            <h3 class="font-semibold mb-2">${node.title || node.type}</h3>
+            ${buildNodePreview(node.children)}
+          </div>
+        `;
+      }
+      return '';
+    }
+
+    // Generate property panel
+    function generatePropertyPanel(properties) {
+      propertyPanel.innerHTML = '';
+
+      for (const [key, value] of Object.entries(properties)) {
+        const panel = createPropertyPanel(key, value);
+        propertyPanel.appendChild(panel);
+      }
+    }
+
+    // Create property panel
+    function createPropertyPanel(key, value) {
+      const container = document.createElement('div');
+      container.className = 'mb-4 border-b pb-4';
+
+      const title = document.createElement('h3');
+      title.className = 'font-semibold mb-2 text-blue-600';
+      title.textContent = key;
+      container.appendChild(title);
+
+      // Object/Array properties
+      if (value.properties) {
+        const nestedContainer = document.createElement('div');
+        nestedContainer.className = 'ml-4 border-l-2 border-gray-200 pl-4';
+
+        for (const [subKey, subValue] of Object.entries(value.properties)) {
+          const subPanel = createPropertyPanel(`${key}.${subKey}`, subValue);
+          nestedContainer.appendChild(subPanel);
+        }
+
+        container.appendChild(nestedContainer);
+      } else if (value.type === 'array' && value.items) {
+        const arrayContainer = document.createElement('div');
+        arrayContainer.className = 'ml-4 border-l-2 border-gray-200 pl-4';
+
+        const itemType = value.items.type === 'string' ? 'string' : 'object';
+        arrayContainer.innerHTML = `
+          <p class="text-sm text-gray-500">Array of ${itemType}s</p>
+          <p class="text-sm text-gray-500">Widget: ${value.widget || 'input'}</p>
+        `;
+
+        container.appendChild(arrayContainer);
+      } else {
+        // Field properties
+        const propertiesList = document.createElement('ul');
+        propertiesList.className = 'text-sm space-y-1';
+
+        for (const [propKey, propValue] of Object.entries(value)) {
+          if (propKey === 'properties' || propKey === 'items' || propKey === 'reactions') {
+            continue;
+          }
+
+          const listItem = document.createElement('li');
+          listItem.innerHTML = `
+            <span class="font-medium">${propKey}:</span>
+            <span class="text-gray-600">${JSON.stringify(propValue)}</span>
+          `;
+          propertiesList.appendChild(listItem);
+        }
+
+        container.appendChild(propertiesList);
+      }
+
+      return container;
+    }
+  </script>
+</body>
+</html>

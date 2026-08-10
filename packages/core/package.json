@@ -1,0 +1,39 @@
+{
+  "name": "@nexus/form-engine",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/es/index.js",
+  "module": "./dist/es/index.js",
+  "types": "./dist/es/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/es/index.d.ts",
+      "import": "./dist/es/index.js",
+      "require": "./dist/cjs/index.js"
+    },
+    "./types/*": {
+      "types": "./dist/es/types/*.d.ts",
+      "import": "./dist/es/types/*.js",
+      "require": "./dist/cjs/types/*.js"
+    },
+    "./utils/*": {
+      "types": "./dist/es/utils/*.d.ts",
+      "import": "./dist/es/utils/*.js",
+      "require": "./dist/cjs/utils/*.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "src", "README.md"],
+  "sideEffects": ["**/*.css"],
+  "scripts": {
+    "build": "tsc -b && vite build",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "vitest run"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vitest": "^4.1.10"
+  }
+}

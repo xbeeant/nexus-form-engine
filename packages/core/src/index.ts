@@ -1,0 +1,92 @@
+// ============================================================================
+// @nexus/form-engine — 公共 API 入口
+// 导出所有核心类、类型定义和工具函数
+// ============================================================================
+
+/** 数组字段操作插件 */
+export { ArrayOperationsPlugin } from './array-list';
+export type { AsyncValidatorOptions, FieldValidator } from './async-validator';
+/** 异步校验器插件（防抖/超时/并行调度） */
+export {
+  AsyncValidatorPlugin,
+  createAsyncValidatorPlugin,
+} from './async-validator';
+/** 显式依赖图（静态构建，O(1) 查询） */
+export { DependencyGraph } from './DependencyGraph';
+// Core
+/** 表单引擎核心类 */
+export { NexusEngine } from './Engine';
+export type { EvaluateOptions } from './ExpressionSandbox';
+/** 表达式安全求值沙箱 */
+export {
+  createExpressionSandbox,
+  ErrorHandlerStrategy,
+  ExpressionSandbox,
+} from './ExpressionSandbox';
+/** Schema 解析器 */
+export type { ParseResult } from './SchemaParser';
+/** Schema 解析器类 */
+export { SchemaParser } from './SchemaParser';
+// 类型定义
+export type {
+  BindSchema,
+  DataArraySchema,
+  DataFieldSchema,
+  DataNode,
+  DataObjectSchema,
+  DataPrimitiveType,
+  DataType,
+  EngineHooks,
+  Expression,
+  ExpressionOr,
+  FieldFormat,
+  FieldState,
+  FieldStatePatch,
+  FormEngine,
+  LayoutBaseProps,
+  LayoutContainerSchema,
+  LayoutContainerType,
+  LayoutNode,
+  LayoutPaneSchema,
+  LayoutPaneType,
+  LayoutType,
+  NexusComponent,
+  NexusFormInstance,
+  NexusFormValidator,
+  NexusPlugin,
+  NexusSchema,
+  Reaction,
+  ReactionContext,
+  ReactionSchemaPatch,
+  ReactionStatePatch,
+  ReadonlyFormEngine,
+  RenderFieldNode,
+  RenderLayoutNode,
+  RenderObjectNode,
+  RenderTreeNode,
+  SchemaNode,
+  TypedFieldSchema,
+  TypedSchemaNode,
+  ValidateSchema,
+  ValidationRule,
+  WidgetPropsMap,
+  WidgetSpecificProps,
+} from './types/schema';
+export { DataConverter } from './utils/data-converters';
+export {
+  getNestedValue,
+  isDataArray,
+  isDataField,
+  isDataNode,
+  isDataObject,
+  isEmptyValue,
+  isLayoutNode,
+  isThenable,
+  LAYOUT_CONTAINER_TYPES,
+  LAYOUT_PANE_TYPES,
+  LAYOUT_TYPES,
+  setNestedValue,
+  toBoolean,
+} from './utils/schema-helper';
+/** Schema序列化/反序列化工具 */
+export { SchemaSerializer } from './utils/schema-serializer';

@@ -1,0 +1,19 @@
+{
+  "name": "@nexus/form-engine-examples",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@nexus/form-engine": "^0.0.0",
+    "@nexus/form-engine-ui": "^0.0.0",
+    "@nexus/form-engine-designer": "^0.0.0",
+    "antd": "^6.5.3",
+    "dayjs": "^1.11.11"
+  },
+  "devDependencies": {}
+}
