@@ -3,9 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "description": "@nexus/form-engine 项目介绍站点（GitHub Pages）",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
+    "build:types": "tsc -b",
     "preview": "vite preview"
   },
   "dependencies": {
