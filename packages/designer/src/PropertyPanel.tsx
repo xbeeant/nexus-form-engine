@@ -15,7 +15,7 @@
 import type { NexusSchema, SchemaNode } from '@nexus/form-engine';
 import { NexusForm, useForm } from '@nexus/form-engine-react';
 import { registerAntdUI } from '@nexus/form-engine-ui';
-import { Button, Input } from 'antd';
+import { Input } from 'antd';
 import { useCallback, useMemo, useState } from 'react';
 import { useDesigner } from './DesignerContext';
 import {
@@ -174,14 +174,16 @@ function KeyEditor({ oldKey, locked, onRename }: KeyEditorProps) {
 
   if (locked) {
     return (
-      <div className='mb-3 pb-2 border-b border-[#f0f0f0]'>
-        <div className='text-[11px] text-[#999] mb-1'>字段标识（key）</div>
-        <div className='flex items-center gap-2'>
-          <code className='text-[13px] bg-[#f5f5f5] px-2 py-0.5 rounded flex-1 font-mono'>
+      <div className='mb-3 flex items-center justify-between gap-2 rounded-lg border border-[#f0f0f0] bg-[#fafafa] px-3 py-2'>
+        <div className='min-w-0'>
+          <div className='mb-0.5 text-[11px] text-[#999]'>字段标识（key）</div>
+          <code className='break-all font-mono text-[13px] text-[#333]'>
             {oldKey}
           </code>
-          <span className='text-[11px] text-[#999]'>🔒 锁定</span>
         </div>
+        <span className='flex-shrink-0 rounded bg-[#f0f0f0] px-1.5 py-0.5 text-[11px] text-[#999]'>
+          🔒 锁定
+        </span>
       </div>
     );
   }
@@ -192,19 +194,20 @@ function KeyEditor({ oldKey, locked, onRename }: KeyEditorProps) {
   };
 
   return (
-    <div className='mb-3 pb-2 border-b border-[#f0f0f0]'>
-      <div className='text-[11px] text-[#999] mb-1'>字段标识（key）</div>
-      <div className='flex items-center gap-1.5'>
-        <Input
-          size='small'
-          value={value}
-          onChange={(e) => {
-            const trimmed = (e.target.value || '').trim();
-            onChange(trimmed);
-          }}
-          autoFocus
-          className='flex-1'
-        />
+    <div className='mb-3'>
+      <div className='mb-1.5 text-[11px] text-[#999]'>字段标识（key）</div>
+      <Input
+        size='small'
+        value={value}
+        onChange={(e) => {
+          const trimmed = (e.target.value || '').trim();
+          onChange(trimmed);
+        }}
+        autoFocus
+        className='nexus-key-input'
+      />
+      <div className='mt-1 text-[11px] text-[#c0c4cc]'>
+        用于数据路径与联动引用，修改后自动迁移子节点
       </div>
     </div>
   );
@@ -340,45 +343,77 @@ export function PropertyPanel() {
     [selectedPath, renameNode],
   );
 
+  // 节点类型徽标：字段取 widget，布局/对象取 type
+  const nodeKind = selectedNode
+    ? (
+        (selectedNode.widget as string) ||
+        (selectedNode.type as string) ||
+        ''
+      ).toLowerCase()
+    : '';
+
   return (
-    <div className='border-l border-[#f0f0f0] overflow-y-auto px-4 py-3 bg-white h-full'>
+    <div className='flex h-full flex-col border-l border-[#f0f0f0] bg-white'>
       {/* 导航头 */}
-      <div className='font-semibold mb-3 pb-2 border-b border-[#f0f0f0] flex items-center'>
-        {selectedPath && selectedPath.length > 0 ? (
-          <Button
-            type='link'
-            size='small'
-            onClick={() => selectNode(null)}
-            style={{ padding: 0, marginRight: 8 }}
-          >
-            ← 表单属性
-          </Button>
-        ) : null}
-        {isFormLevel ? '表单属性' : '节点属性'}
+      <div className='flex items-center justify-between border-b border-[#f0f0f0] px-4 py-2.5'>
+        <div className='flex min-w-0 items-center gap-1'>
+          {!isFormLevel && (
+            <button
+              type='button'
+              onClick={() => selectNode(null)}
+              className='-ml-1 mr-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-[#999] transition-colors hover:bg-[#f0f0f0] hover:text-[#333]'
+              title='返回表单属性'
+            >
+              <svg
+                width='12'
+                height='12'
+                viewBox='0 0 24 24'
+                fill='none'
+                stroke='currentColor'
+                strokeWidth='2.5'
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                aria-hidden='true'
+              >
+                <polyline points='15 18 9 12 15 6' />
+              </svg>
+            </button>
+          )}
+          <span className='truncate text-[13px] font-semibold text-[#333]'>
+            {isFormLevel ? '表单属性' : '节点属性'}
+          </span>
+        </div>
+        {!isFormLevel && nodeKind && (
+          <span className='ml-2 flex-shrink-0 rounded-md bg-[#e8f1ff] px-1.5 py-0.5 text-[11px] text-[#1677ff]'>
+            {nodeKind}
+          </span>
+        )}
       </div>
 
-      {/* key 特殊性处理：key 不是 SchemaNode 属性，而是 properties 索引键 */}
-      {!isFormLevel && currentKey && (
-        <KeyEditor
-          oldKey={currentKey}
-          locked={keyLocked}
-          onRename={handleRename}
-        />
-      )}
+      <div className='nexus-property-body flex-1 overflow-y-auto px-4 py-3'>
+        {/* key 特殊性处理：key 不是 SchemaNode 属性，而是 properties 索引键 */}
+        {!isFormLevel && currentKey && (
+          <KeyEditor
+            oldKey={currentKey}
+            locked={keyLocked}
+            onRename={handleRename}
+          />
+        )}
 
-      {/* 属性表单：完全基于 descriptor 驱动 */}
-      <PropertyForm
-        key={formKey}
-        schema={formSchema}
-        initialValues={
-          selectedNode
-            ? flattenNodeForPropertyEditor(
-                selectedNode as unknown as Record<string, any>,
-              )
-            : (schema as unknown as Record<string, any>)
-        }
-        onValuesChange={handleValuesChange}
-      />
+        {/* 属性表单：完全基于 descriptor 驱动 */}
+        <PropertyForm
+          key={formKey}
+          schema={formSchema}
+          initialValues={
+            selectedNode
+              ? flattenNodeForPropertyEditor(
+                  selectedNode as unknown as Record<string, any>,
+                )
+              : (schema as unknown as Record<string, any>)
+          }
+          onValuesChange={handleValuesChange}
+        />
+      </div>
     </div>
   );
 }

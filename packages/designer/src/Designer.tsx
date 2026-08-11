@@ -3,7 +3,15 @@
 // ============================================================================
 
 import type { NexusEngine, NexusSchema, SchemaNode } from '@nexus/form-engine';
-import { Button, Input, message, Radio, Space, Typography } from 'antd';
+import {
+  Button,
+  Input,
+  message,
+  Popconfirm,
+  Radio,
+  Space,
+  Typography,
+} from 'antd';
 import { useMemo, useState } from 'react';
 import { Canvas } from './Canvas';
 import './Designer.css';
@@ -89,9 +97,24 @@ function mergeCatalog(
 }
 
 function DesignerForm() {
-  const { mode, setMode, schema, setSchema } = useDesigner();
+  const { mode, setMode, schema, setSchema, selectNode } = useDesigner();
   const [schemaText, setSchemaText] = useState('');
   const [schemaActive, setSchemaActive] = useState(false);
+
+  // 清空画布：重置为空 schema 并取消选中（必须新建对象，保证触发重渲染）
+  const handleClearSchema = () => {
+    const emptySchema: NexusSchema = {
+      type: 'object',
+      displayType: 'row',
+      labelWidth: 110,
+      properties: {},
+    };
+    setSchema(emptySchema);
+    selectNode(null);
+    if (mode === 'schema') {
+      setSchemaText(JSON.stringify(emptySchema, null, 2));
+    }
+  };
 
   // 进入 schema 模式时同步当前 schema 到编辑框
   const handleEnterSchema = () => {
@@ -178,6 +201,16 @@ function DesignerForm() {
           </Radio.Group>
           <Button onClick={handleImport}>导入</Button>
           <Button onClick={handleExport}>导出</Button>
+          <Popconfirm
+            title='清空画布'
+            description='将移除画布上所有组件，此操作不可撤销'
+            okText='清空'
+            cancelText='取消'
+            okButtonProps={{ danger: true }}
+            onConfirm={handleClearSchema}
+          >
+            <Button danger>清空</Button>
+          </Popconfirm>
         </Space>
       </div>
       {mode === 'schema' ? (

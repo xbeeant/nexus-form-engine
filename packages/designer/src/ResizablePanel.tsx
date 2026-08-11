@@ -2,8 +2,7 @@
 // @nexus/form-engine-designer — 可拖拽调整宽度 / 可折叠面板
 // ============================================================================
 
-import { Button } from 'antd';
-import type { CSSProperties} from 'react';
+import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface ResizablePanelProps {
@@ -58,25 +57,27 @@ export function ResizablePanel({
   }, [width]);
 
   // ─── 拖拽调整宽度 ─────────────────────────────────────────────
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setDragging(true);
-    },
-    [],
-  );
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(true);
+  }, []);
 
   useEffect(() => {
-    if (!dragging) return;
+    if (!dragging) {
+      return;
+    }
 
     const handleMouseMove = (e: MouseEvent) => {
       const rect = panelRef.current?.getBoundingClientRect();
-      if (!rect) return;
+      if (!rect) {
+        return;
+      }
 
-      const next = side === 'left'
-        ? e.clientX - rect.left    // 左面板：拖右边缘 = 距左边界距离
-        : rect.right - e.clientX;  // 右面板：拖左边缘 = 距右边界距离
+      const next =
+        side === 'left'
+          ? e.clientX - rect.left // 左面板：拖右边缘 = 距左边界距离
+          : rect.right - e.clientX; // 右面板：拖左边缘 = 距右边界距离
 
       setWidth(Math.max(minWidth, Math.min(maxWidth, Math.round(next))));
     };
@@ -108,12 +109,12 @@ export function ResizablePanel({
     overflow: 'hidden',
     transition: dragging ? 'none' : 'width 180ms ease',
     position: 'relative',
+    background: collapsed ? '#fafafa' : undefined,
   };
 
   const handleClass = [
     'nexus-resize-handle',
     dragging ? 'nexus-resize-active' : '',
-    isLeft ? '' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -123,29 +124,31 @@ export function ResizablePanel({
   // 折叠按钮跟随面板侧
   const toggleBtnStyle: CSSProperties = {
     position: 'absolute',
-    top: 4,
+    top: 8,
     zIndex: 20,
-    padding: '0 4px',
-    minWidth: 24,
-    height: 24,
-    fontSize: 14,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
   };
   if (isLeft) {
-    toggleBtnStyle.right = collapsed ? 0 : 4;
+    toggleBtnStyle.right = collapsed ? 7 : 8;
   } else {
-    toggleBtnStyle.left = collapsed ? 0 : 4;
+    toggleBtnStyle.left = collapsed ? 7 : 8;
   }
+
+  // chevron-right 基准图标，按面板侧/折叠态旋转
+  const chevronRotation = isLeft
+    ? collapsed
+      ? 'rotate(0deg)'
+      : 'rotate(180deg)'
+    : collapsed
+      ? 'rotate(180deg)'
+      : 'rotate(0deg)';
 
   // 折叠态竖排标题
   const collapsedLabel =
     collapsed && collapsedTitle ? (
-      <div className='h-full flex items-center justify-center select-none'>
+      <div className='flex h-full items-center justify-center bg-[#fafafa] select-none'>
         <span
-          className='text-[11px] text-[#999] whitespace-nowrap'
-          style={{ writingMode: 'vertical-lr', letterSpacing: 2 }}
+          className='text-[11px] font-medium text-[#999] whitespace-nowrap tracking-[3px]'
+          style={{ writingMode: 'vertical-lr' }}
         >
           {collapsedTitle}
         </span>
@@ -153,13 +156,9 @@ export function ResizablePanel({
     ) : null;
 
   // 拖拽蒙层：防止 iframe / canvas 内容吞掉 mousemove 事件
-  const dragOverlay =
-    dragging ? (
-      <div
-        className='fixed inset-0 z-[9999]'
-        style={{ cursor: 'col-resize' }}
-      />
-    ) : null;
+  const dragOverlay = dragging ? (
+    <div className='fixed inset-0 z-[9999]' style={{ cursor: 'col-resize' }} />
+  ) : null;
 
   return (
     <>
@@ -173,15 +172,35 @@ export function ResizablePanel({
         />
 
         {/* 折叠/展开按钮 */}
-        <Button
-          type='text'
-          size='small'
-          onClick={toggle}
+        <button
+          type='button'
+          className='nexus-panel-toggle'
           style={toggleBtnStyle}
+          onClick={toggle}
           title={collapsed ? `展开${collapsedTitle}` : `折叠${collapsedTitle}`}
+          aria-expanded={!collapsed}
+          aria-label={
+            collapsed ? `展开${collapsedTitle}` : `折叠${collapsedTitle}`
+          }
         >
-          {collapsed ? (isLeft ? '▶' : '◀') : (isLeft ? '◀' : '▶')}
-        </Button>
+          <svg
+            width='10'
+            height='10'
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2.5'
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            style={{
+              transform: chevronRotation,
+              transition: 'transform 180ms ease',
+            }}
+            aria-hidden='true'
+          >
+            <polyline points='9 18 15 12 9 6' />
+          </svg>
+        </button>
 
         {/* 折叠时仅显示竖排标题，展开时渲染完整内容 */}
         {collapsed ? collapsedLabel : children}

@@ -12,10 +12,25 @@
       "import": "./dist/es/index.js",
       "require": "./dist/cjs/index.js"
     },
-    "./react/*": {
-      "types": "./dist/es/react/*.d.ts",
-      "import": "./dist/es/react/*.js",
-      "require": "./dist/cjs/react/*.js"
+    "./components/*": {
+      "types": "./dist/es/components/*.d.ts",
+      "import": "./dist/es/components/*.js",
+      "require": "./dist/cjs/components/*.js"
+    },
+    "./hooks/*": {
+      "types": "./dist/es/hooks/*.d.ts",
+      "import": "./dist/es/hooks/*.js",
+      "require": "./dist/cjs/hooks/*.js"
+    },
+    "./contexts/*": {
+      "types": "./dist/es/contexts/*.d.ts",
+      "import": "./dist/es/contexts/*.js",
+      "require": "./dist/cjs/contexts/*.js"
+    },
+    "./utils/*": {
+      "types": "./dist/es/utils/*.d.ts",
+      "import": "./dist/es/utils/*.js",
+      "require": "./dist/cjs/utils/*.js"
     },
     "./package.json": "./package.json"
   },

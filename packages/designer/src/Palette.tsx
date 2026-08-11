@@ -3,9 +3,9 @@
 // ============================================================================
 
 import type { SchemaNode } from '@nexus/form-engine';
-import { Collapse } from 'antd';
+import { Collapse, Input } from 'antd';
 import type { DragEvent } from 'react';
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useDesigner } from './DesignerContext';
 import { generateKey } from './schemaUtils';
 import type { CatalogItem, FieldDef } from './types';
@@ -39,13 +39,18 @@ function PaletteItem({
 
   return (
     <div
-      className='flex items-center px-2 py-1.5 border border-[#e8e8e8] rounded bg-white cursor-grab select-none text-[13px] overflow-hidden transition-all hover:border-[#1677ff] hover:text-[#1677ff] hover:shadow-[0_1px_4px_rgba(22,119,255,0.15)] active:cursor-grabbing'
+      className='group flex flex-col items-center gap-1 rounded-lg border border-[#f0f0f0] bg-white px-1 py-2 cursor-grab select-none transition-all hover:-translate-y-px hover:border-[#1677ff] hover:shadow-[0_2px_8px_rgba(22,119,255,0.12)] active:cursor-grabbing'
       draggable
       onDragStart={handleDragStart}
       onClick={() => onAdd(item)}
+      title={`点击添加或拖拽「${item.label}」到画布`}
     >
-      <span className='mr-1.5'>{item.icon}</span>
-      <span>{item.label}</span>
+      <span className='flex h-7 w-7 items-center justify-center rounded-md bg-[#f5f7fa] text-[15px] transition-colors group-hover:bg-[#e8f1ff]'>
+        {item.icon}
+      </span>
+      <span className='w-full truncate text-center text-xs text-[#666] transition-colors group-hover:text-[#1677ff]'>
+        {item.label}
+      </span>
     </div>
   );
 }
@@ -62,13 +67,15 @@ function FieldDefItem({ field }: { field: FieldDef }) {
 
   return (
     <div
-      className='flex items-center px-2 py-1.5 border border-[#e8e8e8] rounded bg-white cursor-grab select-none text-[13px] overflow-hidden transition-all hover:border-[#1677ff] hover:text-[#1677ff] hover:shadow-[0_1px_4px_rgba(22,119,255,0.15)] active:cursor-grabbing'
+      className='flex items-center gap-2 rounded-lg border border-[#f0f0f0] bg-white px-2 py-1.5 cursor-grab select-none transition-all hover:-translate-y-px hover:border-[#1677ff] hover:shadow-[0_2px_8px_rgba(22,119,255,0.12)] active:cursor-grabbing'
       draggable
       onDragStart={handleDragStart}
       title={`id: ${field.id} · widget: ${field.widget}`}
     >
-      <span className='mr-1.5'>🔧</span>
-      <span className='truncate'>{field.name}</span>
+      <span className='flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-[#f5f7fa] text-[13px]'>
+        🔧
+      </span>
+      <span className='truncate text-xs text-[#666]'>{field.name}</span>
     </div>
   );
 }
@@ -76,6 +83,7 @@ function FieldDefItem({ field }: { field: FieldDef }) {
 export function Palette() {
   const { schema, addNode, fields, widgetCatalog, layoutCatalog } =
     useDesigner();
+  const [keyword, setKeyword] = useState('');
 
   const handleAdd = useCallback(
     (item: CatalogItem) => {
@@ -87,32 +95,69 @@ export function Palette() {
     [schema, addNode],
   );
 
-  const widgetItems = widgetCatalog.map((item) => (
-    <PaletteItem key={item.widget} item={item} onAdd={handleAdd} />
-  ));
+  const kw = keyword.trim().toLowerCase();
 
-  const layoutItems = layoutCatalog.map((item) => (
-    <PaletteItem key={item.layoutType} item={item} onAdd={handleAdd} />
-  ));
+  const widgetItems = useMemo(
+    () =>
+      widgetCatalog
+        .filter((item) => item.label.toLowerCase().includes(kw))
+        .map((item) => (
+          <PaletteItem key={item.widget} item={item} onAdd={handleAdd} />
+        )),
+    [widgetCatalog, kw, handleAdd],
+  );
 
-  const fieldItems = (fields ?? []).map((field) => (
-    <FieldDefItem key={field.id} field={field} />
-  ));
+  const layoutItems = useMemo(
+    () =>
+      layoutCatalog
+        .filter((item) => item.label.toLowerCase().includes(kw))
+        .map((item) => (
+          <PaletteItem key={item.layoutType} item={item} onAdd={handleAdd} />
+        )),
+    [layoutCatalog, kw, handleAdd],
+  );
+
+  const fieldItems = useMemo(
+    () =>
+      (fields ?? [])
+        .filter((field) => field.name.toLowerCase().includes(kw))
+        .map((field) => <FieldDefItem key={field.id} field={field} />),
+    [fields, kw],
+  );
+
+  const sectionGrid = (items: React.ReactNode[], hasMore: boolean) =>
+    items.length > 0 ? (
+      <div className='grid grid-cols-2 gap-1.5 px-1 pb-2'>{items}</div>
+    ) : (
+      <div className='py-3 text-center text-xs text-[#c0c4cc]'>
+        {hasMore ? '无匹配组件' : '暂无组件'}
+      </div>
+    );
 
   const collapseItems = [
     {
       key: 'widgets',
-      label: '表单组件',
-      children: (
-        <div className='grid grid-cols-2 gap-1 py-1'>{widgetItems}</div>
+      label: (
+        <span className='flex w-full items-center justify-between pr-1'>
+          <span>表单组件</span>
+          <span className='rounded-full bg-[#f0f0f0] px-1.5 py-px text-[11px] text-[#999]'>
+            {widgetItems.length}
+          </span>
+        </span>
       ),
+      children: sectionGrid(widgetItems, true),
     },
     {
       key: 'layouts',
-      label: '布局组件',
-      children: (
-        <div className='grid grid-cols-2 gap-1 py-1'>{layoutItems}</div>
+      label: (
+        <span className='flex w-full items-center justify-between pr-1'>
+          <span>布局组件</span>
+          <span className='rounded-full bg-[#f0f0f0] px-1.5 py-px text-[11px] text-[#999]'>
+            {layoutItems.length}
+          </span>
+        </span>
       ),
+      children: sectionGrid(layoutItems, true),
     },
   ];
 
@@ -120,17 +165,49 @@ export function Palette() {
   if (fields && fields.length > 0) {
     collapseItems.push({
       key: 'fieldList',
-      label: '字段列表',
-      children: <div className='flex flex-col gap-1 py-1'>{fieldItems}</div>,
+      label: (
+        <span className='flex w-full items-center justify-between pr-1'>
+          <span>字段列表</span>
+          <span className='rounded-full bg-[#f0f0f0] px-1.5 py-px text-[11px] text-[#999]'>
+            {fieldItems.length}
+          </span>
+        </span>
+      ),
+      children: (
+        <div className='flex flex-col gap-1.5 px-1 pb-2'>
+          {fieldItems.length > 0 ? (
+            fieldItems
+          ) : (
+            <div className='py-3 text-center text-xs text-[#c0c4cc]'>
+              无匹配字段
+            </div>
+          )}
+        </div>
+      ),
     });
   }
 
   return (
-    <div className='border-r border-[#f0f0f0] overflow-y-auto bg-[#fafafa] h-full'>
-      <Collapse
-        defaultActiveKey={['widgets', 'layouts']}
-        items={collapseItems}
-      />
+    <div className='flex h-full flex-col border-r border-[#f0f0f0] bg-[#f7f8fa]'>
+      <div className='px-3 pb-2 pt-3'>
+        <Input
+          size='small'
+          allowClear
+          prefix={<span className='text-xs text-[#bbb]'>🔍</span>}
+          placeholder='搜索组件…'
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          className='nexus-palette-search'
+        />
+      </div>
+      <div className='flex-1 overflow-y-auto px-2 pb-3'>
+        <Collapse
+          className='nexus-palette-collapse'
+          expandIconPosition='end'
+          defaultActiveKey={['widgets', 'layouts']}
+          items={collapseItems}
+        />
+      </div>
     </div>
   );
 }

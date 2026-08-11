@@ -733,7 +733,11 @@ export function Canvas() {
   const rootEntries = Object.entries(schema.properties);
 
   return (
-    <NexusFormProvider form={designForm} engine={designEngine} config={formConfig}>
+    <NexusFormProvider
+      form={designForm}
+      engine={designEngine}
+      config={formConfig}
+    >
       <div
         className={`flex-1 overflow-y-auto p-4 bg-[#f5f5f5] min-h-full border box-border ${
           dropTarget?.type === 'inside' && dropTarget.path.length === 0

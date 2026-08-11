@@ -1,0 +1,152 @@
+import type { RenderTreeNode } from '@nexus/form-engine';
+import type { CSSProperties, FocusEvent } from 'react';
+import { useCallback, useContext, useSyncExternalStore } from 'react';
+
+import { GridContext } from '../contexts/GridContext';
+import { LayoutConfigContext } from '../contexts/LayoutConfigContext';
+import { useNexusContext } from '../contexts/NexusContext';
+import { resolveColSpan } from '../utils/resolveColSpan';
+
+interface NexusFieldProps {
+  dataPath: string;
+  layoutKey: string;
+}
+
+/**
+ * NexusField — 单个字段渲染器
+ */
+export function NexusField({
+  dataPath,
+  layoutKey,
+}: NexusFieldProps & { node?: RenderTreeNode }) {
+  const { engine, config, form } = useNexusContext();
+  // 按路径精准订阅：仅该字段版本变化时重渲染（reaction 影响其他字段不会触发本组件）
+  useSyncExternalStore(
+    (onStoreChange) => engine.subscribeField(dataPath, onStoreChange),
+    () => engine.getFieldVersion(dataPath),
+  );
+  const state = engine.getFieldState(dataPath);
+  // GridContext 必须在所有 early return 之前调用，否则会破坏 Hooks 调用顺序
+  const gridCtx = useContext(GridContext);
+  const layoutConfig = useContext(LayoutConfigContext);
+
+  const handleChange = useCallback(
+    (value: unknown) => {
+      engine.setFieldValue(dataPath, value);
+    },
+    [engine, dataPath],
+  );
+
+  // 失焦触发 blur 规则校验（trigger: 'blur'）：
+  // React onBlur 冒泡（focusout 语义），包裹层统一处理内部控件失焦；
+  // 焦点仍在字段内部（如 dateRange 双输入框间切换）时跳过。
+  const handleBlur = useCallback(
+    (e: FocusEvent<HTMLDivElement>) => {
+      if (e.currentTarget.contains(e.relatedTarget as Node)) {
+        return;
+      }
+      engine.validateField(dataPath, { trigger: 'blur' });
+    },
+    [engine, dataPath],
+  );
+
+  if (!state) {
+    // 仅当引擎已初始化（version > 0）但字段仍未找到时才发出警告
+    // 初始化过程中的短暂空状态不应报警
+    if (engine.getSnapshot() > 0) {
+      console.warn(`[NexusField] Field not found: ${dataPath}`);
+    }
+    return null;
+  }
+
+  if (!state.visible) {
+    // 如果父布局节点配置了 removeHidden，则不渲染占位符（移除以防止栅格塌陷）
+    if (layoutConfig.removeHidden === true) {
+      return null;
+    }
+    // 默认行为：渲染 display:none 占位符以保持布局
+    return <div style={{ display: 'none' }} data-nexus-hidden={dataPath} />;
+  }
+
+  /** 获取UI组件库 进行渲染 **/
+  const Widget = engine.getWidget(state.meta.widget);
+
+  if (!Widget) {
+    return (
+      <div style={{ color: 'red', fontSize: 12 }} data-nexus-field={dataPath}>
+        ⚠️ Widget "{state.meta.widget}" 未注册 (path: {dataPath})
+      </div>
+    );
+  }
+
+  // 从 enum + enumNames 构建选项（x-render 对齐）
+  const options = state.meta.enum
+    ? state.meta.enum.map((value, index) => ({
+        value,
+        label: state.meta.enumNames?.[index] ?? String(value),
+      }))
+    : (state.props.options as
+        | Array<{ label: string; value: unknown } | string | number>
+        | undefined);
+
+  // 表单级 readOnly 与字段级 readOnly 合并
+  const readOnly = config.readOnly || state.readOnly;
+
+  // 字段级配置优先于表单级配置
+  const fieldDisplayType = state.meta.displayType ?? config.displayType;
+  const fieldLabelWidth = state.meta.labelWidth ?? config.labelWidth;
+  const fieldColumn = state.meta.column ?? config.column;
+
+  // 布局属性作用于 NexusField 包装层而非 DOM 控件
+  // - column（fieldColumn）：字段内部子元素分列数（如 checkboxes/radio），传给 Widget
+  // - colSpan：在父 Grid 中横跨多少列（tailwind 风格：gridColumn: span N）
+  // - width：在父 Flex 布局中自身宽度（百分比或固定值），flexShrink:0 防压缩
+  const effectiveColSpan = resolveColSpan(state.meta.colSpan, gridCtx);
+  const wrapperStyle: CSSProperties = {
+    ...(state.meta.width ? { width: state.meta.width, flexShrink: 0 } : {}),
+    ...(effectiveColSpan ? { gridColumn: `span ${effectiveColSpan}` } : {}),
+  };
+
+  // 从 reactions 依赖构建 dependValues，供 widget 获取关联字段值
+  const dependValues: Record<string, unknown> = {};
+  if (state.reactions) {
+    for (const reaction of state.reactions) {
+      if (reaction.dependencies) {
+        for (const dep of reaction.dependencies) {
+          dependValues[dep] = engine.getFieldValue(dep);
+        }
+      }
+    }
+  }
+
+  return (
+    <div
+      data-nexus-field={dataPath}
+      onBlur={handleBlur}
+      style={Object.keys(wrapperStyle).length > 0 ? wrapperStyle : undefined}
+    >
+      <Widget
+        key={layoutKey}
+        value={state.value}
+        onChange={handleChange}
+        disabled={state.disabled}
+        readOnly={readOnly}
+        loading={state.loading}
+        required={state.required}
+        title={state.meta.title}
+        description={state.meta.description}
+        placeholder={state.meta.placeholder}
+        options={options}
+        errors={state.errors}
+        extra={state.meta.extra}
+        displayType={fieldDisplayType}
+        labelWidth={fieldLabelWidth}
+        column={fieldColumn}
+        form={form}
+        dependValues={dependValues}
+        items={state.meta.items}
+        {...state.props}
+      />
+    </div>
+  );
+}
