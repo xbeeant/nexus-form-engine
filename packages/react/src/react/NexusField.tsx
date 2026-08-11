@@ -20,6 +20,7 @@ import { NexusEngine } from '@nexus/form-engine';
 import {
   type CSSProperties,
   createContext,
+  type FocusEvent,
   type ReactElement,
   type ReactNode,
   type RefObject,
@@ -184,6 +185,19 @@ export function NexusField({
     [engine, dataPath],
   );
 
+  // 失焦触发 blur 规则校验（trigger: 'blur'）：
+  // React onBlur 冒泡（focusout 语义），包裹层统一处理内部控件失焦；
+  // 焦点仍在字段内部（如 dateRange 双输入框间切换）时跳过。
+  const handleBlur = useCallback(
+    (e: FocusEvent<HTMLDivElement>) => {
+      if (e.currentTarget.contains(e.relatedTarget as Node)) {
+        return;
+      }
+      engine.validateField(dataPath, { trigger: 'blur' });
+    },
+    [engine, dataPath],
+  );
+
   if (!state) {
     // 仅当引擎已初始化（version > 0）但字段仍未找到时才发出警告
     // 初始化过程中的短暂空状态不应报警
@@ -256,6 +270,7 @@ export function NexusField({
   return (
     <div
       data-nexus-field={dataPath}
+      onBlur={handleBlur}
       style={Object.keys(wrapperStyle).length > 0 ? wrapperStyle : undefined}
     >
       <Widget

@@ -9,14 +9,16 @@ import {
   createExpressionSandbox,
   type ExpressionSandbox,
 } from './ExpressionSandbox';
-import { SchemaParser } from './SchemaParser';
+import * as SchemaParser from './SchemaParser';
 import type {
   ArrayOperationOptions,
   DataFieldSchema,
+  DefaultRuleMessages,
   FieldState,
   FieldStatePatch,
   FormEngine as IFormEngine,
   NexusComponent,
+  NexusEngineOptions,
   NexusFormValidator,
   NexusPlugin,
   NexusSchema,
@@ -26,9 +28,12 @@ import type {
   ReactionStatePatch,
   RenderTreeNode,
   SchemaNode,
+  ValidationRule,
+  ValidationTrigger,
 } from './types/schema';
 import {
   getNestedValue,
+  isDeepEqual,
   isEmptyValue,
   setNestedValue,
   toBoolean,
@@ -38,6 +43,31 @@ import {
  * 订阅监听器类型：无参数的普通回调函数
  */
 type Listener = () => void;
+
+/**
+ * 内置默认校验消息模板
+ * 优先级：rule.message > engine options.messages[key] > 内置默认
+ */
+const DEFAULT_MESSAGES: DefaultRuleMessages = {
+  required: '{title} 为必填项',
+  min: '{title} 不能小于 {min}',
+  max: '{title} 不能大于 {max}',
+  len: '{title} 长度应为 {len}',
+  pattern: '{title} 格式不正确',
+  enum: '{title} 不在可选范围内',
+  whitespace: '{title} 不能为空白',
+  format: '{title} 格式不正确',
+};
+
+/** 消息模板占位符插值 */
+function interpolateMessage(
+  template: string,
+  params: Record<string, string | undefined>,
+): string {
+  return template.replace(/\{(title|min|max|len|field)\}/g, (_, key: string) =>
+    params[key] !== undefined ? (params[key] as string) : `{${key}}`,
+  );
+}
 
 /**
  * NexusEngine — 表单引擎核心类
@@ -115,6 +145,20 @@ export class NexusEngine implements IFormEngine {
   // ── 版本计数器（用于 useSyncExternalStore 快照比对）──
   /** 每次状态变更时递增，React 通过比对版本号判断是否需要重渲染 */
   private version = 0;
+
+  // ── 校验默认消息模板（rule.message > messages[key] > 内置默认）──
+
+  private messageTemplates: Partial<DefaultRuleMessages>;
+
+  /**
+   * 创建引擎实例
+   *
+   * @param options - 可选配置
+   * @param options.messages - 校验默认消息模板覆盖
+   */
+  constructor(options?: NexusEngineOptions) {
+    this.messageTemplates = options?.messages ?? {};
+  }
 
   // =========================================================================
   // 初始化
@@ -305,6 +349,10 @@ export class NexusEngine implements IFormEngine {
 
     state.value = value;
 
+    // 触碰与脏标记（对齐 rc-field-form：值写入 → touched；值 ≠ 初始值 → dirty）
+    state.touched = true;
+    state.dirty = !isDeepEqual(value, state.initialValue);
+
     // 数组字段：同步数组项子字段状态（list[0].name 等）
     this.syncArrayItemStates(path);
 
@@ -466,6 +514,11 @@ export class NexusEngine implements IFormEngine {
 
     if (patch.value !== undefined) {
       state.value = patch.value;
+      // 触碰与脏标记与 applyFieldValue 保持一致
+      state.touched = true;
+      state.dirty = !isDeepEqual(patch.value, state.initialValue);
+      // 数组字段值变更需重建项子字段状态
+      this.syncArrayItemStates(path);
     }
     if (patch.visible !== undefined) {
       state.visible = patch.visible;
@@ -507,17 +560,27 @@ export class NexusEngine implements IFormEngine {
    *
    * 在字段值变更时立即执行，仅处理同步校验逻辑
    * - 必填校验
-   * - 内置规则校验（min/max/pattern）
+   * - 内置规则校验（min/max/len/pattern/enum/whitespace/格式）
    * - 表达式校验（validate 字段定义）
    * - 同步外部校验器
+   *
+   * trigger 语义（对齐 async-validator / x-render）：
+   * - 无 trigger 或与传入 trigger 匹配的规则参与本次校验
+   * - 默认实时 trigger 为 'change'；'blur' 规则由 validateField(path, { trigger: 'blur' }) 触发
+   * - 'submit' 规则的校验由 validate()（提交/全量）承载
    *
    * 异步校验（Promise 返回值 / 防抖 / 超时）由 AsyncValidatorPlugin
    * 通过 onValidateField 钩子接管，Core 不承载调度逻辑
    *
    * @param path - 字段路径
    * @param state - 字段状态对象
+   * @param trigger - 本次校验的触发时机（默认 'change'）
    */
-  private validateFieldRealtime(path: string, state: FieldState): void {
+  private validateFieldRealtime(
+    path: string,
+    state: FieldState,
+    trigger: ValidationTrigger = 'change',
+  ): void {
     if (!state.visible) {
       return;
     }
@@ -526,23 +589,23 @@ export class NexusEngine implements IFormEngine {
 
     // 0. 必填校验（required 为 true 且值为空时立即显示）
     if (state.required && isEmptyValue(state.value)) {
-      errors.push(`${state.meta.title} 为必填项`);
+      errors.push(this.getRequiredMessage(state));
     }
 
     // 1. 校验 schema rules（required、min、max、pattern 等）
-    // 实时校验处理所有规则（包括 trigger: 'submit'），确保输入即时反馈
     for (const rule of state.meta.rules) {
-
-      // required 规则已在上面处理（避免重复添加错误消息）
-      if (
-        rule.required === true &&
-        rule.message === `${state.meta.title} 为必填项`
-      ) {
+      // trigger 过滤：无 trigger 的规则全 trigger 生效；指定 trigger 时精准匹配
+      if (rule.trigger && rule.trigger !== trigger) {
         continue;
       }
 
-      // 内置规则校验（min/max/pattern）
-      const error = this._validateBuiltinRule(state.value, rule);
+      // 纯必填规则（无其他约束）已在上面处理，避免重复添加错误消息
+      if (SchemaParser.isPureRequiredRule(rule)) {
+        continue;
+      }
+
+      // 内置规则校验（min/max/len/pattern/enum/whitespace/格式）
+      const error = this._validateBuiltinRule(state.value, rule, state);
       if (error) {
         errors.push(error);
       }
@@ -559,7 +622,7 @@ export class NexusEngine implements IFormEngine {
           $form: this,
         });
         if (exprResult === false) {
-          errors.push(rule.message);
+          errors.push(this.resolveRuleMessage(state, rule));
         }
       }
     }
@@ -590,54 +653,138 @@ export class NexusEngine implements IFormEngine {
   }
 
   /**
-   * 内置规则校验（required / min / max / pattern）
+   * 校验单个字段（同步，trigger 维度）
+   *
+   * 用途（对齐 async-validator 的 blur/change 触发语义）：
+   * - 组件 onBlur 时调用 validateField(path, { trigger: 'blur' }) 执行 blur 规则
+   * - 组件 onChange 实时校验由 setFieldValue 内部自动触发（无需手动调用）
+   *
+   * @param path - 字段路径
+   * @param options - 触发时机（默认 'change'）
+   */
+  validateField(path: string, options?: { trigger?: ValidationTrigger }): void {
+    const state = this.fieldStates.get(path);
+    if (!state) {
+      console.warn(`[NexusEngine] Field not found: ${path}`);
+      return;
+    }
+    this.validateFieldRealtime(path, state, options?.trigger ?? 'change');
+    // 版本必须先递增，再通知订阅者；否则 useSyncExternalStore 读到旧版本会跳过重渲染
+    this.bump();
+    this.notifyField(path);
+    this.notifyAll();
+  }
+
+  /**
+   * 解析校验规则的最终错误消息
+   *
+   * 优先级：rule.message > engine options.messages[key] > 内置默认模板
+   * 支持 {title} {min} {max} {len} {field} 占位符插值（对齐 async-validator 消息模板）
+   *
+   * @param state - 字段状态（提供 title 与规则）
+   * @param rule - 校验规则（message 可选）
+   * @returns 解析后的消息字符串
+   */
+  private resolveRuleMessage(state: FieldState, rule: ValidationRule): string {
+    const title = state.meta.title;
+    let key: keyof DefaultRuleMessages;
+    if (rule.required) {
+      key = 'required';
+    } else if (rule.len !== undefined) {
+      key = 'len';
+    } else if (rule.min !== undefined) {
+      key = 'min';
+    } else if (rule.max !== undefined) {
+      key = 'max';
+    } else if (rule.whitespace === true) {
+      key = 'whitespace';
+    } else if (rule.pattern) {
+      key = 'pattern';
+    } else if (rule.enum && rule.enum.length > 0) {
+      key = 'enum';
+    } else {
+      key = 'format';
+    }
+
+    const template =
+      rule.message ?? this.messageTemplates[key] ?? DEFAULT_MESSAGES[key];
+
+    return interpolateMessage(template, {
+      title,
+      field: title,
+      min: rule.min !== undefined ? String(rule.min) : undefined,
+      max: rule.max !== undefined ? String(rule.max) : undefined,
+      len: rule.len !== undefined ? String(rule.len) : undefined,
+    });
+  }
+
+  /**
+   * 获取必填错误消息（rule.message > messages.required > 内置默认）
+   *
+   * @param state - 字段状态
+   * @returns 必填错误消息
+   */
+  private getRequiredMessage(state: FieldState): string {
+    const title = state.meta.title;
+    const template =
+      this.messageTemplates.required ?? DEFAULT_MESSAGES.required;
+    return interpolateMessage(template, { title, field: title });
+  }
+
+  /**
+   * 内置规则校验（required / min / max / len / pattern / enum / whitespace / 格式）
    *
    * 供 validateRuleSync / validateRule 共用，避免重复实现
    *
-   * 支持的规则类型：
+   * 类型自适应语义（对齐 async-validator）：
    * - required: 必填校验
-   * - min: 最小值/长度/项数
-   * - max: 最大值/长度/项数
+   * - min / max: 数值大小 / 字符串长度 / 数组项数
+   * - len: 字符串精确长度 / 数组精确项数
    * - pattern: 正则表达式校验
+   * - enum: 值必须在枚举内（空值跳过）
+   * - whitespace: 仅空白字符串视为空
+   * - type: 'email' / 'url'：内置格式校验
    *
    * @param value - 字段当前值
    * @param rule - 校验规则对象
+   * @param state - 字段状态（用于默认消息解析）
    * @returns 错误消息字符串，校验通过返回 null
    */
   private _validateBuiltinRule(
     value: unknown,
-    rule: {
-      required?: boolean;
-      min?: number;
-      max?: number;
-      pattern?: string | RegExp;
-      message: string;
-      type?: string;
-    },
+    rule: ValidationRule,
+    state: FieldState,
   ): string | null {
     // 必填校验
     if (rule.required && isEmptyValue(value)) {
-      return rule.message;
+      return this.resolveRuleMessage(state, rule);
     }
 
-    // 如果值为空且非必填，跳过后续 min/max/pattern 校验
+    // 如果值为空且非必填，跳过后续 min/max/pattern 等校验
     if (isEmptyValue(value)) {
       return null;
+    }
+
+    // whitespace 规则：仅空白字符串视为空
+    if (rule.whitespace === true) {
+      if (typeof value === 'string' && value.trim() === '') {
+        return this.resolveRuleMessage(state, rule);
+      }
     }
 
     // 最小值校验（支持数组长度、字符串长度、数值大小）
     if (rule.min !== undefined) {
       if (rule.type === 'array' || Array.isArray(value)) {
         if (Array.isArray(value) && value.length < rule.min) {
-          return rule.message;
+          return this.resolveRuleMessage(state, rule);
         }
       } else if (typeof value === 'string') {
         if (value.length < rule.min) {
-          return rule.message;
+          return this.resolveRuleMessage(state, rule);
         }
       } else if (typeof value === 'number') {
         if (value < rule.min) {
-          return rule.message;
+          return this.resolveRuleMessage(state, rule);
         }
       }
     }
@@ -646,16 +793,33 @@ export class NexusEngine implements IFormEngine {
     if (rule.max !== undefined) {
       if (rule.type === 'array' || Array.isArray(value)) {
         if (Array.isArray(value) && value.length > rule.max) {
-          return rule.message;
+          return this.resolveRuleMessage(state, rule);
         }
       } else if (typeof value === 'string') {
         if (value.length > rule.max) {
-          return rule.message;
+          return this.resolveRuleMessage(state, rule);
         }
       } else if (typeof value === 'number') {
         if (value > rule.max) {
-          return rule.message;
+          return this.resolveRuleMessage(state, rule);
         }
+      }
+    }
+
+    // len：精确长度校验（字符串字符数 / 数组项数）
+    if (rule.len !== undefined) {
+      if (Array.isArray(value) && value.length !== rule.len) {
+        return this.resolveRuleMessage(state, rule);
+      }
+      if (typeof value === 'string' && value.length !== rule.len) {
+        return this.resolveRuleMessage(state, rule);
+      }
+    }
+
+    // enum：值必须在枚举列表内
+    if (rule.enum && rule.enum.length > 0) {
+      if (!rule.enum.includes(value as string | number)) {
+        return this.resolveRuleMessage(state, rule);
       }
     }
 
@@ -666,17 +830,33 @@ export class NexusEngine implements IFormEngine {
           ? rule.pattern
           : new RegExp(rule.pattern);
       if (!pattern.test(String(value))) {
-        return rule.message;
+        return this.resolveRuleMessage(state, rule);
       }
+    }
+
+    // 内置格式校验（rule.type 作为格式检查，对齐 async-validator）
+    if (
+      rule.type === 'email' &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value))
+    ) {
+      return this.resolveRuleMessage(state, rule);
+    }
+    if (
+      rule.type === 'url' &&
+      !/^(https?|ftp):\/\/[^\s/$.?#].[^\s]*$/i.test(String(value))
+    ) {
+      return this.resolveRuleMessage(state, rule);
     }
 
     return null;
   }
 
   /**
-   * 执行完整表单校验（用于提交时）
+   * 执行完整表单校验（用于提交时，对齐 async-validator / x-render 提交语义）
    *
-   * 处理所有 trigger 为 'submit' 或无 trigger 的规则
+   * 提交时校验**所有**规则（无论 trigger 是 change/blur/submit），
+   * 避免跳过用户未触碰过的字段；trigger 仅决定「实时/失焦」何时预校验。
+   *
    * 支持的校验类型：
    * - 内置规则校验
    * - 自定义 validator
@@ -706,13 +886,18 @@ export class NexusEngine implements IFormEngine {
 
       // 一次遍历 rules：同时处理内置规则、自定义 validator、表达式 validate
       for (const rule of state.meta.rules) {
-        // 跳过非 submit 触发（手动 validate 视为 submit）
-        if (rule.trigger && rule.trigger !== 'submit') {
-          continue;
-        }
+        // 提交 = 全量校验：不按 trigger 过滤（change/blur/submit 规则全部生效）
 
-        // 1) 内置规则校验
-        const builtinError = this._validateBuiltinRule(state.value, rule);
+        // 纯必填规则：统一走必填专项（resolveRuleMessage 解析默认消息）
+        // 注意：此处不可简单跳过——validate 与实时路径一样需要 required 消息。
+        // 已由 state.required / 规则 required 双保险，见下方 required 分支
+
+        // 1) 内置规则校验（含必填）
+        const builtinError = this._validateBuiltinRule(
+          state.value,
+          rule,
+          state,
+        );
         if (builtinError) {
           errors.push(builtinError);
         }
@@ -738,7 +923,7 @@ export class NexusEngine implements IFormEngine {
             $form: this,
           });
           if (exprResult === false) {
-            errors.push(rule.message);
+            errors.push(this.resolveRuleMessage(state, rule));
           }
         }
       }
@@ -951,6 +1136,28 @@ export class NexusEngine implements IFormEngine {
    */
   getFieldError(path: string): string[] {
     return this.fieldStates.get(path)?.errors ?? [];
+  }
+
+  /**
+   * 字段是否被触碰过（发生过值写入，对齐 rc-field-form touched）
+   *
+   * @param path - 字段路径
+   * @returns 未触碰或字段不存在时返回 false
+   */
+  isFieldTouched(path: string): boolean {
+    return this.fieldStates.get(path)?.touched ?? false;
+  }
+
+  /**
+   * 字段是否脏（当前值 ≠ 初始值，深比较，对齐 rc-field-form dirty）
+   *
+   * 用于 UI 展示「已修改」标记、提交时区分未改动字段
+   *
+   * @param path - 字段路径
+   * @returns 未变更或字段不存在时返回 false
+   */
+  isFieldDirty(path: string): boolean {
+    return this.fieldStates.get(path)?.dirty ?? false;
   }
 
   /**
@@ -1515,6 +1722,17 @@ export class NexusEngine implements IFormEngine {
       $index: this.extractIndexFromPath(path),
     };
 
+    // 计算字段值（formily x-reactions state.value 对齐）：
+    // 赋值 → 重建数组项子字段 → 实时重校验 → 沿依赖图继续传播
+    if (patch.value !== undefined) {
+      const resolved = this.resolveValue(patch.value, context);
+      state.value = resolved;
+      state.touched = true;
+      state.dirty = !isDeepEqual(resolved, state.initialValue);
+      this.syncArrayItemStates(path);
+      this.validateFieldRealtime(path, state);
+      this.runReactionsForSource(path);
+    }
     // 处理可见性（visible 优先于 hidden）
     if (patch.visible !== undefined) {
       state.visible = toBoolean(this.resolveValue(patch.visible, context));
@@ -1751,7 +1969,6 @@ export class NexusEngine implements IFormEngine {
     if (state.required && !hasStaticRequired && dynIdx === -1) {
       rules.unshift({
         required: true,
-        message: `${state.meta.title} 为必填项`,
         _dynamicRequired: true,
       });
     } else if (!state.required && dynIdx !== -1) {
@@ -1760,7 +1977,7 @@ export class NexusEngine implements IFormEngine {
     }
 
     // 实时必填校验：required 变化时立即显示/清除错误
-    const requiredError = `${state.meta.title} 为必填项`;
+    const requiredError = this.getRequiredMessage(state);
     const hasErr = state.errors.includes(requiredError);
     if (state.required && isEmptyValue(state.value) && !hasErr) {
       // 字段必填且值为空但错误列表中还没有该错误 → 添加

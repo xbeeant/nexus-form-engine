@@ -41,6 +41,11 @@ export default defineConfig({
   resolve: {
     // 强制主项目和链接包使用同一个 React 实例，否则容易造成useState null问题。直接让 Vite 自动去重
     dedupe: ['react', 'react-dom'],
+    // 工作区包解析：node_modules 无 @nexus 符号链接，直接映射到源码
+    alias: {
+      '@nexus/form-engine': resolve(__dirname, '../core/src'),
+      '@nexus/form-engine-ui': resolve(__dirname, '../ui/src'),
+    },
   },
   build: {
     sourcemap: true,

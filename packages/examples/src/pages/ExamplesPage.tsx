@@ -6,7 +6,15 @@
 
 import { NexusForm, useForm } from '@nexus/form-engine-react';
 import { registerAntdUI } from '@nexus/form-engine-ui';
-import { Alert, Button, Card, Segmented, Space, Switch, Typography } from 'antd';
+import {
+  Alert,
+  Button,
+  Card,
+  Segmented,
+  Space,
+  Switch,
+  Typography,
+} from 'antd';
 import { useEffect, useState } from 'react';
 import { CodeBlock } from '../site/CodeBlock';
 import { demoSchema } from '../site/demoSchema';
@@ -15,7 +23,9 @@ const { Paragraph } = Typography;
 
 export default function ExamplesPage() {
   const [form] = useForm();
-  const [submitted, setSubmitted] = useState<Record<string, unknown> | null>(null);
+  const [submitted, setSubmitted] = useState<Record<string, unknown> | null>(
+    null,
+  );
   const [errorCount, setErrorCount] = useState(0);
   const [readOnly, setReadOnly] = useState(false);
   const [removeHidden, setRemoveHidden] = useState(true);
@@ -72,13 +82,21 @@ export default function ExamplesPage() {
 
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 16px 48px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
         <div>
           <Typography.Title level={2} style={{ marginBottom: 4 }}>
             使用示例
           </Typography.Title>
           <Paragraph type='secondary'>
-            覆盖 9 种 widget + 10 种 layout + reactions 联动 + 数据对象 + 校验 + 只读模式 + watch + removeHiddenData + registerValidator
+            覆盖 9 种 widget + 10 种 layout + reactions 联动 + 计算字段 +
+            字段级校验约束（min/pattern）+ 数据对象 + registerValidator
           </Paragraph>
         </div>
         <Segmented
@@ -92,9 +110,16 @@ export default function ExamplesPage() {
       </div>
 
       <Space style={{ marginBottom: 16 }}>
-        <Button onClick={() => setReadOnly((v) => !v)} type={readOnly ? 'primary' : 'default'}>
+        <Button
+          onClick={() => setReadOnly((v) => !v)}
+          type={readOnly ? 'primary' : 'default'}
+        >
           {readOnly ? '退出只读模式' : '进入只读模式'}
         </Button>
+        <Typography.Text type='secondary' style={{ fontSize: 12 }}>
+          「促销与计算」卡片演示 visible/required 别名联动与计算字段（单价 ×
+          数量 = 总额）
+        </Typography.Text>
       </Space>
 
       {showSchema === 'schema' ? (
@@ -120,30 +145,66 @@ export default function ExamplesPage() {
                 />
               </Space>
               <Space>
-                <Button size='small' onClick={() => console.log('getValueByPath("username"): ' + form.getValueByPath('username'))}>
+                <Button
+                  size='small'
+                  onClick={() =>
+                    console.log(
+                      'getValueByPath("username"): ' +
+                        form.getValueByPath('username'),
+                    )
+                  }
+                >
                   读取 username 值
                 </Button>
-                <Button size='small' onClick={() => console.log('getValues():', form.getValues())}>
+                <Button
+                  size='small'
+                  onClick={() => console.log('getValues():', form.getValues())}
+                >
                   读取所有可见值
                 </Button>
-                <Button size='small' onClick={() => console.log('getAllValues():', form.getAllValues())}>
+                <Button
+                  size='small'
+                  onClick={() =>
+                    console.log('getAllValues():', form.getAllValues())
+                  }
+                >
                   读取所有值（含 hidden）
                 </Button>
-                <Button size='small' onClick={() => console.log('getHiddenValues():', form.getHiddenValues())}>
+                <Button
+                  size='small'
+                  onClick={() =>
+                    console.log('getHiddenValues():', form.getHiddenValues())
+                  }
+                >
                   读取 hidden 值
                 </Button>
               </Space>
               <Space>
-                <Button size='small' onClick={() => form.setValueByPath('username', 'zhangsan_new')}>
+                <Button
+                  size='small'
+                  onClick={() =>
+                    form.setValueByPath('username', 'zhangsan_new')
+                  }
+                >
                   设置 username
                 </Button>
-                <Button size='small' onClick={() => form.setSchemaByPath('username', { title: '用户名（已修改）' })}>
+                <Button
+                  size='small'
+                  onClick={() =>
+                    form.setSchemaByPath('username', {
+                      title: '用户名（已修改）',
+                    })
+                  }
+                >
                   动态修改 Schema
                 </Button>
                 <Button
                   size='small'
                   onClick={async () => {
-                    const errors = await form.validateFields(['username', 'password']);
+                    const errors = await form.validateFields([
+                      'username',
+                      'password',
+                    ]);
                     console.error('校验结果:', Object.fromEntries(errors));
                   }}
                 >
@@ -151,7 +212,8 @@ export default function ExamplesPage() {
                 </Button>
               </Space>
               <Typography.Text type='secondary' style={{ fontSize: 12 }}>
-                <b>registerValidator</b> 演示：用户名含 "admin" 报错 / 含 "root" 或 "system" 报错 / 年龄 18-120 / 密码一致性校验（提交时触发）
+                <b>registerValidator</b> 演示：用户名含 "admin" 报错 / 含 "root"
+                或 "system" 报错 / 年龄 18-120 / 密码一致性校验（提交时触发）
               </Typography.Text>
             </Space>
           </Card>
@@ -220,8 +282,19 @@ export default function ExamplesPage() {
           </NexusForm>
 
           {submitted && (
-            <Card title='提交结果（formData）' size='small' style={{ marginTop: 24 }}>
-              <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.6, overflow: 'auto' }}>
+            <Card
+              title='提交结果（formData）'
+              size='small'
+              style={{ marginTop: 24 }}
+            >
+              <pre
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                  overflow: 'auto',
+                }}
+              >
                 {JSON.stringify(submitted, null, 2)}
               </pre>
             </Card>

@@ -89,15 +89,11 @@ export const demoSchema: NexusSchema = {
           title: '用户名',
           required: true,
           placeholder: '3-20 个字符',
-          description: '用于登录的账户名',
-          rules: [
-            {
-              min: 3,
-              max: 20,
-              message: '用户名长度需在 3-20 之间',
-              trigger: 'submit',
-            },
-          ],
+          description:
+            '用于登录的账户名（P0 字段级约束：min/max/pattern 自动转校验规则）',
+          min: 3,
+          max: 20,
+          pattern: '^[a-zA-Z0-9_]+$',
         },
         password: {
           type: 'string',
@@ -105,7 +101,8 @@ export const demoSchema: NexusSchema = {
           title: '密码',
           required: true,
           placeholder: '至少 6 位',
-          rules: [{ min: 6, message: '密码至少 6 位', trigger: 'submit' }],
+          // 规则不带 trigger → 实时生效（输入后立即反馈，提交时同样校验）
+          rules: [{ min: 6, message: '密码至少 6 位' }],
         },
         age: {
           type: 'integer',
@@ -116,7 +113,6 @@ export const demoSchema: NexusSchema = {
               min: 0,
               max: 150,
               message: '年龄需在 0-150 之间',
-              trigger: 'submit',
             },
           ],
         },
@@ -222,7 +218,6 @@ export const demoSchema: NexusSchema = {
                 {
                   pattern: '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$',
                   message: '邮箱格式不正确',
-                  trigger: 'submit',
                 },
               ],
             },
@@ -234,7 +229,6 @@ export const demoSchema: NexusSchema = {
                 {
                   pattern: '^1[3-9]\\d{9}$',
                   message: '手机号格式不正确',
-                  trigger: 'submit',
                 },
               ],
             },
@@ -364,6 +358,61 @@ export const demoSchema: NexusSchema = {
       properties: {},
     },
 
+    promo: {
+      widget: '',
+      type: 'card',
+      title: '促销与计算（hidden / required / 计算字段演示）',
+      properties: {
+        usePromo: {
+          type: 'boolean',
+          widget: 'switch',
+          title: '使用优惠码',
+        },
+        promoCode: {
+          type: 'string',
+          widget: 'input',
+          title: '优惠码',
+          placeholder: '3-12 位大写字母/数字',
+          description: 'hidden/required：勾选优惠码后显示并必填',
+          hidden: '{{ formData.usePromo === false }}',
+          required: '{{ formData.usePromo === true }}',
+          pattern: '^[A-Z0-9]{3,12}$',
+          min: 3,
+          max: 12,
+        },
+        unitPrice: {
+          type: 'number',
+          widget: 'number',
+          title: '单价',
+          default: 99,
+          min: 0,
+        },
+        quantity: {
+          type: 'number',
+          widget: 'number',
+          title: '数量',
+          default: 1,
+          min: 1,
+        },
+        amount: {
+          type: 'number',
+          widget: 'number',
+          title: '总额（计算字段）',
+          readOnly: true,
+          description:
+            'reactions fulfill.state.value = 单价 × 数量，自动重算并传播',
+          reactions: [
+            {
+              dependencies: ['unitPrice', 'quantity'],
+              fulfill: {
+                state: { value: '{{ $deps[0] * $deps[1] }}' },
+              },
+            },
+          ],
+        },
+      },
+    },
+
     contactMethod: {
       type: 'string',
       widget: 'select',
@@ -381,7 +430,6 @@ export const demoSchema: NexusSchema = {
         {
           pattern: '^1[3-9]\\d{9}$',
           message: '手机号格式不正确',
-          trigger: 'submit',
         },
       ],
       reactions: [
@@ -402,7 +450,6 @@ export const demoSchema: NexusSchema = {
         {
           pattern: '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$',
           message: '邮箱格式不正确',
-          trigger: 'submit',
         },
       ],
       reactions: [

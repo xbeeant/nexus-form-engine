@@ -23,10 +23,8 @@ export {
   ErrorHandlerStrategy,
   ExpressionSandbox,
 } from './ExpressionSandbox';
-/** Schema 解析器 */
-export type { ParseResult } from './SchemaParser';
-/** Schema 解析器类 */
-export { SchemaParser } from './SchemaParser';
+/** Schema 解析器（命名空间对象：SchemaParser.parse / SchemaParser.createArrayItemState 等） */
+export * from './SchemaParser';
 // 类型定义
 export type {
   BindSchema,
@@ -36,6 +34,7 @@ export type {
   DataObjectSchema,
   DataPrimitiveType,
   DataType,
+  DefaultRuleMessages,
   EngineHooks,
   Expression,
   ExpressionOr,
@@ -51,6 +50,7 @@ export type {
   LayoutPaneType,
   LayoutType,
   NexusComponent,
+  NexusEngineOptions,
   NexusFormInstance,
   NexusFormValidator,
   NexusPlugin,
@@ -64,11 +64,13 @@ export type {
   RenderLayoutNode,
   RenderObjectNode,
   RenderTreeNode,
+  RuleType,
   SchemaNode,
   TypedFieldSchema,
   TypedSchemaNode,
   ValidateSchema,
   ValidationRule,
+  ValidationTrigger,
   WidgetPropsMap,
   WidgetSpecificProps,
 } from './types/schema';
@@ -79,6 +81,7 @@ export {
   isDataField,
   isDataNode,
   isDataObject,
+  isDeepEqual,
   isEmptyValue,
   isLayoutNode,
   isThenable,

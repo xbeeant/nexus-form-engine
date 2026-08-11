@@ -59,39 +59,73 @@ export type DataType = DataPrimitiveType | 'object' | 'array';
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
+ * 字段触发时机（对齐 async-validator / x-render）
+ * - change: 值变更时实时校验（默认）
+ * - blur: 失焦时校验（通过 engine.validateField(path, { trigger: 'blur' }) 触发）
+ * - submit: 仅在 validate()（提交/手动全量）时校验
+ */
+export type ValidationTrigger = 'change' | 'blur' | 'submit';
+
+/**
+ * 校验规则支持的类型（对齐 async-validator）
+ * 除基础类型外，type 可直接作为内置格式校验（email/url/date/regexp/ip/integer 等）
+ */
+export type RuleType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'integer'
+  | 'float'
+  | 'array'
+  | 'object'
+  | 'date'
+  | 'url'
+  | 'email'
+  | 'pattern'
+  | 'regexp'
+  | 'ip'
+  | 'hex'
+  | 'time'
+  | 'datetime'
+  | 'iso8601';
+
+/**
  * 表达式校验规则
  * - type: 字段类型校验（string/number/boolean/integer/float/array/object/date/url/email/pattern）
  * - required: 是否必填
  * - pattern: 正则表达式校验
- * - min: 最小值/长度
- * - max: 最大值/长度
+ * - min: 最小值/长度（number→数值、string→长度、array→项数）
+ * - max: 最大值/长度（同上）
+ * - len: 精确长度（string/array）
+ * - enum: 值必须在枚举列表内（对齐 async-validator / JSON Schema）
+ * - whitespace: 仅空白字符串视为空（对 string 生效）
  * - validator: 自定义校验函数名（对应注册的 validator）
- * - message: 错误提示消息
+ * - message: 错误提示消息（支持 {min}/{max}/{len}/{title} 占位符；省略时使用默认消息）
  * - trigger: 触发时机（change/blur/submit）
  */
 export interface ValidationRule {
-  type?:
-    | 'string'
-    | 'number'
-    | 'boolean'
-    | 'integer'
-    | 'float'
-    | 'array'
-    | 'object'
-    | 'date'
-    | 'url'
-    | 'email'
-    | 'pattern';
+  type?: RuleType;
   required?: boolean;
   pattern?: string | RegExp;
   min?: number;
   max?: number;
+  /** 精确长度（string 字符数 / array 项数） */
+  len?: number;
+  /** 值必须在枚举列表内（值为空时跳过） */
+  enum?: Array<string | number>;
+  /** 仅空白字符串视为空（对齐 async-validator whitespace 规则） */
+  whitespace?: boolean;
   /** 自定义校验函数名（对应注册的 validator） */
   validator?: string;
-  message: string;
-  trigger?: 'change' | 'blur' | 'submit';
+  /**
+   * 错误提示消息（可选）
+   * - 省略时按规则类型使用默认消息（可通过 NexusEngine options.messages 覆盖）
+   * - 支持占位符插值：{min} {max} {len} {title}（对齐 async-validator 的 {field} 模板）
+   */
+  message?: string;
+  trigger?: ValidationTrigger;
   /** 内部标记：validate 表达式生成的校验规则（由 SchemaParser 添加） */
-  _validateExpr?: string;
+  _validateExpr?: ExpressionOr<boolean>;
   /** 内部标记：_validateExpr 对应的 key */
   _validateKey?: string;
   /** 内部标记：动态必填规则（由 SchemaParser 添加） */
@@ -114,6 +148,12 @@ export interface ReactionContext {
 }
 
 export interface ReactionStatePatch {
+  /**
+   * 计算字段值（formily x-reactions state.value 对齐）
+   * 支持表达式：如 `value: "{{ $deps[0] * 2 }}"`（数量 × 单价 = 总额）
+   * 赋值后会触发该字段重校验并沿依赖图继续传播
+   */
+  value?: ExpressionOr<unknown>;
   visible?: ExpressionOr<boolean>;
   hidden?: ExpressionOr<boolean>;
   disabled?: ExpressionOr<boolean>;
@@ -277,12 +317,16 @@ export interface DataFieldSchema extends BaseSchemaNode {
   enumNames?: Array<string>;
   /** 输入框占位符 */
   placeholder?: string;
-  /** 辅助判断 widget 的格式（x-render 对齐） */
+  /** 辅助判断 widget 的格式（x-render 对齐）；format 为 email/url 时自动附加格式校验 */
   format?: FieldFormat;
-  /** 最小值/最小长度/最小项数（x-render 对齐） */
+  /** 正则校验（JSON Schema pattern 对齐，自动转 ValidationRule） */
+  pattern?: string;
+  /** 最小值/最小长度/最小项数（x-render 对齐，自动转 ValidationRule） */
   min?: number;
-  /** 最大值/最大长度/最大项数（x-render 对齐） */
+  /** 最大值/最大长度/最大项数（x-render 对齐，自动转 ValidationRule） */
   max?: number;
+  /** JSON Schema 兼容：仅空白视为空（自动转 ValidationRule） */
+  whitespace?: boolean;
 }
 
 /**
@@ -524,6 +568,16 @@ export interface FieldState {
   value: unknown;
   /** 初始值（用于重置） */
   initialValue: unknown;
+  /**
+   * 是否被触碰过（值发生过写入即 true，对齐 rc-field-form touched）
+   * 供 UI 展示「已修改」标记、提交时区分未改动字段
+   */
+  touched: boolean;
+  /**
+   * 是否脏（当前值 ≠ 初始值，深比较，对齐 rc-field-form dirty）
+   * reset() 后归零
+   */
+  dirty: boolean;
   /** 是否可见 */
   visible: boolean;
   /** 是否禁用 */
@@ -722,6 +776,41 @@ export interface NexusPlugin {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// 9.5 引擎选项 & 校验默认消息
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 默认校验消息模板（async-validator / x-render 对齐）
+ *
+ * 消息解析优先级：rule.message > messages[type] 模板 > 内置默认
+ * 模板支持 {title} {min} {max} {len} 占位符：
+ * - required: 必填错误
+ * - min: 最小值/长度/项数错误（按字段 type 自动区分语义）
+ * - max / len / pattern / enum / whitespace / format: 对应规则错误
+ */
+export interface DefaultRuleMessages {
+  required: string;
+  min: string;
+  max: string;
+  len: string;
+  pattern: string;
+  enum: string;
+  whitespace: string;
+  format: string;
+}
+
+/**
+ * 引擎构造选项
+ * ```
+ * const engine = new NexusEngine({ messages: { required: '{title} 不能为空' } });
+ * ```
+ */
+export interface NexusEngineOptions {
+  /** 校验默认消息模板覆盖（仅覆盖传入的 key） */
+  messages?: Partial<DefaultRuleMessages>;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // 10. 引擎接口
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -771,6 +860,18 @@ export interface FormEngine extends ReadonlyFormEngine {
   getFieldError(path: string): string[];
   /** 获取所有有错误的字段 */
   getFieldsError(): Map<string, string[]>;
+  /**
+   * 校验单个字段（同步，trigger 维度）
+   *
+   * - trigger 缺省 'change'：与 setFieldValue 实时校验等价
+   * - trigger: 'blur'：执行 blur 规则 + 无 trigger 规则（失焦校验）
+   * - trigger: 'submit' 规则请使用 validate([path])（全量校验）
+   */
+  validateField(path: string, options?: { trigger?: ValidationTrigger }): void;
+  /** 字段是否被触碰过（发生过值写入） */
+  isFieldTouched(path: string): boolean;
+  /** 字段是否脏（当前值 ≠ 初始值，深比较） */
+  isFieldDirty(path: string): boolean;
   /** 手动设置字段错误 */
   setErrorFields(errors: Array<{ path: string; errors: string[] }>): void;
   /** 移除指定字段的错误 */

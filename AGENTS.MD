@@ -45,15 +45,23 @@ AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/u
 
 ### 2.4 联动协议 (Reactions)
 
-- **简单联动**: `required/disabled/readOnly/hidden` 支持 `"{{ formData.x === 'y' }}"` 字符串，Parser 通过 `collectExpressionReactions` **自动转换为 `_autoExpr` reaction**（静态布尔值不处理）。
+- **简单联动**: `required/disabled/readOnly/hidden` 及**正向别名** `requiredOn/disabledOn/readOnlyOn/visibleOn`（amis 语义）支持 `"{{ formData.x === 'y' }}"` 字符串，Parser 通过 `collectExpressionReactions` **自动转换为 `_autoExpr` reaction**（静态布尔值不处理，直接作为初始状态）。
+- **计算字段（formily 对齐）**: `fulfill/otherwise.state.value` 支持 `"{{ ... }}"` 表达式，值变化后自动**重校验 + 沿依赖图继续传播**（`Engine.applyStatePatch`），可声明式实现总额 = 单价 × 数量。
 - **复杂联动**: 结构化 `reactions` 数组：
   - `dependencies: string[]` — **允许相对路径**，`resolveReactionScopes` 从目标字段最内层作用域向上逐级解析（如 `address.city` 内 `dependencies: ["province"]` → `"address.province"`）；`_autoExpr` 的依赖均为根级绝对路径，不做作用域解析
   - `when: Expression` — 条件成立执行 `fulfill`，否则执行 `otherwise`
   - `fulfill` / `otherwise`：`{ state?: ReactionStatePatch, schema?: ReactionSchemaPatch }`
-    - `state` 补丁：`visible/hidden/disabled/readOnly/required/loading/title/description/props.*`
+    - `state` 补丁：`value/visible/hidden/disabled/readOnly/required/loading/title/description/props.*`
     - `schema` 补丁：点路径 → 值/表达式（`props.options` 等支持多级），**仅运行时覆盖，不持久化回 Schema**
 - **上下文变量白名单**: 仅 `$deps`、`$self`、`$form`、`$index`、`formData`、`rootValue`（`ExpressionSandbox`）。
 - **validate 表达式依赖**: `validate: { key: "{{ ... }}" }` 生成的规则携带 `_validateExpr`，其 `formData.xxx` 依赖被提取进依赖图，依赖字段变化时**实时重校验**目标字段（`validateExprFields`）。
+
+### 2.5 校验协议 (Validation，对齐 async-validator / x-render)
+
+- **字段级约束自动转规则**（`SchemaParser.constraintsToRules`）：直接写在字段节点上的 `min/max/pattern/whitespace` + JSON Schema 别名 `minimum/maximum/minLength/maxLength/minItems/maxItems` + `format: 'email'|'url'` 自动转换为 `ValidationRule` 追加到 rules（用户已在 rules 显式声明的约束不重复生成）。
+- **规则类型**: `required/min/max/len/pattern/enum/whitespace/type(格式)`，`min/max` 按值类型自适应（number→数值、string→长度、array→项数）。
+- **trigger 全语义**: `change`（默认，值变更实时校验）/ `blur`（`engine.validateField(path, { trigger: 'blur' })`，组件 onBlur 调用）/ `submit`（仅 `validate()` 时生效）；**`validate()` 提交时全量校验所有规则的 trigger**。
+- **消息模板**: `rule.message` 支持 `{title}/{min}/{max}/{len}` 占位符插值；省略时按 `engine options.messages[key]` > 内置默认消息解析（`Engine.resolveRuleMessage`），支持 `new NexusEngine({ messages })` 全局覆盖。
 
 ---
 
@@ -68,8 +76,9 @@ AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/u
 
 ### 3.2 状态管理 (FieldState)
 
-- 每个字段维护独立状态：`{ path, value, initialValue, visible, disabled, readOnly, required, loading, errors, props, reactions, meta }`（`meta` 含 `title/widget/type/rules/bind/items/itemOf/enum/...`）。
-- 通过 `engine.setFieldState(path, patch)` 局部更新（仅合并传入属性），`patch.required` 会同步动态必填规则（`syncRequiredRule`）。
+- 每个字段维护独立状态：`{ path, value, initialValue, touched, dirty, visible, disabled, readOnly, required, loading, errors, props, reactions, meta }`（`meta` 含 `title/widget/type/rules/bind/items/itemOf/enum/...`）。
+- `touched`（发生过值写入）/`dirty`（值 ≠ 初始值，深比较）对齐 rc-field-form，供「已修改」标记与提交差异判断；`reset()` 归零。
+- 通过 `engine.setFieldState(path, patch)` 局部更新（仅合并传入属性），`patch.required` 会同步动态必填规则（`syncRequiredRule`），`patch.value` 同步 touched/dirty 并重建数组项子字段状态。
 
 ### 3.3 插件系统 (Plugins, `core/src/async-validator.ts` + `array-list.ts`)
 

@@ -211,6 +211,54 @@ export function setNestedValue(
 }
 
 /**
+ * 深度比较两个值是否相等
+ *
+ * 支持：原始值 / 对象 / 数组 / 嵌套结构（Date 按时间戳比较）
+ * 用于 FieldState.dirty 判定（值写入时调用，非订阅路径，无性能顾虑）
+ *
+ * @param a - 第一个值
+ * @param b - 第二个值
+ * @returns 深比较相等返回 true
+ */
+export function isDeepEqual(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) {
+    return true;
+  }
+  if (typeof a !== typeof b) {
+    return false;
+  }
+  if (a === null || b === null) {
+    return false;
+  }
+  if (a instanceof Date || b instanceof Date) {
+    return (
+      a instanceof Date && b instanceof Date && a.getTime() === b.getTime()
+    );
+  }
+  if (Array.isArray(a) !== Array.isArray(b)) {
+    return false;
+  }
+  if (typeof a !== 'object') {
+    return false;
+  }
+  if (Array.isArray(a)) {
+    const arrB = b as unknown[];
+    if (a.length !== arrB.length) {
+      return false;
+    }
+    return a.every((item, i) => isDeepEqual(item, arrB[i]));
+  }
+  const objA = a as Record<string, unknown>;
+  const objB = b as Record<string, unknown>;
+  const keysA = Object.keys(objA);
+  const keysB = Object.keys(objB);
+  if (keysA.length !== keysB.length) {
+    return false;
+  }
+  return keysA.every((key) => isDeepEqual(objA[key], objB[key]));
+}
+
+/**
  * 判断值是否为 thenable（Promise 或具有 then 方法的对象）
  *
  * @param value - 待判断的值

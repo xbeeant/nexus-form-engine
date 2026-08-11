@@ -4,11 +4,12 @@
  * 1. 路径计算规则（数据节点 vs 布局节点）
  * 2. reactions 依赖作用域解析
  * 3. validate 表达式依赖提取
+ * 4. 数组项子字段（itemOf 标记）
  */
 
 import { describe, expect, it } from 'vitest';
-import { SchemaParser } from '../src/SchemaParser';
-import type { NexusSchema, SchemaNode } from '../src/types/schema';
+import * as SchemaParser from '../src/SchemaParser';
+import type { NexusSchema } from '../src/types/schema';
 
 describe('SchemaParser', () => {
   describe('路径计算规则', () => {
@@ -31,29 +32,25 @@ describe('SchemaParser', () => {
         },
       };
 
-      const { dataFields } = SchemaParser.parse(schema);
+      const { fieldStates, renderTree } = SchemaParser.parse(schema);
 
       // 数据字段 Key 进入路径
-      expect(dataFields.get('name')).toEqual({
-        type: 'string',
-        widget: 'input',
-      });
+      const nameState = fieldStates.get('name');
+      expect(nameState?.meta.widget).toBe('input');
+      expect(nameState?.meta.type).toBe('string');
 
       // 嵌套对象字段 Key 进入路径
-      expect(dataFields.get('profile')).toEqual({
-        type: 'object',
-        properties: { age: { type: 'number', widget: 'number' } },
-      });
+      expect(fieldStates.has('profile')).toBe(false); // 数据对象本身无独立 FieldState
+      expect(fieldStates.get('profile.age')?.meta.widget).toBe('number');
 
       // 数组字段 Key 进入路径
-      expect(dataFields.get('tags')).toEqual({
-        type: 'array',
-        widget: 'list',
-        items: { type: 'string' },
-      });
+      expect(fieldStates.get('tags')?.meta.type).toBe('array');
 
-      // items 子字段不进入 formData 收集
-      expect(dataFields.has('tags[0].value')).toBe(false);
+      // 数据对象渲染为 object 容器节点
+      const objectNode = renderTree.find((n) => n.type === 'object');
+      expect(
+        objectNode && 'dataPath' in objectNode && objectNode.dataPath,
+      ).toBe('profile');
     });
 
     it('布局节点：Key 不进入 formData 路径', () => {
@@ -76,25 +73,23 @@ describe('SchemaParser', () => {
         },
       };
 
-      const { dataFields } = SchemaParser.parse(schema);
+      const { fieldStates, renderTree } = SchemaParser.parse(schema);
 
       // 布局节点 Key 不进入 formData 路径
-      expect(dataFields.has('card')).toBe(false);
-      expect(dataFields.has('grid')).toBe(false);
+      expect(fieldStates.has('card')).toBe(false);
+      expect(fieldStates.has('grid')).toBe(false);
 
       // 布局节点下的数据字段 Key 进入路径
-      expect(dataFields.get('card.name')).toEqual({
-        type: 'string',
-        widget: 'input',
-      });
-      expect(dataFields.get('grid.field1')).toEqual({
-        type: 'string',
-        widget: 'input',
-      });
-      expect(dataFields.get('grid.field2')).toEqual({
-        type: 'string',
-        widget: 'input',
-      });
+      expect(fieldStates.has('name')).toBe(true);
+      expect(fieldStates.has('field1')).toBe(true);
+      expect(fieldStates.has('field2')).toBe(true);
+
+      // 布局节点类型进入渲染树
+      const layoutTypes = renderTree
+        .filter((n) => n.type !== 'field' && n.type !== 'object')
+        .map((n) => n.type);
+      expect(layoutTypes).toContain('card');
+      expect(layoutTypes).toContain('grid');
     });
 
     it('嵌套布局结构中路径正确透传', () => {
@@ -120,18 +115,15 @@ describe('SchemaParser', () => {
         },
       };
 
-      const { dataFields } = SchemaParser.parse(schema);
+      const { fieldStates } = SchemaParser.parse(schema);
 
-      // 布局节点 Key 被丢弃，直接透传父路径
-      expect(dataFields.has('container')).toBe(false);
-      expect(dataFields.has('container.tab1')).toBe(false);
-      expect(dataFields.has('container.tab1.nested')).toBe(false);
+      // 各层级布局节点 Key 全部被丢弃
+      expect(fieldStates.has('container')).toBe(false);
+      expect(fieldStates.has('container.tab1')).toBe(false);
+      expect(fieldStates.has('container.tab1.nested')).toBe(false);
 
       // 数据字段 Key 正确进入路径
-      expect(dataFields.get('container.tab1.nested.field')).toEqual({
-        type: 'string',
-        widget: 'input',
-      });
+      expect(fieldStates.has('field')).toBe(true);
     });
   });
 
@@ -148,20 +140,18 @@ describe('SchemaParser', () => {
               {
                 dependencies: ['province'],
                 fulfill: { state: { visible: true } },
-              } as any,
+              },
             ],
           },
         },
       };
 
-      const { dataFields } = SchemaParser.parse(schema);
+      const { fieldStates } = SchemaParser.parse(schema);
 
-      // city 的 reactions 应正确提取 province 依赖
-      const cityField = dataFields.get('city');
-      expect(cityField?.reactions).toBeDefined();
-      if (cityField?.reactions) {
-        expect(cityField.reactions[0].dependencies).toContain('province');
-      }
+      // city 的 reactions 应正确解析 province 依赖
+      const cityState = fieldStates.get('city');
+      expect(cityState?.reactions).toBeDefined();
+      expect(cityState?.reactions?.[0].dependencies).toContain('province');
     });
 
     it('嵌套对象中相对路径引用', () => {
@@ -180,9 +170,9 @@ describe('SchemaParser', () => {
                     widget: 'input',
                     reactions: [
                       {
-                        dependencies: ['user.email'],
+                        dependencies: ['email'],
                         fulfill: { state: { visible: true } },
-                      } as any,
+                      },
                     ],
                   },
                 },
@@ -192,13 +182,11 @@ describe('SchemaParser', () => {
         },
       };
 
-      const { dataFields } = SchemaParser.parse(schema);
+      const { fieldStates } = SchemaParser.parse(schema);
 
-      const phoneField = dataFields.get('user.profile.phone');
-      expect(phoneField?.reactions).toBeDefined();
-      if (phoneField?.reactions) {
-        expect(phoneField.reactions[0].dependencies).toContain('user.email');
-      }
+      // 相对路径 email → 解析为同作用域 user.email
+      const phoneState = fieldStates.get('user.profile.phone');
+      expect(phoneState?.reactions?.[0].dependencies).toContain('user.email');
     });
 
     it('多字段同时依赖同一字段', () => {
@@ -209,24 +197,24 @@ describe('SchemaParser', () => {
           fieldA: {
             type: 'string',
             widget: 'input',
-            reactions: [{ dependencies: ['base'], fulfill: {} } as any],
+            reactions: [{ dependencies: ['base'], fulfill: {} }],
           },
           fieldB: {
             type: 'string',
             widget: 'input',
-            reactions: [{ dependencies: ['base'], fulfill: {} } as any],
+            reactions: [{ dependencies: ['base'], fulfill: {} }],
           },
         },
       };
 
-      const { dataFields } = SchemaParser.parse(schema);
+      const { fieldStates } = SchemaParser.parse(schema);
 
-      expect(dataFields.get('fieldA')?.reactions).toBeDefined();
-      expect(dataFields.get('fieldB')?.reactions).toBeDefined();
-      if (dataFields.get('fieldA')?.reactions && dataFields.get('fieldB')?.reactions) {
-        expect(dataFields.get('fieldA')!.reactions![0].dependencies).toContain('base');
-        expect(dataFields.get('fieldB')!.reactions![0].dependencies).toContain('base');
-      }
+      expect(fieldStates.get('fieldA')?.reactions?.[0].dependencies).toContain(
+        'base',
+      );
+      expect(fieldStates.get('fieldB')?.reactions?.[0].dependencies).toContain(
+        'base',
+      );
     });
   });
 
@@ -246,17 +234,21 @@ describe('SchemaParser', () => {
         },
       };
 
-      const { dataFields } = SchemaParser.parse(schema);
+      const { fieldStates, dependencyGraph, validateExprFields } =
+        SchemaParser.parse(schema);
 
-      const confirmField = dataFields.get('confirm');
-      expect(confirmField).toBeDefined();
-      if (confirmField) {
-        expect(confirmField.validate).toBeDefined();
-        if (confirmField.validate) {
-          // extractExprDependencies 应提取 password 依赖
-          expect(confirmField.validate.match).toContain('formData.password');
-        }
-      }
+      // validate 表达式转为带 _validateExpr 的规则
+      const confirmState = fieldStates.get('confirm');
+      const validateRule = confirmState?.meta.rules.find(
+        (r) => r._validateExpr !== undefined,
+      );
+      expect(validateRule?._validateExpr).toContain('formData.password');
+
+      // 依赖边进入依赖图：target=confirm，source=password
+      expect(dependencyGraph.getDependents('password').has('confirm')).toBe(
+        true,
+      );
+      expect(validateExprFields.has('confirm')).toBe(true);
     });
 
     it('嵌套对象中 validate 表达式依赖提取', () => {
@@ -279,16 +271,17 @@ describe('SchemaParser', () => {
         },
       };
 
-      const { dataFields } = SchemaParser.parse(schema);
+      const { fieldStates, dependencyGraph } = SchemaParser.parse(schema);
 
-      const cityField = dataFields.get('address.city');
-      expect(cityField?.validate).toBeDefined();
-      if (cityField?.validate) {
-        expect(cityField.validate.depends).toContain('formData.province');
-      }
+      const cityState = fieldStates.get('address.city');
+      expect(cityState?.meta.rules.some((r) => r._validateExpr)).toBe(true);
+      // validate 表达式的 formData.xxx 依赖为根级绝对路径（不做作用域解析）
+      expect(
+        dependencyGraph.getDependents('province').has('address.city'),
+      ).toBe(true);
     });
 
-    it('数组项中 validate 表达式依赖提取', () => {
+    it('数组项子字段进入 fieldStates 且带 itemOf 标记', () => {
       const schema: NexusSchema = {
         type: 'object',
         properties: {
@@ -299,28 +292,26 @@ describe('SchemaParser', () => {
               type: 'object',
               properties: {
                 name: { type: 'string', widget: 'input' },
-                duplicate: {
-                  type: 'string',
-                  widget: 'input',
-                  validate: {
-                    check: '{{ $deps[0].name === $self.value }}',
-                  },
-                },
               },
             },
           },
         },
       };
 
-      const { dataFields } = SchemaParser.parse(schema);
+      const { fieldStates } = SchemaParser.parse(schema, {
+        items: [{ name: 'a' }, { name: 'b' }],
+      } as never);
 
-      // items[0].name 不参与 formData 收集
-      expect(dataFields.has('items[0].name')).toBe(false);
+      // items[0].name 进入 fieldStates（供校验/订阅），但带 itemOf 标记
+      const itemState = fieldStates.get('items[0].name');
+      expect(itemState).toBeDefined();
+      expect(itemState?.meta.itemOf).toBe('items');
+      expect(fieldStates.has('items[1].name')).toBe(true);
     });
   });
 
-  describe('表达式标记字段类型污染清理', () => {
-    it('识别并标记 _validateExpr 等内部字段', () => {
+  describe('表达式标记内部字段', () => {
+    it('validate 生成的规则携带 _validateExpr / _validateKey', () => {
       const schema: NexusSchema = {
         type: 'object',
         properties: {
@@ -328,24 +319,20 @@ describe('SchemaParser', () => {
             type: 'string',
             widget: 'input',
             validate: {
-              regex: '{{ $deps[0].match(/^\\S+@\\S+$/ ) }}',
+              regex: '{{ $deps[0].match(/^\\S+@\\S+$/) }}',
             },
           },
         },
       };
 
-      const { dataFields } = SchemaParser.parse(schema);
+      const { fieldStates } = SchemaParser.parse(schema);
 
-      const emailField = dataFields.get('email');
-      expect(emailField).toBeDefined();
-      if (emailField) {
-        // 检查 validate 规则中是否包含 _validateExpr
-        expect(emailField.validate?.regex).toBeDefined();
-        if (typeof emailField.validate?.regex === 'string') {
-          // 验证表达式包含 $deps 引用
-          expect(emailField.validate.regex).toContain('$deps');
-        }
-      }
+      const emailState = fieldStates.get('email');
+      const rule = emailState?.meta.rules.find((r) => r._validateExpr);
+      expect(rule).toBeDefined();
+      expect(rule?._validateKey).toBe('regex');
+      expect(rule?._validateExpr).toContain('$deps');
+      expect(rule?.trigger).toBe('change');
     });
   });
 });

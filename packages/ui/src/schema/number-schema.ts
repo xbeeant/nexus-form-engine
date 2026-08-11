@@ -1,6 +1,6 @@
 export const numberSchema = {
-  min: { type: 'number', widget: 'number', title: '最小值' },
-  max: { type: 'number', widget: 'number', title: '最大值' },
+  // 数值范围约束（min/max）请使用「校验配置」分区：schema 级 min/max 会
+  // 自动转换为校验规则；此处仅保留纯 UI 属性（step/precision/addon/controls）
   step: {
     type: 'number',
     widget: 'number',

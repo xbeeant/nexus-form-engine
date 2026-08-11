@@ -60,4 +60,37 @@ describe('realtime validation', () => {
     const errors = await engine.validate();
     expect(errors.get('username')).toContain('长度需 3+');
   });
+
+  it('trigger blur 规则仅由 validateField(path, { trigger: blur }) 触发', async () => {
+    const engine = new NexusEngine();
+    const schema: NexusSchema = {
+      type: 'object',
+      properties: {
+        username: {
+          type: 'string',
+          widget: 'input',
+          rules: [{ min: 3, message: '长度需 3+', trigger: 'blur' }],
+        },
+      },
+    };
+    engine.init(schema);
+
+    // 输入过程（change）：blur 规则不参与，不报错
+    engine.setFieldValue('username', 'ab');
+    expect(engine.getFieldError('username')).toEqual([]);
+
+    // 失焦：仅执行 blur 规则
+    engine.validateField('username', { trigger: 'blur' });
+    expect(engine.getFieldError('username')).toContain('长度需 3+');
+
+    // 修正后失焦：错误清除
+    engine.setFieldValue('username', 'abcdef');
+    engine.validateField('username', { trigger: 'blur' });
+    expect(engine.getFieldError('username')).toEqual([]);
+
+    // 提交全量：blur 规则同样生效
+    engine.setFieldValue('username', 'ab');
+    const errors = await engine.validate();
+    expect(errors.get('username')).toContain('长度需 3+');
+  });
 });

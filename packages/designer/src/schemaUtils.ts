@@ -12,8 +12,7 @@ import type { NexusSchema, SchemaNode } from '@nexus/form-engine';
 // 因此优先使用 structuredClone（保留 RegExp/Date/Map/Set），环境不支持时回退到序列化。
 // ────────────────────────────────────────────────────────────────────────────
 
-const _hasStructuredClone =
-  typeof structuredClone === 'function';
+const _hasStructuredClone = typeof structuredClone === 'function';
 
 function clone<T>(value: T): T {
   if (_hasStructuredClone) {
@@ -305,6 +304,8 @@ const SCHEMA_LEVEL_KEYS = new Set([
   'enumNames',
   'placeholder',
   'format',
+  // 字段级校验约束
+  'pattern',
   'min',
   'max',
   // DataObjectSchema

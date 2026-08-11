@@ -63,7 +63,9 @@ export interface SelectWidgetProps {
   maxTagCount?: number;
   bordered?: boolean;
   loading?: boolean;
-  filterOption?: boolean | ((input: string, option?: { label: string; value: unknown }) => boolean);
+  filterOption?:
+    | boolean
+    | ((input: string, option?: { label: string; value: unknown }) => boolean);
   dropdownMatchSelectWidth?: boolean | number;
   listHeight?: number;
   tokenSeparators?: string[];
@@ -169,7 +171,12 @@ export interface TreeSelectWidgetProps {
     value: string | number;
     title: string;
     key?: string | number;
-    children?: Array<{ value: string | number; title: string; key?: string | number; children?: unknown[] }>;
+    children?: Array<{
+      value: string | number;
+      title: string;
+      key?: string | number;
+      children?: unknown[];
+    }>;
   }>;
   searchUrl?: string;
   searchKey?: string;
@@ -185,7 +192,9 @@ export interface TreeSelectWidgetProps {
   showSearch?: boolean;
   autoExpand?: boolean;
   asyncLoad?: boolean;
-  readOnlyRequest?: (value: unknown) => Promise<{ label?: string; [key: string]: unknown } | null>;
+  readOnlyRequest?: (
+    value: unknown,
+  ) => Promise<{ label?: string; [key: string]: unknown } | null>;
   readOnlyUrl?: string;
   method?: 'GET' | 'POST';
   allowClear?: boolean;
@@ -247,9 +256,8 @@ export type TableListWidgetProps = ListWidgetProps;
 
 // ============================================================================
 // Module Augmentation: 将接口注入 core 的 WidgetPropsMap
+// （declare module 自动与 core 的 WidgetPropsMap 合并，无需显式 import 目标类型）
 // ============================================================================
-
-import type { WidgetPropsMap } from '@nexus/form-engine';
 
 declare module '@nexus/form-engine' {
   interface WidgetPropsMap {
