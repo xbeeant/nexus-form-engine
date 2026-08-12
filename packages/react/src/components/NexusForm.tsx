@@ -188,7 +188,7 @@ export function NexusForm({
   let footerNode: ReactNode = null;
   if (footer === true) {
     footerNode = (
-      <div style={{ marginTop: 16 }}>
+      <div className='mt-4'>
         <button type='submit'>提交</button>{' '}
         <button type='button' onClick={handleReset}>
           重置

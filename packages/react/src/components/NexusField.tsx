@@ -69,7 +69,7 @@ export function NexusField({
       return null;
     }
     // 默认行为：渲染 display:none 占位符以保持布局
-    return <div style={{ display: 'none' }} data-nexus-hidden={dataPath} />;
+    return <div className='hidden' data-nexus-hidden={dataPath} />;
   }
 
   /** 获取UI组件库 进行渲染 **/
@@ -77,7 +77,7 @@ export function NexusField({
 
   if (!Widget) {
     return (
-      <div style={{ color: 'red', fontSize: 12 }} data-nexus-field={dataPath}>
+      <div className='text-xs text-red-500' data-nexus-field={dataPath}>
         ⚠️ Widget "{state.meta.widget}" 未注册 (path: {dataPath})
       </div>
     );

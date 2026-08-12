@@ -6,7 +6,12 @@ import type {
 import { toBoolean } from '@nexus/form-engine/utils/schema-helper.ts';
 import { useFormConfig } from '@nexus/form-engine-react';
 import { Form, Typography } from 'antd';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import type React from 'react';
+
+// 支持按 format 模板解析（如 'YYYY年MM月DD日'），默认解析无法识别此类自定义格式
+dayjs.extend(customParseFormat);
 
 export interface WidgetProps<T = Record<string, any>> {
   value?: unknown;
@@ -76,6 +81,26 @@ export function useFormItemProps(overrides?: {
       ? { display: 'inline-block', marginRight: 8 }
       : { width: '100%' },
   };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// toDayjs — 控件值回显为 dayjs 的安全转换
+// 控件值以字符串存储（onChange 的第二参 dateString 按 format 格式化），
+// 回显时优先按 format 解析，失败回退默认解析，仍无效返回 null——
+// 绝不向 antd 传入 Invalid Date 对象（会导致输入框显示 "Invalid Date"）
+// ────────────────────────────────────────────────────────────────────────────
+
+export function toDayjs(value: unknown, format?: string): dayjs.Dayjs | null {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  const str = String(value);
+  const withFormat = (format && dayjs(str, format)) || null;
+  if (withFormat?.isValid()) {
+    return withFormat;
+  }
+  const plain = dayjs(str);
+  return plain.isValid() ? plain : null;
 }
 
 // ────────────────────────────────────────────────────────────────────────────

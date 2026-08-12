@@ -1,6 +1,5 @@
 import { DatePicker } from 'antd';
-import dayjs from 'dayjs';
-import { type WidgetProps, withFormItem } from './_shared';
+import { type WidgetProps, toDayjs, withFormItem } from './_shared';
 
 export const datePickerWidget = withFormItem(
   ({
@@ -13,7 +12,7 @@ export const datePickerWidget = withFormItem(
     ...rest
   }: WidgetProps) => (
     <DatePicker
-      value={value ? dayjs(value as string) : null}
+      value={toDayjs(value, format as string)}
       onChange={(_, dateString) => onChange(dateString || undefined)}
       disabled={disabled || loading}
       style={{ width: '100%' }}

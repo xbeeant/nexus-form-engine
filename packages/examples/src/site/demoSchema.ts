@@ -121,6 +121,16 @@ export const demoSchema: NexusSchema = {
           widget: 'date',
           title: '出生日期',
         },
+        tmpDateRange: {
+          type: 'array',
+          widget: 'dateRange',
+          title: '临时日期范围',
+        },
+        tmpTimeRange: {
+          type: 'array',
+          widget: 'timeRange',
+          title: '临时时间范围',
+        },
         bio: {
           type: 'string',
           widget: 'textarea',

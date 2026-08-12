@@ -45,12 +45,13 @@ export function NexusLayout({ node }: NexusLayoutProps) {
       <LayoutConfigContext.Provider value={layoutConfigValue}>
         <div
           data-nexus-layout={node.type}
-          style={{ marginBottom: 16, ...wrapperStyle }}
+          className='mb-4'
+          style={
+            Object.keys(wrapperStyle).length > 0 ? wrapperStyle : undefined
+          }
         >
           {node.title && (
-            <div style={{ fontWeight: 'bold', marginBottom: 8 }}>
-              {node.title}
-            </div>
+            <div className='mb-2 font-bold'>{node.title}</div>
           )}
           {children}
         </div>

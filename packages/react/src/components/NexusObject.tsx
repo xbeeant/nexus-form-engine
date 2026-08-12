@@ -30,21 +30,18 @@ export function NexusObject({ node }: NexusObjectProps) {
   );
   const state = engine.getFieldState(node.dataPath);
   const [collapsed, setCollapsed] = useState(false);
-  const column = config.column ?? 1;
-  const gridStyle: CSSProperties =
-    column > 1
-      ? {
-          display: 'grid',
-          gridTemplateColumns: `repeat(${column}, 1fr)`,
-          gap: '0 16px',
-        }
-      : {};
+  const isGrid = (config.column ?? 1) > 1;
+  const gridStyle: CSSProperties = isGrid
+    ? { gridTemplateColumns: `repeat(${config.column}, 1fr)` }
+    : {};
 
   // 合并继承属性：父级已激活的状态不可被当前容器覆盖；
   // disabled/readOnly 仅携带 true（父级关闭状态不压制子级显式启用）
   const inherit = {
-    disabled: parentInherit.disabled ?? (state?.disabled === true ? true : undefined),
-    readOnly: parentInherit.readOnly ?? (state?.readOnly === true ? true : undefined),
+    disabled:
+      parentInherit.disabled ?? (state?.disabled === true ? true : undefined),
+    readOnly:
+      parentInherit.readOnly ?? (state?.readOnly === true ? true : undefined),
     visible:
       parentInherit.visible === false || state?.visible === false
         ? false
@@ -58,22 +55,12 @@ export function NexusObject({ node }: NexusObjectProps) {
     <FieldInheritContext.Provider value={inherit}>
       <div
         data-nexus-object={node.dataPath}
-        style={{ marginBottom: 16, display: hidden ? 'none' : undefined }}
+        className={`mb-4 ${hidden ? 'hidden' : ''}`}
       >
         {node.title && (
-          <button
-            type='button'
+          <div
             onClick={toggleCollapsed}
-            style={{
-              display: 'block',
-              fontWeight: 'bold',
-              marginBottom: 8,
-              padding: 0,
-              border: 'none',
-              background: 'none',
-              cursor: 'pointer',
-              userSelect: 'none',
-            }}
+            className='flex gap-1 mb-2 cursor-pointer select-none border-none bg-transparent p-0 font-bold'
           >
             <svg
               width='12'
@@ -84,20 +71,19 @@ export function NexusObject({ node }: NexusObjectProps) {
               strokeWidth='2'
               strokeLinecap='round'
               strokeLinejoin='round'
-              style={{
-                transform: collapsed ? 'rotate(0deg)' : 'rotate(90deg)',
-                transition: 'transform 0.2s ease',
-                verticalAlign: 'middle',
-              }}
+              className={`align-middle transition-transform duration-200 ease-in-out ${collapsed ? 'rotate-0' : 'rotate-90'}`}
               aria-hidden='true'
             >
               <polyline points='9 18 15 12 9 6' />
-            </svg>{' '}
+            </svg>
             {node.title}
-          </button>
+          </div>
         )}
         {/* 折叠时隐藏但不卸载 children，保持字段状态与校验订阅 */}
-        <div style={{ display: collapsed ? 'none' : undefined, ...gridStyle }}>
+        <div
+          className={`${isGrid ? 'grid gap-x-4' : ''} ${collapsed ? 'hidden' : ''}`}
+          style={Object.keys(gridStyle).length > 0 ? gridStyle : undefined}
+        >
           {node.children.map((child, index) => renderTreeNode(child, index))}
         </div>
       </div>

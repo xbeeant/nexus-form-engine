@@ -2,3 +2,4 @@
 
 /* 扫描 designer 包源码中的 Tailwind 工具类 */
 @source "../../designer/src";
+@source "../../react/src";
