@@ -39,8 +39,10 @@ describe('SchemaParser', () => {
       expect(nameState?.meta.widget).toBe('input');
       expect(nameState?.meta.type).toBe('string');
 
-      // 嵌套对象字段 Key 进入路径
-      expect(fieldStates.has('profile')).toBe(false); // 数据对象本身无独立 FieldState
+      // 嵌套对象：容器状态进入 fieldStates（containerOnly，不含值）
+      const profileState = fieldStates.get('profile');
+      expect(profileState?.meta.containerOnly).toBe(true);
+      expect(profileState?.meta.type).toBe('object');
       expect(fieldStates.get('profile.age')?.meta.widget).toBe('number');
 
       // 数组字段 Key 进入路径

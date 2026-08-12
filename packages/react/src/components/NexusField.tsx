@@ -3,6 +3,7 @@ import type { CSSProperties, FocusEvent } from 'react';
 import { useCallback, useContext, useSyncExternalStore } from 'react';
 
 import { GridContext } from '../contexts/GridContext';
+import { FieldInheritContext } from '../contexts/FieldInheritContext';
 import { LayoutConfigContext } from '../contexts/LayoutConfigContext';
 import { useNexusContext } from '../contexts/NexusContext';
 import { resolveColSpan } from '../utils/resolveColSpan';
@@ -29,6 +30,8 @@ export function NexusField({
   // GridContext 必须在所有 early return 之前调用，否则会破坏 Hooks 调用顺序
   const gridCtx = useContext(GridContext);
   const layoutConfig = useContext(LayoutConfigContext);
+  // 祖先对象容器（NexusObject）下发的继承属性：visible=false 时子树整体隐藏
+  const inherit = useContext(FieldInheritContext);
 
   const handleChange = useCallback(
     (value: unknown) => {
@@ -59,7 +62,8 @@ export function NexusField({
     return null;
   }
 
-  if (!state.visible) {
+  // 祖先对象容器隐藏 → 子树整体不可见（与字段自身 visible 合并判断）
+  if (inherit.visible === false || !state.visible) {
     // 如果父布局节点配置了 removeHidden，则不渲染占位符（移除以防止栅格塌陷）
     if (layoutConfig.removeHidden === true) {
       return null;
@@ -89,8 +93,11 @@ export function NexusField({
         | Array<{ label: string; value: unknown } | string | number>
         | undefined);
 
-  // 表单级 readOnly 与字段级 readOnly 合并
-  const readOnly = config.readOnly || state.readOnly;
+  // 表单级 readOnly 与对象容器继承 readOnly 与字段级 readOnly 合并（父级激活时优先）
+  const readOnly =
+    config.readOnly || inherit.readOnly === true || state.readOnly;
+  // 对象容器继承 disabled（父级激活时优先），与字段级 disabled 合并
+  const disabled = inherit.disabled === true || state.disabled;
 
   // 字段级配置优先于表单级配置
   const fieldDisplayType = state.meta.displayType ?? config.displayType;
@@ -129,7 +136,7 @@ export function NexusField({
         key={layoutKey}
         value={state.value}
         onChange={handleChange}
-        disabled={state.disabled}
+        disabled={disabled}
         readOnly={readOnly}
         loading={state.loading}
         required={state.required}

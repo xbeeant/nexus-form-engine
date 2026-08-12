@@ -276,6 +276,10 @@ export class NexusEngine implements IFormEngine {
     const changedPaths: string[] = [];
 
     for (const [path, state] of this.fieldStates) {
+      // 数据对象容器不接收值（仅承载 UI 状态，子字段各自独立接收）
+      if (state.meta.containerOnly) {
+        continue;
+      }
       const bind = state.meta.bind;
       let newValue: unknown;
 
@@ -333,6 +337,14 @@ export class NexusEngine implements IFormEngine {
     state: FieldState,
     value: unknown,
   ): void {
+    // 数据对象容器仅承载 UI 状态，不能写入值（子字段各自独立写入）
+    if (state.meta.containerOnly) {
+      console.warn(
+        `[NexusEngine] Cannot set value on container-only path: ${path}（请写入子字段路径）`,
+      );
+      return;
+    }
+
     const oldValue = state.value;
 
     // 插件拦截：onBeforeFieldValueChange（返回 false 可阻止更新）
@@ -405,8 +417,16 @@ export class NexusEngine implements IFormEngine {
       if (state.meta.itemOf) {
         continue;
       }
+      // 数据对象容器不参与数据收集（仅承载 UI 状态）
+      if (state.meta.containerOnly) {
+        continue;
+      }
       // 只收集可见字段（隐藏字段由 getHiddenValues 处理）
       if (!state.visible) {
+        continue;
+      }
+      // 祖先对象容器隐藏 → 整个子树视为隐藏
+      if (this.isContainerHidden(path)) {
         continue;
       }
       // 指定路径时只收集匹配的字段
@@ -463,6 +483,27 @@ export class NexusEngine implements IFormEngine {
     setNestedValue(data, path, value);
   }
 
+  /**
+   * 判断字段是否存在隐藏的对象容器祖先
+   *
+   * 数据对象容器隐藏（visible: false）时，其整棵子树视为隐藏，
+   * 子字段不参与 getFormData 收集、并入 getHiddenValues。
+   *
+   * @param path - 字段路径（如 "user.name"）
+   * @returns 存在隐藏的祖先对象容器返回 true
+   */
+  private isContainerHidden(path: string): boolean {
+    const segments = path.split('.');
+    for (let i = segments.length - 1; i >= 1; i--) {
+      const ancestor = segments.slice(0, i).join('.');
+      const state = this.fieldStates.get(ancestor);
+      if (state?.meta.containerOnly && !state.visible) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // =========================================================================
   // 字段状态操作
   // =========================================================================
@@ -513,18 +554,28 @@ export class NexusEngine implements IFormEngine {
     }
 
     if (patch.value !== undefined) {
-      state.value = patch.value;
-      // 触碰与脏标记与 applyFieldValue 保持一致
-      state.touched = true;
-      state.dirty = !isDeepEqual(patch.value, state.initialValue);
-      // 数组字段值变更需重建项子字段状态
-      this.syncArrayItemStates(path);
+      // 数据对象容器仅承载 UI 状态，不能写入值
+      if (state.meta.containerOnly) {
+        console.warn(
+          `[NexusEngine] Cannot set value on container-only path: ${path}（请写入子字段路径）`,
+        );
+      } else {
+        state.value = patch.value;
+        // 触碰与脏标记与 applyFieldValue 保持一致
+        state.touched = true;
+        state.dirty = !isDeepEqual(patch.value, state.initialValue);
+        // 数组字段值变更需重建项子字段状态
+        this.syncArrayItemStates(path);
+      }
     }
     if (patch.visible !== undefined) {
       state.visible = patch.visible;
     }
     if (patch.disabled !== undefined) {
       state.disabled = patch.disabled;
+    }
+    if (patch.readOnly !== undefined) {
+      state.readOnly = patch.readOnly;
     }
     if (patch.required !== undefined) {
       state.required = patch.required;
@@ -1028,6 +1079,10 @@ export class NexusEngine implements IFormEngine {
       if (state.meta.itemOf) {
         continue;
       }
+      // 数据对象容器不参与数据收集（仅承载 UI 状态）
+      if (state.meta.containerOnly) {
+        continue;
+      }
       this.applyBindToData(data, path, state);
     }
     return data;
@@ -1047,7 +1102,12 @@ export class NexusEngine implements IFormEngine {
       if (state.meta.itemOf) {
         continue;
       }
-      if (!state.visible) {
+      // 数据对象容器不参与数据收集（仅承载 UI 状态）
+      if (state.meta.containerOnly) {
+        continue;
+      }
+      // 自身隐藏或祖先对象容器隐藏 → 均视为隐藏字段
+      if (!state.visible || this.isContainerHidden(path)) {
         this.applyBindToData(data, path, state);
       }
     }
@@ -1958,6 +2018,10 @@ export class NexusEngine implements IFormEngine {
    * @param state - 包含元数据、校验规则、值和当前错误的字段状态
    */
   private syncRequiredRule(state: FieldState): void {
+    // 数据对象容器无校验规则，必填状态不参与规则同步
+    if (state.meta.containerOnly) {
+      return;
+    }
     const rules = state.meta.rules;
     // 查找动态必填规则（由本方法添加的规则）
     const dynIdx = rules.findIndex((r) => r._dynamicRequired === true);

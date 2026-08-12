@@ -47,11 +47,6 @@ export const commonPropertyFields: Record<string, SchemaNode> = {
     type: 'string',
     title: '隐藏（hidden）',
   },
-  checked: {
-    widget: 'propertyExpr',
-    type: 'string',
-    title: '勾选（checked）',
-  },
   // ── 布局尺寸（x-render 对齐）──────────────────────────────────────────
   width: {
     widget: 'input',

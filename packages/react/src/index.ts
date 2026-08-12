@@ -11,6 +11,8 @@ export { NexusLayout } from './components/NexusLayout';
 export { NexusObject } from './components/NexusObject';
 export type { GridContextValue } from './contexts/GridContext';
 export { GridContext } from './contexts/GridContext';
+export type { FieldInheritValue } from './contexts/FieldInheritContext';
+export { FieldInheritContext } from './contexts/FieldInheritContext';
 export type { LayoutConfigContextValue } from './contexts/LayoutConfigContext';
 export { LayoutConfigContext } from './contexts/LayoutConfigContext';
 export type { NexusFormConfig } from './contexts/NexusContext';

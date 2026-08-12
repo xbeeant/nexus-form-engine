@@ -625,6 +625,12 @@ export interface FieldState {
      * 不参与 formData 收集（数组整体由数组字段负责序列化）
      */
     itemOf?: string;
+    /**
+     * 数据对象容器标记：仅有 UI 状态（visible/disabled/readOnly + reactions），
+     * 无值（value 恒为 undefined），不参与任何数据收集。
+     * 其禁用/只读/隐藏状态由 Renderer 层经 context 下发给子组件。
+     */
+    containerOnly?: boolean;
   };
 }
 
@@ -655,7 +661,9 @@ export interface RenderFieldNode {
 
 /**
  * 渲染树节点 - 数据对象容器
- * 数据对象容器：Key 进入数据路径，但本身无 widget
+ * 数据对象容器：Key 进入数据路径，但本身无 widget，
+ * 其 disabled/hidden/readOnly 状态存于自身 FieldState（meta.containerOnly），
+ * 由 Renderer 层经 context 下发给子树中的字段继承
  */
 export interface RenderObjectNode {
   /** 节点类型 */

@@ -667,6 +667,41 @@ function processDataObject(
     mergedInitialValues,
   );
 
+  // required/disabled/readOnly/hidden 为表达式时，自动转 reactions
+  // （对象容器自身的 _autoExpr reaction 作用于容器状态，UI 层再下发给子组件）
+  collectExpressionReactions(node);
+
+  // 数据对象容器状态：仅承载 UI 状态（visible/disabled/readOnly + reactions），
+  // 不持有值（value 恒为 undefined），不参与数据收集（meta.containerOnly 标记）。
+  // 其 disabled/readOnly/hidden 由 Renderer 经 context 下发给子树中的字段继承。
+  fieldStates.set(objectPath, {
+    path: objectPath,
+    value: undefined,
+    initialValue: undefined,
+    touched: false,
+    dirty: false,
+    visible: typeof node.hidden === 'boolean' ? !node.hidden : true,
+    disabled: typeof node.disabled === 'boolean' ? node.disabled : false,
+    readOnly: typeof node.readOnly === 'boolean' ? node.readOnly : false,
+    required: typeof node.required === 'boolean' ? node.required : false,
+    loading: false,
+    errors: [],
+    props: node.props || {},
+    reactions: (node.reactions as Reaction[] | undefined) || [],
+    meta: {
+      title: node.title || key,
+      widget: '',
+      type: 'object',
+      rules: [],
+      description: node.description,
+      extra: node.extra,
+      width: node.width,
+      order: node.order,
+      colSpan: node.colSpan,
+      containerOnly: true,
+    },
+  } satisfies FieldState);
+
   // 数据对象本身不是字段（无 widget），渲染为容器节点包裹子节点
   renderTree.push({
     type: 'object',
