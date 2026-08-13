@@ -395,7 +395,7 @@ export const myWidget = withFormItem(({ form, value, onChange, ...props }: Widge
 
 ```typescript
 export const dependentWidget = withFormItem(
-  ({ dependValues, value, onChange, disabled, loading, ...props }: WidgetProps & { dependValues?: Record<string, unknown> }) => {
+  ({ dependValues, value, onChange, disabled, loading, path: _p, dataPath: _dp, ...props }: WidgetProps & { dependValues?: Record<string, unknown> }) => {
     const parentValue = dependValues?.parentField;
 
     // 根据 parentValue 的值决定是否显示或修改 behavior

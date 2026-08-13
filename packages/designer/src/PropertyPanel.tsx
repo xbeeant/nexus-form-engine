@@ -21,6 +21,7 @@ import { useDesigner } from './DesignerContext';
 import {
   commonPropertyFields,
   dependencyPropertyFields,
+  reactionPropertyFields,
   validationPropertyFields,
 } from './property/basic-property.ts';
 import {
@@ -277,7 +278,13 @@ export function PropertyPanel() {
         sectionProperty: {
           widget: 'collapse',
           props: {
-            defaultActiveKey: ['sectionCommon', 'sectionFieldProps'],
+            defaultActiveKey: [
+              'sectionCommon',
+              'sectionFieldProps',
+              'sectionValidation',
+              'sectionReaction',
+              'sectionDependency',
+            ],
           },
           type: 'collapse',
           properties: {
@@ -291,6 +298,11 @@ export function PropertyPanel() {
               'sectionValidation',
               '校验配置',
               validationPropertyFields,
+            ),
+            ...collapseSection(
+              'sectionReaction',
+              '联动配置',
+              reactionPropertyFields,
             ),
             ...collapseSection(
               'sectionDependency',

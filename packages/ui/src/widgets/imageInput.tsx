@@ -25,6 +25,9 @@ export const imageInputWidget = withFormItem(
     listType,
     maxCount,
     form,
+    dependValues: _dv,
+    dataPath: _dp,
+    path: _p,
     ...rest
   }: WidgetProps & {
     action?: string;

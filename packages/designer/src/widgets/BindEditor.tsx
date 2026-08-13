@@ -67,7 +67,7 @@ export function BindEditor({ value, onChange, title }: WidgetProps) {
   };
 
   return (
-    <Form.Item label={title} style={{ width: '100%' }}>
+    <Form.Item layout={'vertical'} label={title} style={{ width: '100%' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <Select
           value={mode}

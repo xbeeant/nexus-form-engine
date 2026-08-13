@@ -10,6 +10,9 @@ export const selectWidget = withFormItem(
     disabled,
     loading,
     form,
+    dependValues: _dv,
+    dataPath: _dp,
+    path: _p,
     ...rest
   }: WidgetProps) => (
     <Select

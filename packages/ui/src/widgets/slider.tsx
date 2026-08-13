@@ -11,6 +11,9 @@ export const sliderWidget = withFormItem(
     max,
     step,
     form,
+    dependValues: _dv,
+    dataPath: _dp,
+    path: _p,
     ...rest
   }: WidgetProps) => (
     <Slider

@@ -10,6 +10,9 @@ export const textAreaWidget = withFormItem(
     loading,
     rows,
     form,
+    dependValues: _dv,
+    dataPath: _dp,
+    path: _p,
     ...rest
   }: WidgetProps) => (
     <Input.TextArea

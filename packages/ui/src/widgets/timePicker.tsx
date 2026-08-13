@@ -9,6 +9,9 @@ export const timePickerWidget = withFormItem(
     loading,
     format,
     form,
+    dependValues: _dv,
+    dataPath: _dp,
+    path: _p,
     ...rest
   }: WidgetProps) => (
     <TimePicker

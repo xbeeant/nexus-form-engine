@@ -171,6 +171,9 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
     // Form.Item 消费的元数据需从 rest 中剥离，避免透传到底层 antd 控件：
     //  - required: 会让 <input required> 触发浏览器原生校验，拦截 submit 导致自定义校验不执行
     //  - errors / title / description: 作为未知属性渲染到 DOM，产生 React 警告
+    //  - dependValues / dataPath / path: 引擎内部 props，透传到 antd 控件会
+    //    渲染到 DOM 触发 "React does not recognize" 警告（剥除后显式传给 render，
+    //    自定义 widget 仍可通过 props.dataPath / props.dependValues 访问）
     const {
       extra,
       width,
@@ -190,6 +193,9 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
       column,
       form,
       items,
+      dependValues,
+      dataPath,
+      path,
       ...rest
     } = props;
 
@@ -231,6 +237,9 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
             options,
             form,
             items,
+            dependValues,
+            dataPath,
+            path,
             ...rest,
           })
         )}

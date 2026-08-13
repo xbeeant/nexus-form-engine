@@ -20,6 +20,9 @@ export const colorWidget = withFormItem(
     labelWidth,
     column: _col,
     form,
+    dependValues: _dv,
+    dataPath: _dp,
+    path: _p,
     ...rest
   }: WidgetProps) => {
     return (

@@ -109,3 +109,12 @@ export const dependencyPropertyFields: Record<string, SchemaNode> = {
     title: '依赖字段（dependencies）',
   },
 };
+
+// ── 联动配置 ──────────────────────────────────────────────────────────────
+export const reactionPropertyFields: Record<string, SchemaNode> = {
+  reactions: {
+    widget: 'propertyReactions',
+    type: 'string',
+    title: '联动规则（reactions）',
+  },
+};

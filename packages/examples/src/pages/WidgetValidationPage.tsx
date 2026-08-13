@@ -43,7 +43,7 @@ const exampleCode = `// 1) 组件内部注册校验规则（widgets/confirmPassw
 import { useFieldValidator } from '@nexus/form-engine-react';
 
 export const confirmPasswordWidget = withFormItem((props: WidgetProps) => {
-  const { dataPath, form } = props;
+  const { dataPath, form, value, dependValues: _dv, path: _p, ...rest } = props;
 
   // 组件内注册校验器：闭包可读取组件 state，实现与组件状态联动
   useFieldValidator(form, dataPath, (val, formData) => {
@@ -55,7 +55,7 @@ export const confirmPasswordWidget = withFormItem((props: WidgetProps) => {
     dependsOn: ['password'], // 依赖字段变化时自动联动重校验
   });
 
-  return <Input.Password {...props} />;
+  return <Input.Password value={value} {...rest} />;
 });
 
 // 2) 引擎注册自定义 widget

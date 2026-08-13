@@ -15,7 +15,17 @@ import { useState } from 'react';
 // ────────────────────────────────────────────────────────────────────────────
 
 export const confirmPasswordWidget = withFormItem((props: WidgetProps) => {
-  const { dataPath, form, value, disabled, onChange, loading, ...rest } = props;
+  const {
+    dataPath,
+    form,
+    value,
+    disabled,
+    onChange,
+    loading,
+    dependValues: _dv,
+    path: _p,
+    ...rest
+  } = props;
   const [toggle, setToggle] = useState(false);
 
   useFieldValidator(
@@ -59,7 +69,16 @@ export const confirmPasswordWidget = withFormItem((props: WidgetProps) => {
 // ────────────────────────────────────────────────────────────────────────────
 
 export const usernameUniqueWidget = withFormItem((props: WidgetProps) => {
-  const { dataPath, form, value, disabled, onChange, ...rest } = props;
+  const {
+    dataPath,
+    form,
+    value,
+    disabled,
+    onChange,
+    dependValues: _dv,
+    path: _p,
+    ...rest
+  } = props;
   const [toggle, setToggle] = useState(false);
   useFieldValidator(
     form,

@@ -16,7 +16,8 @@
 //     }
 //     return [];
 //   }, { dependsOn: ['password'], deps: [strict] });
-//   return <Input.Password ... />;
+//   const { dependValues: _dv, path: _p, ...rest } = props;
+//   return <Input.Password value={value} {...rest} />;
 // });
 // ```
 // ────────────────────────────────────────────────────────────────────────────

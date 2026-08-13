@@ -11,6 +11,8 @@ export const inputWidget = withFormItem(
     loading,
     form,
     dependValues,
+    dataPath: _dp,
+    path: _p,
     readOnly,
     required,
     ...rest

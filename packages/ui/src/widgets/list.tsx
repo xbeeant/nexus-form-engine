@@ -38,6 +38,8 @@ export const listWidget = withFormItem(
     column: _col,
     form: _form,
     dependValues: _dv,
+    dataPath: _dp,
+    path: _p,
     ...rest
   }: WidgetProps) => {
     const array = Array.isArray(value) ? value : [];
