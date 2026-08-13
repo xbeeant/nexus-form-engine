@@ -1,10 +1,12 @@
 // ============================================================================
 // ExpressionSwitch — 编辑 ExpressionOr<boolean> 属性
-// 支持静态布尔值（Switch）与表达式字符串（Input）之间的切换
+// 支持静态布尔值（Switch）与表达式（可视化构建器 / 高级手写）之间的切换
 // ============================================================================
 
 import type { WidgetProps } from '@nexus/form-engine-ui';
-import { Form, Input, Switch } from 'antd';
+import { Form, Switch } from 'antd';
+import { ExpressionBuilder } from './ExpressionBuilder';
+import { useFormDataFields } from './useFormDataFields';
 
 export function ExpressionSwitch({
   value,
@@ -16,6 +18,8 @@ export function ExpressionSwitch({
   // 直接由 value 派生（受控），外部 value 变化（如切换选中节点）自动同步；
   // 不再维护内部 isExpr state，避免与外部值脱节
   const isExpr = typeof value === 'string' && value.length > 0;
+
+  const fields = useFormDataFields();
 
   // 模式切换必须写回一个对应形态的值，否则状态只是视觉变化、无法持久化
   const switchMode = (exprMode: boolean) => {
@@ -36,11 +40,10 @@ export function ExpressionSwitch({
     >
       <div className={`flex gap-2 ${isExpr ? 'flex-col' : 'flex-row'}`}>
         {isExpr ? (
-          <Input.TextArea
-            allowClear
-            placeholder={"{{ formData.xxx == 'yyy' }}"}
+          <ExpressionBuilder
             value={value as string}
-            onChange={(e) => onChange(e.target.value || undefined)}
+            onChange={(s) => onChange(s)}
+            fields={fields}
           />
         ) : (
           <Switch checked={!!value} onChange={(v) => onChange(v)} />

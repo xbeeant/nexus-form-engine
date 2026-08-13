@@ -1,57 +1,53 @@
 // ============================================================================
 // DependenciesEditor — 编辑 dependencies 依赖字段路径（string[]）
-// 使用 TextArea，每行一个路径，与 string[] 互相转换
+// 通过标签选择器从表单字段中选择依赖路径，也支持手动输入自定义路径
 // ============================================================================
 
 import type { WidgetProps } from '@nexus/form-engine-ui';
-import { Form, Input } from 'antd';
+import { Form, Select } from 'antd';
 import { useEffect, useRef, useState } from 'react';
-
-/** string[] → 每行一个路径的文本 */
-function depsToText(value: unknown): string {
-  return Array.isArray(value) ? value.join('\n') : '';
-}
-
-/** 多行文本 → string[]（空则 undefined） */
-function textToDeps(text: string): string[] | undefined {
-  const deps = text
-    .split('\n')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-  return deps.length > 0 ? deps : undefined;
-}
+import { useFormDataFields } from './useFormDataFields';
 
 export function DependenciesEditor({ value, onChange, title }: WidgetProps) {
-  // 本地维护文本：textToDeps 在文本为空时返回 undefined，直接派生受控 value
-  // 会导致清空后重置回原值，无法输入。改为本地缓存 + 有效解析时同步提交。
-  const [text, setText] = useState(() => depsToText(value));
+  const fields = useFormDataFields();
+  const [tags, setTags] = useState<string[]>(() =>
+    Array.isArray(value) ? [...value] : [],
+  );
   const prevValueRef = useRef(value);
+  const lastEmittedRef = useRef(value);
 
+  // 外部 value 变化（切换节点等）时重置，自身 onChange 回传不重置
   useEffect(() => {
     if (prevValueRef.current !== value) {
       prevValueRef.current = value;
-      setText(depsToText(value));
+      if (value !== lastEmittedRef.current) {
+        setTags(Array.isArray(value) ? [...value] : []);
+      }
     }
   }, [value]);
 
-  const handleChange = (raw: string) => {
-    setText(raw);
-    const parsed = textToDeps(raw);
-    if (parsed) {
-      onChange(parsed);
-    }
+  const commit = (next: string[]) => {
+    setTags(next);
+    lastEmittedRef.current = next;
+    onChange(next.length > 0 ? next : undefined);
   };
 
   return (
     <Form.Item layout={'vertical'} label={title} style={{ width: '100%' }}>
-      <Input.TextArea
-        rows={3}
-        placeholder={'每行一个依赖字段路径\n如：password\n如：user.city'}
-        value={text}
-        onChange={(e) => handleChange(e.target.value)}
+      <Select
+        size='small'
+        mode='tags'
+        value={tags}
+        onChange={(v) =>
+          commit((v as string[]).map((s) => s.trim()).filter(Boolean))
+        }
+        options={fields.map((f) => ({ value: f, label: f }))}
+        placeholder='选择或输入依赖字段路径'
+        style={{ width: '100%' }}
       />
       <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
-        提示：依赖字段值变化时，触发该字段重新求值与渲染
+        提示：依赖字段值变化时，触发该字段重新求值与渲染。支持相对路径（如 处于
+        address.city 时填 province 表示 address.province）。
       </div>
     </Form.Item>
   );

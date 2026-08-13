@@ -10,6 +10,8 @@
 import type { WidgetProps } from '@nexus/form-engine-ui';
 import { Button, Form, Input, Select, Switch } from 'antd';
 import { useEffect, useRef, useState } from 'react';
+import { ExpressionBuilder } from './ExpressionBuilder';
+import { useFormDataFields } from './useFormDataFields';
 import {
   BOOLEAN_STATE_KEYS,
   PROPS_KEY,
@@ -23,6 +25,54 @@ import {
   type PatchRow,
 } from './reactionsModel';
 
+function depsCountOf(deps: string): number {
+  return deps
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean).length;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// InsertVariableSelect — 向文本中追加一个变量表达式（用于值型补丁）
+// ────────────────────────────────────────────────────────────────────────────
+
+function InsertVariableSelect({
+  fields,
+  depsCount,
+  onInsert,
+}: {
+  fields: string[];
+  depsCount: number;
+  onInsert: (text: string) => void;
+}) {
+  const options = [
+    ...fields.map((f) => ({ value: `formData.${f}`, label: `formData.${f}` })),
+    { value: '$self.value', label: '$self.value' },
+    ...(depsCount > 0
+      ? Array.from({ length: depsCount }, (_, i) => ({
+          value: `$deps[${i}]`,
+          label: `$deps[${i}]`,
+        }))
+      : []),
+    { value: '$index', label: '$index' },
+    { value: 'rootValue', label: 'rootValue' },
+  ];
+  return (
+    <Select
+      size='small'
+      placeholder='插入变量'
+      value={undefined}
+      onChange={(v) => {
+        if (v) {
+          onInsert(v as string);
+        }
+      }}
+      options={options}
+      style={{ width: 104 }}
+    />
+  );
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // PatchValueInput — 单条状态补丁的值编辑器
 // 布尔型状态 key：静态 Switch ⇄ 表达式 Input；其余 key：文本 Input
@@ -32,10 +82,14 @@ function PatchValueInput({
   rowKey,
   value,
   onChange,
+  fields,
+  depsCount,
 }: {
   rowKey: string;
   value: unknown;
   onChange: (v: unknown) => void;
+  fields: string[];
+  depsCount: number;
 }) {
   const booleanish = BOOLEAN_STATE_KEYS.has(rowKey);
   const isExpr = typeof value === 'string' && value.trim().startsWith('{{');
@@ -43,15 +97,24 @@ function PatchValueInput({
   if (booleanish) {
     if (isExpr) {
       return (
-        <div style={{ display: 'flex', gap: 4 }}>
-          <Input
-            size='small'
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <ExpressionBuilder
             value={value as string}
-            onChange={(e) => onChange(parsePatchValue(e.target.value))}
+            onChange={(s) => onChange(s)}
+            fields={fields}
+            depsCount={depsCount}
+            emitEmpty='empty'
           />
-          <Button size='small' onClick={() => onChange(false)}>
-            静态
-          </Button>
+          <div>
+            <Button
+              size='small'
+              type='text'
+              onClick={() => onChange(false)}
+              style={{ fontSize: 11, padding: '0 4px', height: 'auto' }}
+            >
+              改为静态
+            </Button>
+          </div>
         </div>
       );
     }
@@ -65,12 +128,34 @@ function PatchValueInput({
     );
   }
 
+  const insertVariable = (v: string) => {
+    const trimmed = String(value ?? '').trim();
+    if (
+      typeof value === 'string' &&
+      value.trim().startsWith('{{') &&
+      value.trim().endsWith('}}')
+    ) {
+      const inner = value.trim().slice(2, -2).trim();
+      onChange(`{{ ${inner} ${v} }}`);
+      return;
+    }
+    onChange(parsePatchValue(trimmed ? `${trimmed} ${v}` : v));
+  };
+
   return (
-    <Input
-      size='small'
-      value={String(value ?? '')}
-      onChange={(e) => onChange(parsePatchValue(e.target.value))}
-    />
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', flex: 1 }}>
+      <Input
+        size='small'
+        value={String(value ?? '')}
+        onChange={(e) => onChange(parsePatchValue(e.target.value))}
+        style={{ flex: 1 }}
+      />
+      <InsertVariableSelect
+        fields={fields}
+        depsCount={depsCount}
+        onInsert={insertVariable}
+      />
+    </div>
   );
 }
 
@@ -134,8 +219,9 @@ export function ReactionsEditor({ value, onChange, title }: WidgetProps) {
   };
 
   const autoExprCount = Array.isArray(value)
-    ? value.filter((r) => !!r && (r as { _autoExpr?: boolean })._autoExpr === true)
-        .length
+    ? value.filter(
+        (r) => !!r && (r as { _autoExpr?: boolean })._autoExpr === true,
+      ).length
     : 0;
 
   return (
@@ -194,6 +280,13 @@ function ReactionCard({
   onChange: (index: number, patch: Partial<Card>) => void;
   onRemove: (index: number) => void;
 }) {
+  const fields = useFormDataFields();
+  const depsCount = depsCountOf(card.deps);
+  const depsTags = card.deps
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   return (
     <div
       style={{
@@ -222,13 +315,16 @@ function ReactionCard({
 
       <div style={{ marginBottom: 6 }}>
         <div style={{ fontSize: 11, color: '#666', marginBottom: 2 }}>
-          依赖字段（dependencies，逗号分隔）
+          依赖字段（dependencies）
         </div>
-        <Input
+        <Select
           size='small'
-          placeholder='usePromo, password'
-          value={card.deps}
-          onChange={(e) => onChange(index, { deps: e.target.value })}
+          mode='tags'
+          value={depsTags}
+          onChange={(tags) => onChange(index, { deps: tags.join(', ') })}
+          options={fields.map((f) => ({ value: f, label: f }))}
+          placeholder='选择或输入依赖字段'
+          style={{ width: '100%' }}
         />
       </div>
 
@@ -236,11 +332,13 @@ function ReactionCard({
         <div style={{ fontSize: 11, color: '#666', marginBottom: 2 }}>
           条件（when，可选）
         </div>
-        <Input
-          size='small'
-          placeholder='{{ $deps[0] === true }}'
+        <ExpressionBuilder
           value={card.when}
-          onChange={(e) => onChange(index, { when: e.target.value })}
+          onChange={(s) => onChange(index, { when: s })}
+          fields={fields}
+          depsCount={depsCount}
+          emitEmpty='empty'
+          placeholder='{{ $deps[0] === true }}'
         />
       </div>
 
@@ -249,6 +347,8 @@ function ReactionCard({
         enabled={card.fulfillEnabled}
         rows={card.fulfillRows}
         schemaText={card.fulfillSchema}
+        fields={fields}
+        depsCount={depsCount}
         onToggle={(v) => onChange(index, { fulfillEnabled: v })}
         onRows={(rows) => onChange(index, { fulfillRows: rows })}
         onSchema={(t) => onChange(index, { fulfillSchema: t })}
@@ -259,6 +359,8 @@ function ReactionCard({
         enabled={card.otherwiseEnabled}
         rows={card.otherwiseRows}
         schemaText={card.otherwiseSchema}
+        fields={fields}
+        depsCount={depsCount}
         onToggle={(v) => onChange(index, { otherwiseEnabled: v })}
         onRows={(rows) => onChange(index, { otherwiseRows: rows })}
         onSchema={(t) => onChange(index, { otherwiseSchema: t })}
@@ -276,6 +378,8 @@ function BranchEditor({
   enabled,
   rows,
   schemaText,
+  fields,
+  depsCount,
   onToggle,
   onRows,
   onSchema,
@@ -284,6 +388,8 @@ function BranchEditor({
   enabled: boolean;
   rows: PatchRow[];
   schemaText: string;
+  fields: string[];
+  depsCount: number;
   onToggle: (enabled: boolean) => void;
   onRows: (rows: PatchRow[]) => void;
   onSchema: (text: string) => void;
@@ -311,11 +417,7 @@ function BranchEditor({
         }}
       >
         <span style={{ fontSize: 11, color: '#666' }}>{title}</span>
-        <Switch
-          size='small'
-          checked={enabled}
-          onChange={(v) => onToggle(v)}
-        />
+        <Switch size='small' checked={enabled} onChange={(v) => onToggle(v)} />
       </div>
 
       {enabled && (
@@ -339,6 +441,8 @@ function BranchEditor({
                   rowKey={row.key}
                   value={row.value}
                   onChange={(v) => updateRow(idx, { value: v })}
+                  fields={fields}
+                  depsCount={depsCount}
                 />
               </div>
               <Button size='small' onClick={() => removeRow(idx)}>

@@ -40,8 +40,11 @@
         "@nexus/form-engine": "^0.0.0",
         "@nexus/form-engine-ui": "^0.0.0",
       },
+      "devDependencies": {
+        "vitest": "^4.1.10",
+      },
       "peerDependencies": {
-        "antd": ">=6.0.0",
+        "antd": ">=5.0.0",
         "dayjs": ">=1.11.0",
         "react": ">=18.0.0",
         "react-dom": ">=18.0.0",
@@ -73,7 +76,7 @@
         "@nexus/form-engine": "^0.0.0",
       },
       "peerDependencies": {
-        "antd": ">=6.0.0",
+        "antd": ">=5.0.0",
         "dayjs": ">=1.11.0",
         "react": ">=18.0.0",
         "react-dom": ">=18.0.0",

@@ -4,7 +4,14 @@
 // 路径 path 为 property key 的数组，例如 ['card1', 'username']
 // 表示 schema.properties.card1.properties.username
 
-import type { NexusSchema, SchemaNode } from '@nexus/form-engine';
+import {
+  isDataArray,
+  isDataField,
+  isDataObject,
+  isLayoutNode,
+  type NexusSchema,
+  type SchemaNode,
+} from '@nexus/form-engine';
 
 // ────────────────────────────────────────────────────────────────────────────
 // 深拷贝
@@ -71,6 +78,60 @@ export function getPropertiesOf(
  */
 export function isContainerNode(node: SchemaNode): boolean {
   return 'properties' in node || 'items' in node;
+}
+
+/**
+ * 收集 schema 中所有会进入 formData 数据路径的字段路径（供变量选择器 / 依赖选择使用）
+ * 遵循 §2 路径计算规则：
+ * - 数据节点：Key 进入路径（对象/数组透传子字段，数组项子字段以 `key[0].sub` 表示）
+ * - 布局节点：Key 被丢弃，路径透传父级
+ * - 带 widget 的 object（子表单）视为叶子字段
+ */
+export function collectDataFieldPaths(schema: NexusSchema): string[] {
+  const result: string[] = [];
+  const walk = (node: SchemaNode, parentPath: string, key: string): void => {
+    // 数据节点路径 = 父路径 + 自身 key；布局节点不计算（Key 被丢弃）
+    const ownPath = parentPath ? `${parentPath}.${key}` : key;
+    if (isDataArray(node)) {
+      result.push(ownPath);
+      const items = node.items;
+      if (items && typeof items === 'object') {
+        if (isDataObject(items)) {
+          walkProperties(items.properties, `${ownPath}[0]`);
+        } else if (isDataField(items)) {
+          result.push(`${ownPath}[0]`);
+        }
+      }
+      return;
+    }
+    if (isDataField(node)) {
+      result.push(ownPath);
+      return;
+    }
+    if (isDataObject(node)) {
+      walkProperties(node.properties, ownPath);
+      return;
+    }
+    if (isLayoutNode(node)) {
+      // 布局节点 Key 不进入路径：子节点沿用父路径
+      walkProperties(node.properties, parentPath);
+    }
+  };
+
+  const walkProperties = (
+    props: Record<string, SchemaNode> | undefined,
+    parentPath: string,
+  ): void => {
+    if (!props) {
+      return;
+    }
+    for (const [key, child] of Object.entries(props)) {
+      walk(child, parentPath, key);
+    }
+  };
+
+  walkProperties(schema.properties, '');
+  return result;
 }
 
 // 获取指定父路径下的 properties 记录（用于增删改）

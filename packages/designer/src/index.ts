@@ -9,6 +9,7 @@ export type { DesignerContextValue } from './DesignerContext';
 export { DesignerProvider, useDesigner } from './DesignerContext';
 export {
   addChildToSchema,
+  collectDataFieldPaths,
   flattenNodeForPropertyEditor,
   getNodeAtProperties,
   removeNodeFromSchema,
