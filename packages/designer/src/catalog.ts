@@ -283,7 +283,20 @@ export const layoutCatalog: CatalogItem[] = [
     icon: '📑',
     category: 'layout',
     layoutType: 'tabs',
-    createNode: () => ({ type: 'tabs', title: '标签页', properties: {} }),
+    createNode: () => ({
+      type: 'tabs',
+      title: '标签页',
+      properties: {
+        pane1: { type: 'tabPane', title: '标签页签 1', properties: {} },
+      },
+    }),
+  },
+  {
+    label: '标签页签',
+    icon: '📑',
+    category: 'layout',
+    layoutType: 'tabPane',
+    createNode: () => ({ type: 'tabPane', title: '标签页签', properties: {} }),
   },
   {
     label: '折叠面板',
@@ -293,6 +306,19 @@ export const layoutCatalog: CatalogItem[] = [
     createNode: () => ({
       type: 'collapse',
       title: '折叠面板',
+      properties: {
+        panel1: { type: 'collapsePanel', title: '折叠面板 1', properties: {} },
+      },
+    }),
+  },
+  {
+    label: '折叠面板项',
+    icon: '📂',
+    category: 'layout',
+    layoutType: 'collapsePanel',
+    createNode: () => ({
+      type: 'collapsePanel',
+      title: '折叠面板项',
       properties: {},
     }),
   },
@@ -301,7 +327,20 @@ export const layoutCatalog: CatalogItem[] = [
     icon: '📝',
     category: 'layout',
     layoutType: 'steps',
-    createNode: () => ({ type: 'steps', title: '步骤条', properties: {} }),
+    createNode: () => ({
+      type: 'steps',
+      title: '步骤条',
+      properties: {
+        step1: { type: 'step', title: '步骤 1', properties: {} },
+      },
+    }),
+  },
+  {
+    label: '步骤项',
+    icon: '📝',
+    category: 'layout',
+    layoutType: 'step',
+    createNode: () => ({ type: 'step', title: '步骤项', properties: {} }),
   },
   {
     label: '分割线',

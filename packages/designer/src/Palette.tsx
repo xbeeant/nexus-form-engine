@@ -7,7 +7,11 @@ import { Collapse, Input } from 'antd';
 import type { DragEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { useDesigner } from './DesignerContext';
-import { generateKey } from './schemaUtils';
+import {
+  generateKey,
+  getNodeAtProperties,
+  getPropertiesOf,
+} from './schemaUtils';
 import type { CatalogItem, FieldDef } from './types';
 
 // 拖拽负载：palette 组件目录项 or 外部字段定义
@@ -20,6 +24,16 @@ export interface FieldDefDragPayload {
   fieldDef: FieldDef;
 }
 export type PaletteDragData = PaletteDragPayload | FieldDefDragPayload;
+
+// 面板类型 → 允许的唯一父容器类型（面板不能直接添加到根或普通容器）
+const PANE_PARENT_TYPE: Record<string, string> = {
+  tabPane: 'tabs',
+  collapsePanel: 'collapse',
+  step: 'steps',
+};
+
+const isPaneItem = (item: CatalogItem): boolean =>
+  item.category === 'layout' && !!PANE_PARENT_TYPE[item.layoutType ?? ''];
 
 function PaletteItem({
   item,
@@ -37,13 +51,21 @@ function PaletteItem({
     e.dataTransfer.effectAllowed = 'copy';
   };
 
+  // 面板类组件只能放入对应容器，点击/拖拽提示差异化
+  const paneParent = isPaneItem(item)
+    ? PANE_PARENT_TYPE[item.layoutType ?? '']
+    : undefined;
+  const title = paneParent
+    ? `拖拽「${item.label}」到「${paneParent}」容器中，或选中容器后点击`
+    : `点击添加或拖拽「${item.label}」到画布`;
+
   return (
     <div
       className='group flex flex-col items-center gap-1 rounded-lg border border-[#f0f0f0] bg-white px-1 py-2 cursor-grab select-none transition-all hover:-translate-y-px hover:border-[#1677ff] hover:shadow-[0_2px_8px_rgba(22,119,255,0.12)] active:cursor-grabbing'
       draggable
       onDragStart={handleDragStart}
       onClick={() => onAdd(item)}
-      title={`点击添加或拖拽「${item.label}」到画布`}
+      title={title}
     >
       <span className='flex h-7 w-7 items-center justify-center rounded-md bg-[#f5f7fa] text-[15px] transition-colors group-hover:bg-[#e8f1ff]'>
         {item.icon}
@@ -81,18 +103,44 @@ function FieldDefItem({ field }: { field: FieldDef }) {
 }
 
 export function Palette() {
-  const { schema, addNode, fields, widgetCatalog, layoutCatalog } =
-    useDesigner();
+  const {
+    schema,
+    selectedPath,
+    addNode,
+    fields,
+    widgetCatalog,
+    layoutCatalog,
+  } = useDesigner();
   const [keyword, setKeyword] = useState('');
 
   const handleAdd = useCallback(
     (item: CatalogItem) => {
       const base = item.widget || item.layoutType || 'field';
+      // 面板类组件只能放入对应容器：点击时若已选中匹配容器则加入，否则忽略
+      const paneParentType = isPaneItem(item)
+        ? PANE_PARENT_TYPE[item.layoutType ?? '']
+        : undefined;
+      if (paneParentType) {
+        if (!selectedPath || selectedPath.length === 0) {
+          return;
+        }
+        const parent = getNodeAtProperties(schema.properties, selectedPath);
+        if (!parent || parent.type !== paneParentType) {
+          return;
+        }
+        const parentProps = getPropertiesOf(parent);
+        if (!parentProps) {
+          return;
+        }
+        const key = generateKey(parentProps, base);
+        addNode(selectedPath, key, item.createNode() as unknown as SchemaNode);
+        return;
+      }
       const key = generateKey(schema.properties, base);
       const node = item.createNode() as unknown as SchemaNode;
       addNode([], key, node);
     },
-    [schema, addNode],
+    [schema, addNode, selectedPath],
   );
 
   const kw = keyword.trim().toLowerCase();

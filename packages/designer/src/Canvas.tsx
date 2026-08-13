@@ -22,6 +22,7 @@ import {
   getNodeLabel,
   getPropertiesOf,
   moveNodeInSchema,
+  removeNodeFromSchema,
 } from './schemaUtils';
 import type { CatalogItem, FieldDef } from './types';
 
@@ -67,6 +68,124 @@ function dropTargetEquals(a: DropTarget, b: DropTarget): boolean {
     return false;
   }
   return a.type === b.type && pathEquals(a.path, b.path);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 面板节点（tabPane / collapsePanel / step）与容器类型的映射
+// 面板只能放入对应的 tabs / collapse / steps 容器（否则渲染结构非法）；
+// 普通节点直接拖入这些容器时自动包裹成新面板，保证运行时渲染结构合法。
+// ────────────────────────────────────────────────────────────────────────────
+
+/** 面板类型 → 唯一允许的父容器类型 */
+const PANE_PARENT_TYPE: Record<string, string> = {
+  tabPane: 'tabs',
+  collapsePanel: 'collapse',
+  step: 'steps',
+};
+
+/** 容器类型 → 默认面板类型 */
+const CONTAINER_PANE_TYPE: Record<string, string> = {
+  tabs: 'tabPane',
+  collapse: 'collapsePanel',
+  steps: 'step',
+};
+
+/** 面板默认标题 */
+const PANE_DEFAULT_TITLE: Record<string, string> = {
+  tabPane: '标签页',
+  collapsePanel: '折叠面板',
+  step: '步骤',
+};
+
+/** 获取路径终点节点的容器类型（根路径返回 undefined） */
+function getContainerTypeAt(
+  schema: NexusSchema,
+  path: string[],
+): string | undefined {
+  if (path.length === 0) {
+    return undefined;
+  }
+  const node = getNodeAtProperties(schema.properties, path);
+  return node ? (node.type as string) : undefined;
+}
+
+/**
+ * 解析一次「新增节点」插入所需的节点构造器：
+ * - 面板节点（tabPane/collapsePanel/step）：仅当目标父级是对应容器时放行，否则拒绝
+ * - 普通节点拖入 tabs/collapse/steps 容器：自动包裹成新面板
+ * - 其余情况：原样返回
+ *
+ * @param innerKey 外部字段拖入时使用的固定 key（作为包裹面板内部字段的 key）
+ * @returns 插入用构造器；返回 null 表示本次插入被拒绝
+ */
+function resolveInsertFactory(
+  schema: NexusSchema,
+  toParentPath: string[],
+  createNode: () => SchemaNode,
+  nodeType: string,
+  innerKey?: string,
+): (() => SchemaNode) | null {
+  const parentType = getContainerTypeAt(schema, toParentPath);
+
+  const requiredParent = PANE_PARENT_TYPE[nodeType];
+  if (requiredParent) {
+    return parentType === requiredParent ? createNode : null;
+  }
+
+  const paneType = parentType ? CONTAINER_PANE_TYPE[parentType] : undefined;
+  if (paneType) {
+    return () =>
+      ({
+        type: paneType,
+        title: PANE_DEFAULT_TITLE[paneType],
+        properties: {
+          [innerKey ?? generateKey({}, nodeType)]: createNode(),
+        },
+      }) as unknown as SchemaNode;
+  }
+
+  return createNode;
+}
+
+/**
+ * 解析一次「移动已有节点」的落点：
+ * - 移动面板节点：仅允许放入对应容器（否则返回 null）
+ * - 普通节点移入 tabs/collapse/steps 容器：包裹成新面板
+ *
+ * @returns wrapped 为 true 时 node 是新建的包裹面板，需删除原节点
+ */
+function resolveMoveNode(
+  schema: NexusSchema,
+  fromPath: string[],
+  toParentPath: string[],
+): { node: SchemaNode; wrapped: boolean } | null {
+  const node = getNodeAtProperties(schema.properties, fromPath);
+  if (!node) {
+    return null;
+  }
+  const parentType = getContainerTypeAt(schema, toParentPath);
+  const nodeType = node.type as string;
+
+  const requiredParent = PANE_PARENT_TYPE[nodeType];
+  if (requiredParent) {
+    return parentType === requiredParent ? { node, wrapped: false } : null;
+  }
+
+  const paneType = parentType ? CONTAINER_PANE_TYPE[parentType] : undefined;
+  if (paneType) {
+    return {
+      wrapped: true,
+      node: {
+        type: paneType,
+        title: PANE_DEFAULT_TITLE[paneType],
+        properties: {
+          [fromPath[fromPath.length - 1]]: node,
+        },
+      } as unknown as SchemaNode,
+    };
+  }
+
+  return { node, wrapped: false };
 }
 
 // 判断 targetPath 是否是 fromPath 自身或其后代
@@ -197,6 +316,15 @@ export function Canvas() {
     return parent ? getPropertiesOf(parent) : undefined;
   };
 
+  // 与 getParentProps 相同，但作用于指定 schema（用于在副本上定位 properties）
+  const getPropsAtPath = (targetSchema: NexusSchema, parentPath: string[]) => {
+    if (parentPath.length === 0) {
+      return targetSchema.properties;
+    }
+    const parent = getNodeAtProperties(targetSchema.properties, parentPath);
+    return parent ? getPropertiesOf(parent) : undefined;
+  };
+
   // 判断是否允许拖入
   const canDrop = (fromPath: string[], targetPath: string[]): boolean => {
     if (isDescendantOrSelf(fromPath, targetPath)) {
@@ -262,7 +390,24 @@ export function Canvas() {
         if (!canDrop(fromPath, target.path)) {
           return;
         }
-        setSchema(moveNodeInSchema(schema, fromPath, target.path));
+        // 面板节点仅入对应容器；普通节点进 tabs/collapse/steps 时自动包裹
+        const resolved = resolveMoveNode(schema, fromPath, target.path);
+        if (!resolved) {
+          return;
+        }
+        if (!resolved.wrapped) {
+          setSchema(moveNodeInSchema(schema, fromPath, target.path));
+        } else {
+          let next = structuredClone(schema) as NexusSchema;
+          const toProps = getPropsAtPath(next, target.path);
+          if (!toProps) {
+            return;
+          }
+          const paneKey = generateKey(toProps, 'panel');
+          toProps[paneKey] = resolved.node;
+          next = removeNodeFromSchema(next, fromPath);
+          setSchema(next);
+        }
         selectNode(null);
         return;
       }
@@ -289,9 +434,34 @@ export function Canvas() {
           insertIndex -= 1;
         }
       }
-      setSchema(
-        moveNodeInSchema(schema, fromPath, result.toParentPath, insertIndex),
-      );
+
+      const resolved = resolveMoveNode(schema, fromPath, result.toParentPath);
+      if (!resolved) {
+        return;
+      }
+      if (!resolved.wrapped) {
+        setSchema(
+          moveNodeInSchema(schema, fromPath, result.toParentPath, insertIndex),
+        );
+      } else {
+        let next = structuredClone(schema) as NexusSchema;
+        const toProps = getPropsAtPath(next, result.toParentPath);
+        if (!toProps) {
+          return;
+        }
+        const paneKey = generateKey(toProps, 'panel');
+        toProps[paneKey] = resolved.node;
+        next = removeNodeFromSchema(next, fromPath);
+        // 将包裹面板移动到目标插入位置
+        setSchema(
+          moveNodeInSchema(
+            next,
+            [...result.toParentPath, paneKey],
+            result.toParentPath,
+            insertIndex,
+          ),
+        );
+      }
       selectNode(null);
       return;
     }
@@ -334,12 +504,23 @@ export function Canvas() {
       if (!parentProps) {
         return;
       }
+      // 面板类型校验 / 普通节点进面板容器时自动包裹
+      const factory = resolveInsertFactory(
+        schema,
+        target.path,
+        createNode,
+        base,
+        fixedKey,
+      );
+      if (!factory) {
+        return;
+      }
       const key = fixedKey ?? generateKey(parentProps, base);
       // 若 fixedKey 已存在，则跳过
       if (fixedKey && key in parentProps) {
         return;
       }
-      addNode(target.path, key, createNode());
+      addNode(target.path, key, factory());
       return;
     }
 
@@ -348,19 +529,21 @@ export function Canvas() {
     if (!result) {
       return;
     }
+    // 面板类型校验 / 普通节点进面板容器时自动包裹
+    const factory = resolveInsertFactory(
+      schema,
+      result.toParentPath,
+      createNode,
+      base,
+      fixedKey,
+    );
+    if (!factory) {
+      return;
+    }
 
     // 在副本上操作：先 add 再 move
     const next = structuredClone(schema) as NexusSchema;
-    let nextParentProps: Record<string, SchemaNode> | undefined;
-    if (result.toParentPath.length === 0) {
-      nextParentProps = next.properties;
-    } else {
-      const parentNode = getNodeAtProperties(
-        next.properties,
-        result.toParentPath,
-      );
-      nextParentProps = parentNode ? getPropertiesOf(parentNode) : undefined;
-    }
+    const nextParentProps = getPropsAtPath(next, result.toParentPath);
     if (!nextParentProps) {
       return;
     }
@@ -369,7 +552,7 @@ export function Canvas() {
     if (fixedKey && newKey in nextParentProps) {
       return;
     }
-    nextParentProps[newKey] = createNode();
+    nextParentProps[newKey] = factory();
 
     const fullNewPath = [...result.toParentPath, newKey];
     setSchema(
@@ -453,14 +636,6 @@ export function Canvas() {
     selectNode(path);
   };
 
-  const isDropInside = (path: string[]): boolean => {
-    return (
-      dropTarget !== null &&
-      dropTarget.type === 'inside' &&
-      pathEquals(dropTarget.path, path)
-    );
-  };
-
   const renderNode = (
     node: SchemaNode,
     key: string,
@@ -481,7 +656,6 @@ export function Canvas() {
         ? `${parentDataPath}.${key}`
         : key;
     const childEntries = childProps ? Object.entries(childProps) : [];
-    const dropInside = isDropInside(path);
     const isField = isDataField(node);
 
     // 判断当前节点是否是 drop target
@@ -501,11 +675,9 @@ export function Canvas() {
         {/* 统一包裹容器：header + 预览/子节点 */}
         <div
           className={`relative rounded border bg-white transition-all ${
-            dropInside
-              ? 'border-[#1677ff] bg-[#e6f4ff] shadow-[0_0_0_2px_rgba(22,119,255,0.2)]'
-              : isSelected
-                ? 'border-[#1677ff] bg-[#e6f4ff] shadow-[0_0_0_2px_rgba(22,119,255,0.1)]'
-                : 'border-[#e8e8e8] hover:border-[#1677ff]'
+            isSelected
+              ? 'border-[#1677ff] bg-[#e6f4ff] shadow-[0_0_0_2px_rgba(22,119,255,0.1)]'
+              : 'border-[#e8e8e8] hover:border-[#1677ff]'
           }`}
         >
           {/* header 行：拖拽 + 信息 + 操作 */}
@@ -628,7 +800,7 @@ export function Canvas() {
 
               const childDiv = (
                 <div
-                  className={`mx-2 mb-2 p-2 border border-dashed rounded min-h-8 bg-[rgba(250,250,250,0.6)] transition-all ${dropInside ? 'border-[#1677ff] border-solid bg-[#e6f4ff] shadow-[inset_0_0_0_1px_#1677ff]' : 'border-[#d9d9d9]'}`}
+                  className='mx-2 mb-2 p-2 border border-dashed rounded min-h-8 bg-[rgba(250,250,250,0.6)] border-[#d9d9d9]'
                   style={containerStyle}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -639,10 +811,10 @@ export function Canvas() {
                     e.dataTransfer.dropEffect =
                       e.dataTransfer.effectAllowed === 'copy' ? 'copy' : 'move';
                     setDropTarget((prev) => {
-                      if (dropTargetEquals(prev, { type: 'inside', path })) {
+                      if (prev === null) {
                         return prev;
                       }
-                      return { type: 'inside', path };
+                      return null;
                     });
                   }}
                   onDrop={(e) => {
@@ -739,21 +911,17 @@ export function Canvas() {
       config={formConfig}
     >
       <div
-        className={`flex-1 overflow-y-auto p-4 bg-[#f5f5f5] min-h-full border box-border ${
-          dropTarget?.type === 'inside' && dropTarget.path.length === 0
-            ? 'border-[#1677ff] border-solid bg-[#e6f4ff] shadow-[inset_0_0_0_1px_#1677ff]'
-            : 'border-transparent'
-        }`}
+        className='flex-1 overflow-y-auto p-4 bg-[#f5f5f5] min-h-full border border-transparent box-border'
         onClick={() => selectNode(null)}
         onDragOver={(e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect =
             e.dataTransfer.effectAllowed === 'copy' ? 'copy' : 'move';
           setDropTarget((prev) => {
-            if (dropTargetEquals(prev, { type: 'inside', path: [] })) {
+            if (prev === null) {
               return prev;
             }
-            return { type: 'inside', path: [] };
+            return null;
           });
         }}
         onDrop={(e) => handleDrop(e, { type: 'inside', path: [] })}
