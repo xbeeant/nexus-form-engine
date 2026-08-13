@@ -34,9 +34,11 @@ export interface AsyncValidatorOptions {
  * AsyncValidatorPlugin — 异步校验器插件
  *
  * 通过 `engine.use(new AsyncValidatorPlugin(engine))` 注入。
- * 钩子 `onValidateField` 在字段实时同步校验完成后触发，
- * 插件对注册到该字段的异步校验器执行防抖调度、超时控制与并行执行，
- * 结果通过 `engine.setFieldState(path, { errors })` 写回。
+ * 钩子 `onValidateField` 在字段实时同步校验完成后触发（值变更 / validateField），
+ * 插件对注册到该字段的校验器执行防抖调度、超时控制与并行执行，
+ * 结果通过 `engine.setFieldState(path, { errors })` 写回——
+ * 使 useFieldValidator / registerFieldValidator 注册的异步校验器
+ * 与同步校验器一样在值变化时被触发（默认 'change' trigger）。
  *
  * 功能：
  * - 字段级异步校验器注册（registerValidator / registerValidators）
@@ -89,7 +91,9 @@ export class AsyncValidatorPlugin implements NexusPlugin {
    * @param validators - 字段路径 → 校验器列表
    */
   registerValidators(
-    validators: Map<string, FieldValidator[]> | Record<string, FieldValidator[]>,
+    validators:
+      | Map<string, FieldValidator[]>
+      | Record<string, FieldValidator[]>,
   ): void {
     if (validators instanceof Map) {
       for (const [path, list] of validators) {
@@ -211,7 +215,11 @@ export class AsyncValidatorPlugin implements NexusPlugin {
 
       try {
         const run = async (validator: FieldValidator): Promise<void> => {
-          const result = await this.withTimeout(validator, latest.value, latestFormData);
+          const result = await this.withTimeout(
+            validator,
+            latest.value,
+            latestFormData,
+          );
           if (Array.isArray(result) && result.length > 0) {
             asyncErrors.push(...result);
           }

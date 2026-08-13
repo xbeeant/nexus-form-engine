@@ -21,6 +21,8 @@ import type {
   SchemaNode,
   ValidateSchema,
   ValidationRule,
+  WidgetDescriptors,
+  WidgetValidationDescriptor,
 } from './types/schema';
 import {
   getNestedValue,
@@ -152,6 +154,7 @@ function getDefaultValue(node: DataFieldSchema): unknown {
 export function parse(
   schema: NexusSchema,
   initialValues?: Record<string, unknown>,
+  widgetMetas?: WidgetDescriptors,
 ): ParseResult {
   const fieldStates = new Map<string, FieldState>();
   const renderTree: RenderTreeNode[] = [];
@@ -163,6 +166,8 @@ export function parse(
     fieldStates,
     renderTree,
     initialValues,
+    undefined,
+    widgetMetas,
   );
 
   // 第二步：解析 reactions 依赖路径的作用域
@@ -187,6 +192,12 @@ function walkProperties(
   fieldStates: Map<string, FieldState>,
   renderTree: RenderTreeNode[],
   initialValues?: Record<string, unknown>,
+  parentObjectState?: {
+    visible?: boolean;
+    disabled?: boolean;
+    readOnly?: boolean;
+  },
+  widgetMetas?: WidgetDescriptors,
 ): void {
   for (const [key, node] of Object.entries(properties)) {
     // ⚡ isDataArray 必须在 isDataField 之前判断：
@@ -201,6 +212,8 @@ function walkProperties(
         fieldStates,
         renderTree,
         initialValues,
+        parentObjectState,
+        widgetMetas,
       );
     } else if (isDataField(node)) {
       // ── 数据字段（叶子节点）──
@@ -211,6 +224,8 @@ function walkProperties(
         fieldStates,
         renderTree,
         initialValues,
+        parentObjectState,
+        widgetMetas,
       );
     } else if (isDataObject(node)) {
       // ── 数据对象（嵌套，Key 进入路径）──
@@ -221,6 +236,7 @@ function walkProperties(
         fieldStates,
         renderTree,
         initialValues,
+        widgetMetas,
       );
     } else if (isLayoutNode(node)) {
       // ── 布局节点（Key 不进入路径，透传 parentDataPath）──
@@ -231,6 +247,7 @@ function walkProperties(
         fieldStates,
         renderTree,
         initialValues,
+        widgetMetas,
       );
     }
   }
@@ -486,6 +503,126 @@ function appendConstraintRules(
 }
 
 // ────────────────────────────────────────────────────────────────────────
+// Widget 声明级校验/联动合并（widgetMeta → 字段状态）
+// ────────────────────────────────────────────────────────────────────────
+
+/**
+ * 解析字段实际使用的 widget 名称（显式声明或按 type/format 推断）
+ *
+ * @param node - 字段 Schema 节点
+ * @returns widget 名称
+ */
+function resolveWidgetName(node: {
+  widget?: string;
+  type?: string;
+  format?: string;
+}): string {
+  return node.widget || inferWidgetFromSchema(node);
+}
+
+/**
+ * 合并 widget 声明级默认校验规则到字段规则数组
+ *
+ * 优先级：Schema 显式声明的规则 > widget 默认规则。
+ * widget 规则中与已存在规则拥有相同约束键（min/max/pattern/enum/validator 等）的
+ * 被跳过（补缺），避免与用户 Schema 冲突产生双错误消息。
+ *
+ * @param rules - 字段规则数组（已含 schema 规则，原地追加）
+ * @param widgetRules - widget 声明级规则
+ */
+function mergeWidgetRules(
+  rules: ValidationRule[],
+  widgetRules: ValidationRule[],
+): void {
+  for (const rule of widgetRules) {
+    const keys: string[] = [];
+    if (rule.required !== undefined) {
+      keys.push('required');
+    }
+    if (rule.min !== undefined) {
+      keys.push('min');
+    }
+    if (rule.max !== undefined) {
+      keys.push('max');
+    }
+    if (rule.len !== undefined) {
+      keys.push('len');
+    }
+    if (rule.pattern !== undefined) {
+      keys.push('pattern');
+    }
+    if (rule.whitespace === true) {
+      keys.push('whitespace');
+    }
+    if (rule.enum && rule.enum.length > 0) {
+      keys.push('enum');
+    }
+    if (rule.validator !== undefined) {
+      keys.push('validator');
+    }
+    if (rule._validateExpr !== undefined) {
+      keys.push('_validateExpr');
+    }
+    if (rule.type === 'email' || rule.type === 'url') {
+      keys.push('format');
+    }
+    const duplicated = keys.some((k) => hasDeclaredConstraint(rules, k));
+    if (!duplicated) {
+      rules.push(rule);
+    }
+  }
+}
+
+/**
+ * 合并 widget 声明级联动规则到字段 reactions
+ *
+ * 规则数组在后续 resolveReactionScopes / buildDependencyGraph 中统一处理：
+ * - 相对路径依赖按目标字段作用域解析
+ * - 依赖边进入依赖图，字段变化时 O(k) 触发联动与实时重校验
+ *
+ * @param reactions - 字段 reactions 数组（含 schema reactions，原地追加）
+ * @param widgetReactions - widget 声明级 reactions
+ */
+function mergeWidgetReactions(
+  reactions: Reaction[],
+  widgetReactions: Reaction[],
+): void {
+  for (const reaction of widgetReactions) {
+    reactions.push(reaction);
+  }
+}
+
+/**
+ * 合并 widget 声明级默认 props 与 schema props
+ *
+ * widget 默认 props 作为基础，schema props 覆盖同键值（字段级优先）。
+ *
+ * @param widgetProps - widget 声明级默认 props
+ * @param schemaProps - schema 节点 props
+ * @returns 合并后的 props
+ */
+function mergeWidgetProps(
+  widgetProps: Record<string, unknown> | undefined,
+  schemaProps: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  return { ...(widgetProps ?? {}), ...(schemaProps ?? {}) };
+}
+
+/**
+ * 获取 widget 名称对应的声明描述（无 widgetMetas 或未注册时返回 undefined）
+ *
+ * @param widgetName - 字段实际使用的 widget 名称
+ * @param widgetMetas - 引擎注册时快照的 widget 描述映射表
+ * @returns WidgetValidationDescriptor | undefined
+ */
+function getWidgetDescriptor(
+  widgetName: string,
+  widgetMetas?: WidgetDescriptors,
+): WidgetValidationDescriptor | undefined {
+  return widgetMetas?.[widgetName];
+}
+
+// ────────────────────────────────────────────────────────────────────────
 // 处理数据字段
 // ────────────────────────────────────────────────────────────────────────
 
@@ -523,8 +660,18 @@ function processDataField(
   fieldStates: Map<string, FieldState>,
   renderTree: RenderTreeNode[],
   initialValues?: Record<string, unknown>,
+  parentObjectState?: {
+    visible?: boolean;
+    disabled?: boolean;
+    readOnly?: boolean;
+  },
+  widgetMetas?: WidgetDescriptors,
 ): void {
   const dataPath = parentDataPath ? `${parentDataPath}.${key}` : key;
+
+  // widget 名称（显式声明或按 type/format 推断）与其声明级校验/联动描述
+  const widgetName = resolveWidgetName(node);
+  const widgetMeta = getWidgetDescriptor(widgetName, widgetMetas);
 
   // 解析初始值：根据 bind 类型决定从何处读取
   // - bind: false — 不参与数据收集，使用 default 或类型默认值
@@ -573,8 +720,39 @@ function processDataField(
     rules.push(...validateToRules(node.validate, node.title || key));
   }
 
+  // 合并 widget 声明级默认校验规则（schema 已声明同键规则时补缺跳过）
+  if (widgetMeta?.rules) {
+    mergeWidgetRules(rules, widgetMeta.rules);
+  }
+
   // required/disabled/readOnly/hidden 为表达式时，自动转 reactions
   collectExpressionReactions(node);
+
+  // 合并 widget 声明级默认联动规则（随后统一进依赖图，实现状态联动）
+  const reactions: Reaction[] = [...((node.reactions as Reaction[]) || [])];
+  if (widgetMeta?.reactions) {
+    mergeWidgetReactions(reactions, widgetMeta.reactions);
+  }
+
+  // 合并父对象状态（父对象状态优先级更高）
+  const visible =
+    parentObjectState?.visible !== undefined
+      ? parentObjectState.visible
+      : typeof node.hidden === 'boolean'
+        ? !node.hidden
+        : true;
+  const disabled =
+    parentObjectState?.disabled !== undefined
+      ? parentObjectState.disabled
+      : typeof node.disabled === 'boolean'
+        ? node.disabled
+        : false;
+  const readOnly =
+    parentObjectState?.readOnly !== undefined
+      ? parentObjectState.readOnly
+      : typeof node.readOnly === 'boolean'
+        ? node.readOnly
+        : false;
 
   const state: FieldState = {
     path: dataPath,
@@ -582,18 +760,17 @@ function processDataField(
     initialValue,
     touched: false,
     dirty: false,
-    // 存在布尔/表达式时直接取静态值；表达式时取默认（由 reaction 动态控制）
-    visible: typeof node.hidden === 'boolean' ? !node.hidden : true,
-    disabled: typeof node.disabled === 'boolean' ? node.disabled : false,
-    readOnly: typeof node.readOnly === 'boolean' ? node.readOnly : false,
+    visible,
+    disabled,
+    readOnly,
     required: typeof node.required === 'boolean' ? node.required : false,
     loading: false,
     errors: [],
-    props: node.props || {},
-    reactions: (node.reactions as Reaction[] | undefined) || [],
+    props: mergeWidgetProps(widgetMeta?.props, node.props),
+    reactions,
     meta: {
       title: node.title || key,
-      widget: node.widget || inferWidgetFromSchema(node),
+      widget: widgetName,
       type: node.type,
       rules,
       description: node.description,
@@ -633,10 +810,17 @@ function processDataObject(
   fieldStates: Map<string, FieldState>,
   renderTree: RenderTreeNode[],
   initialValues?: Record<string, unknown>,
+  widgetMetas?: WidgetDescriptors,
 ): void {
   // 数据对象的 Key 进入路径
   const objectPath = parentDataPath ? `${parentDataPath}.${key}` : key;
   const children: RenderTreeNode[] = [];
+
+  // 获取对象级别状态（从显式配置或默认值）
+  // 优先使用显式配置的布尔值，表达式会通过 reactions 动态处理
+  const visible = typeof node.hidden === 'boolean' ? !node.hidden : true;
+  const disabled = typeof node.disabled === 'boolean' ? node.disabled : false;
+  const readOnly = typeof node.readOnly === 'boolean' ? node.readOnly : false;
 
   // 合并对象 default 与用户 initialValues：default 作为基础，initialValues 优先
   // 使子字段能从对象 default 中读取各自默认值
@@ -659,12 +843,17 @@ function processDataObject(
     setNestedValue(mergedInitialValues, objectPath, combined);
   }
 
+  // 子字段不继承容器状态：容器的 disabled/readOnly/hidden 存于容器自身 FieldState
+  // （meta.containerOnly），由 Renderer 层经 FieldInheritContext 在渲染时下发合并，
+  // 保证容器状态经 setFieldState / 表达式联动动态变化时子树能实时跟随。
   walkProperties(
     node.properties,
     objectPath,
     fieldStates,
     children,
     mergedInitialValues,
+    undefined,
+    widgetMetas,
   );
 
   // required/disabled/readOnly/hidden 为表达式时，自动转 reactions
@@ -709,6 +898,9 @@ function processDataObject(
     layoutKey: key,
     title: node.title,
     children,
+    visible,
+    disabled,
+    readOnly,
   } satisfies RenderObjectNode);
 }
 
@@ -723,10 +915,20 @@ function processDataArray(
   fieldStates: Map<string, FieldState>,
   renderTree: RenderTreeNode[],
   initialValues?: Record<string, unknown>,
+  parentObjectState?: {
+    visible?: boolean;
+    disabled?: boolean;
+    readOnly?: boolean;
+  },
+  widgetMetas?: WidgetDescriptors,
 ): void {
   const arrayPath = parentDataPath ? `${parentDataPath}.${key}` : key;
   const initialValue =
     getNestedValue(initialValues, arrayPath) ?? node.default ?? [];
+
+  // widget 名称（数组缺省 'array'）与其声明级校验/联动描述
+  const widgetName = node.widget || 'array';
+  const widgetMeta = getWidgetDescriptor(widgetName, widgetMetas);
 
   const rules: ValidationRule[] = [...(node.rules || [])];
   if (node.required === true) {
@@ -742,7 +944,38 @@ function processDataArray(
     rules.push(...validateToRules(node.validate, node.title || key));
   }
 
+  // 合并 widget 声明级默认校验规则（schema 已声明同键规则时补缺跳过）
+  if (widgetMeta?.rules) {
+    mergeWidgetRules(rules, widgetMeta.rules);
+  }
+
   collectExpressionReactions(node);
+
+  // 合并 widget 声明级默认联动规则（随后统一进依赖图，实现状态联动）
+  const reactions: Reaction[] = [...((node.reactions as Reaction[]) || [])];
+  if (widgetMeta?.reactions) {
+    mergeWidgetReactions(reactions, widgetMeta.reactions);
+  }
+
+  // 合并父对象状态（父对象状态优先级更高）
+  const visible =
+    parentObjectState?.visible !== undefined
+      ? parentObjectState.visible
+      : typeof node.hidden === 'boolean'
+        ? !node.hidden
+        : true;
+  const disabled =
+    parentObjectState?.disabled !== undefined
+      ? parentObjectState.disabled
+      : typeof node.disabled === 'boolean'
+        ? node.disabled
+        : false;
+  const readOnly =
+    parentObjectState?.readOnly !== undefined
+      ? parentObjectState.readOnly
+      : typeof node.readOnly === 'boolean'
+        ? node.readOnly
+        : false;
 
   const state: FieldState = {
     path: arrayPath,
@@ -750,18 +983,18 @@ function processDataArray(
     initialValue,
     touched: false,
     dirty: false,
-    visible: typeof node.hidden === 'boolean' ? !node.hidden : true,
-    disabled: typeof node.disabled === 'boolean' ? node.disabled : false,
-    readOnly: typeof node.readOnly === 'boolean' ? node.readOnly : false,
+    visible,
+    disabled,
+    readOnly,
     required: typeof node.required === 'boolean' ? node.required : false,
     loading: false,
     errors: [],
-    props: node.props || {},
-    reactions: (node.reactions as Reaction[] | undefined) || [],
+    props: mergeWidgetProps(widgetMeta?.props, node.props),
+    reactions,
     meta: {
       title: node.title || key,
-      widget: node.widget || 'array',
-      type: 'array',
+      widget: widgetName,
+      type: node.type,
       rules,
       description: node.description,
       min: node.min,
@@ -791,6 +1024,7 @@ function processDataArray(
     node,
     Array.isArray(initialValue) ? (initialValue as unknown[]) : [],
     fieldStates,
+    widgetMetas,
   );
 }
 
@@ -808,6 +1042,7 @@ function processLayoutNode(
   fieldStates: Map<string, FieldState>,
   renderTree: RenderTreeNode[],
   initialValues?: Record<string, unknown>,
+  widgetMetas?: WidgetDescriptors,
 ): void {
   const children: RenderTreeNode[] = [];
 
@@ -817,6 +1052,8 @@ function processLayoutNode(
     fieldStates,
     children,
     initialValues,
+    undefined,
+    widgetMetas,
   );
 
   renderTree.push({
@@ -971,6 +1208,7 @@ export function createArrayItemState(
   node: DataFieldSchema,
   value: unknown,
   arrayPath: string,
+  widgetMetas?: WidgetDescriptors,
 ): FieldState {
   const rules: ValidationRule[] = [...(node.rules || [])];
   if (node.required === true) {
@@ -982,9 +1220,24 @@ export function createArrayItemState(
   // 数组项子字段的约束同样自动转规则（对齐 processDataField）
   appendConstraintRules(node as unknown as Record<string, unknown>, rules);
 
+  // widget 名称（显式声明或按 type/format 推断）与其声明级校验/联动描述
+  const widgetName = resolveWidgetName(node);
+  const widgetMeta = getWidgetDescriptor(widgetName, widgetMetas);
+
+  // 合并 widget 声明级默认校验规则（schema 已声明同键规则时补缺跳过）
+  if (widgetMeta?.rules) {
+    mergeWidgetRules(rules, widgetMeta.rules);
+  }
+
   // required/disabled/readOnly/hidden 为表达式时，自动转 reactions
   // （$index 等上下文变量依赖各数组项自身路径，解析后天然按项生效）
   collectExpressionReactions(node);
+
+  // 合并 widget 声明级默认联动规则
+  const reactions: Reaction[] = [...((node.reactions as Reaction[]) || [])];
+  if (widgetMeta?.reactions) {
+    mergeWidgetReactions(reactions, widgetMeta.reactions);
+  }
 
   return {
     path,
@@ -998,11 +1251,11 @@ export function createArrayItemState(
     required: typeof node.required === 'boolean' ? node.required : false,
     loading: false,
     errors: [],
-    props: node.props || {},
-    reactions: (node.reactions as Reaction[] | undefined) || [],
+    props: mergeWidgetProps(widgetMeta?.props, node.props),
+    reactions,
     meta: {
       title: node.title || key,
-      widget: node.widget || inferWidgetFromSchema(node),
+      widget: widgetName,
       type: node.type,
       rules,
       description: node.description,
@@ -1031,6 +1284,7 @@ function processArrayItems(
   node: DataArraySchema,
   arr: unknown[],
   fieldStates: Map<string, FieldState>,
+  widgetMetas?: WidgetDescriptors,
 ): void {
   const items = node.items;
   if (!items) {
@@ -1051,6 +1305,7 @@ function processArrayItems(
             sub,
             obj[itemKey],
             arrayPath,
+            widgetMetas,
           ),
         );
       }
@@ -1064,6 +1319,7 @@ function processArrayItems(
           items as DataFieldSchema,
           item,
           arrayPath,
+          widgetMetas,
         ),
       );
     }

@@ -6,7 +6,7 @@
 /** 数组字段操作插件 */
 export { ArrayOperationsPlugin } from './array-list';
 export type { AsyncValidatorOptions, FieldValidator } from './async-validator';
-/** 异步校验器插件（防抖/超时/并行调度） */
+/** 异步校验器插件（防抖/超时/并行调度，engine.use 注入） */
 export {
   AsyncValidatorPlugin,
   createAsyncValidatorPlugin,
@@ -71,10 +71,18 @@ export type {
   ValidateSchema,
   ValidationRule,
   ValidationTrigger,
+  WidgetDescriptors,
   WidgetPropsMap,
   WidgetSpecificProps,
+  WidgetValidationDescriptor,
 } from './types/schema';
-export { DataConverter } from './utils/data-converters';
+export {
+  DataConverter,
+  formatField,
+  toFormData,
+  toMultipart,
+  toSearchParams,
+} from './utils/data-converters';
 export {
   getNestedValue,
   isDataArray,
@@ -92,4 +100,14 @@ export {
   toBoolean,
 } from './utils/schema-helper';
 /** Schema序列化/反序列化工具 */
-export { SchemaSerializer } from './utils/schema-serializer';
+export {
+  compress,
+  compressionRate,
+  compressToBase64,
+  decompressFromBase64,
+  deserialize,
+  diff,
+  SchemaSerializer,
+  serialize,
+  sizeOf,
+} from './utils/schema-serializer';

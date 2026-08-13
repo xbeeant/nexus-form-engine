@@ -312,6 +312,51 @@ describe('SchemaParser', () => {
     });
   });
 
+  describe('widget 可选（按 type/format 推断）', () => {
+    it('省略 widget 时按 type/format 推断，meta.widget 始终为解析后的名称', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          // 基础类型推断
+          name: { type: 'string' },
+          age: { type: 'number' },
+          count: { type: 'integer' },
+          active: { type: 'boolean' },
+          // format 推断
+          birthday: { type: 'string', format: 'date' },
+          content: { type: 'string', format: 'textarea' },
+          // 数组缺省 'array'
+          tags: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+        },
+      };
+
+      const { fieldStates } = SchemaParser.parse(schema);
+
+      expect(fieldStates.get('name')?.meta.widget).toBe('input');
+      expect(fieldStates.get('age')?.meta.widget).toBe('number');
+      expect(fieldStates.get('count')?.meta.widget).toBe('number');
+      expect(fieldStates.get('active')?.meta.widget).toBe('switch');
+      expect(fieldStates.get('birthday')?.meta.widget).toBe('date');
+      expect(fieldStates.get('content')?.meta.widget).toBe('textarea');
+      expect(fieldStates.get('tags')?.meta.widget).toBe('array');
+    });
+
+    it('显式声明 widget 优先于推断', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          hobby: { type: 'string', widget: 'select' },
+        },
+      };
+
+      const { fieldStates } = SchemaParser.parse(schema);
+      expect(fieldStates.get('hobby')?.meta.widget).toBe('select');
+    });
+  });
+
   describe('表达式标记内部字段', () => {
     it('validate 生成的规则携带 _validateExpr / _validateKey', () => {
       const schema: NexusSchema = {

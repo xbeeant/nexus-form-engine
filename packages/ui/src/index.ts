@@ -2,11 +2,7 @@
 // 此文件是 @nexus/ui 包的主入口，统一导出所有布局、组件和 Schema 定义
 // 用于快速集成 Ant Design UI 组件到表单引擎中
 
-import {
-  AsyncValidatorPlugin,
-  type NexusEngine,
-  type NexusPlugin,
-} from '@nexus/form-engine';
+import type { NexusEngine, NexusPlugin } from '@nexus/form-engine';
 import { antdLayouts } from './layouts';
 import { antdWidgets } from './widgets';
 
@@ -106,6 +102,7 @@ export type {
   VoidTitleWidgetProps,
 } from './widgets/props';
 export { radioWidget } from './widgets/radio';
+export { rateWidget } from './widgets/rate';
 export { selectWidget } from './widgets/select';
 export { simpleListWidget } from './widgets/simpleList';
 export { sliderWidget } from './widgets/slider';
@@ -128,7 +125,6 @@ export { voidTitleWidget } from './widgets/voidTitle';
  * 使引擎可以使用这些组件构建表单。此函数会覆盖已注册的同名组件。
  */
 export function registerAntdUI(engine: NexusEngine): void {
-  engine.use(new AsyncValidatorPlugin(engine));
   engine.registerWidgets(antdWidgets);
   engine.registerLayouts(antdLayouts);
 }

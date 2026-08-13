@@ -31,56 +31,31 @@ import { urlInputSchema } from './urlInput-schema.ts';
 import { voidTitleSchema } from './voidTitle-schema.ts';
 
 // ── 导出所有 Schema 定义 ─────────────────────────────────────────────────────────
-// 卡片组件 Schema - 用于包裹和分组表单字段
-export { cardSchema };
-
-// 复选框相关 Schema
-export { checkboxSchema };       // 单个复选框
-export { checkboxesSchema };     // 复选框组（支持多选）
-
-// 颜色选择器 Schema
-export { colorSchema };
-
-// 日期相关 Schema
-export { dateSchema };            // 单个日期选择
-export { dateRangeSchema };       // 日期范围选择
-
-// HTML 内容 Schema - 用于渲染自定义 HTML 内容
-export { htmlSchema };
-
-// 图片 Schema - 用于图片上传或展示
-export { imageSchema };
-
-// 输入框相关 Schema
-export { inputSchema };           // 普通文本输入框
-export { numberSchema };          // 数字输入框
-export { passwordSchema };        // 密码输入框
-export { textareaSchema };        // 多行文本输入框
-export { urlInputSchema };        // URL 输入框
-
-// 下拉选择相关 Schema
-export { selectSchema };          // 单选下拉框
-export { multiSelectSchema };     // 多选下拉框
-export { radioSchema };           // 单选框
-export { treeSelectSchema };      // 树形选择器
-
-// 列表相关 Schema
-export { listSchema };            // 列表（支持 x-render）
-export { simpleListSchema };      // 简单列表
-export { tableListSchema };       // 表格列表
-
-// 评分 Schema - 星级评分组件
-export { rateSchema };
-
-// 滑块 Schema - 滑动选择器
-export { sliderSchema };
-
-// 开关 Schema - 切换开关
-export { switchSchema };
-
-// 时间相关 Schema
-export { timeSchema };            // 单个时间选择
-export { timeRangeSchema };       // 时间范围选择
-
-// 无标题 Schema - 用于无标题的空白区域
-export { voidTitleSchema };
+export {
+  cardSchema,
+  checkboxesSchema,
+  checkboxSchema,
+  colorSchema,
+  dateRangeSchema,
+  dateSchema,
+  htmlSchema,
+  imageSchema,
+  inputSchema,
+  listSchema,
+  multiSelectSchema,
+  numberSchema,
+  passwordSchema,
+  radioSchema,
+  rateSchema,
+  selectSchema,
+  simpleListSchema,
+  sliderSchema,
+  switchSchema,
+  tableListSchema,
+  textareaSchema,
+  timeRangeSchema,
+  timeSchema,
+  treeSelectSchema,
+  urlInputSchema,
+  voidTitleSchema,
+};

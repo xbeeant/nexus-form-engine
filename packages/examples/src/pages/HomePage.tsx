@@ -67,11 +67,36 @@ const nodeTypeColumns = [
   { title: '数据路径影响', dataIndex: 'path', key: 'path' },
 ];
 const nodeTypeRows = [
-  { key: '1', feature: '包含 widget 字段', type: '数据字段', path: '✅ Key 进入路径' },
-  { key: '2', feature: 'type: "object" 且无 widget', type: '数据对象', path: '✅ Key 进入路径' },
-  { key: '3', feature: 'type: "array"', type: '数据数组', path: '✅ Key 进入路径' },
-  { key: '4', feature: 'type 为布局类型（card/tabs/grid…）', type: '布局容器', path: '❌ Key 不进入路径' },
-  { key: '5', feature: 'type 为面板类型（tabPane/step/…）', type: '布局面板', path: '❌ Key 不进入路径' },
+  {
+    key: '1',
+    feature: '包含 widget 字段',
+    type: '数据字段',
+    path: '✅ Key 进入路径',
+  },
+  {
+    key: '2',
+    feature: 'type: "object" 且无 widget',
+    type: '数据对象',
+    path: '✅ Key 进入路径',
+  },
+  {
+    key: '3',
+    feature: 'type: "array"',
+    type: '数据数组',
+    path: '✅ Key 进入路径',
+  },
+  {
+    key: '4',
+    feature: 'type 为布局类型（card/tabs/grid…）',
+    type: '布局容器',
+    path: '❌ Key 不进入路径',
+  },
+  {
+    key: '5',
+    feature: 'type 为面板类型（tabPane/step/…）',
+    type: '布局面板',
+    path: '❌ Key 不进入路径',
+  },
 ];
 
 export default function HomePage() {
@@ -107,7 +132,10 @@ export default function HomePage() {
                   {p.title}
                 </Title>
               </Space>
-              <Paragraph type='secondary' style={{ marginTop: 8, marginBottom: 0 }}>
+              <Paragraph
+                type='secondary'
+                style={{ marginTop: 8, marginBottom: 0 }}
+              >
                 {p.desc}
               </Paragraph>
             </Card>
@@ -120,8 +148,9 @@ export default function HomePage() {
         架构总览
       </Title>
       <Paragraph type='secondary'>
-        采用 Monorepo（Lerna + npm workspaces）组织，核心与 UI 严格分层：Core 负责状态与逻辑，
-        React 负责订阅渲染，UI 包通过注册机制注入组件，设计器则消费 Schema 协议。
+        采用 Monorepo（Lerna + npm workspaces）组织，核心与 UI 严格分层：Core
+        负责状态与逻辑， React 负责订阅渲染，UI
+        包通过注册机制注入组件，设计器则消费 Schema 协议。
       </Paragraph>
       <Row gutter={[16, 16]}>
         {packages.map((p) => (
@@ -132,9 +161,14 @@ export default function HomePage() {
                 <Tag>{p.ui}</Tag>
               </Space>
               <div style={{ marginTop: 6 }}>
-                <code style={{ fontSize: 12, color: '#8c8c8c' }}>packages/{p.dir}</code>
+                <code style={{ fontSize: 12, color: '#8c8c8c' }}>
+                  packages/{p.dir}
+                </code>
               </div>
-              <Paragraph type='secondary' style={{ marginTop: 6, marginBottom: 0 }}>
+              <Paragraph
+                type='secondary'
+                style={{ marginTop: 6, marginBottom: 0 }}
+              >
                 {p.desc}
               </Paragraph>
             </Card>
@@ -145,12 +179,13 @@ export default function HomePage() {
       <Card size='small' style={{ marginTop: 16 }}>
         <Text strong>数据流：</Text>
         <code>
-          NexusSchema → SchemaParser → (fieldStates + renderTree + DependencyGraph) → Engine → Renderer
+          NexusSchema → SchemaParser → (fieldStates + renderTree +
+          DependencyGraph) → Engine → Renderer
         </code>
         <br />
         <Text type='secondary' style={{ fontSize: 12 }}>
-          Schema 解析仅在 init / setSchema 时执行一次；React 渲染层通过 useSyncExternalStore
-          按字段路径精准订阅，字段变更只重渲染受影响组件。
+          Schema 解析仅在 init / setSchema 时执行一次；React 渲染层通过
+          useSyncExternalStore 按字段路径精准订阅，字段变更只重渲染受影响组件。
         </Text>
       </Card>
 
@@ -159,12 +194,18 @@ export default function HomePage() {
         核心机制
       </Title>
 
-      <Card size='small' style={{ marginBottom: 16 }} title='① 统一 Schema 与布局透明'>
+      <Card
+        size='small'
+        style={{ marginBottom: 16 }}
+        title='① 统一 Schema 与布局透明'
+      >
         <Paragraph>
-          Schema 中每个节点依据「是否携带 widget / type」被判定为数据节点或布局节点。
-          布局节点的 Key 在路径计算时被丢弃、直接透传父路径，因此
-          <code> card.properties </code> 下的字段路径是 <code>formData.fieldName</code>，
-          而不是 <code>formData.card.fieldName</code>。
+          Schema 中每个节点依据「是否携带 widget /
+          type」被判定为数据节点或布局节点。 布局节点的 Key
+          在路径计算时被丢弃、直接透传父路径，因此
+          <code> card.properties </code> 下的字段路径是{' '}
+          <code>formData.fieldName</code>， 而不是{' '}
+          <code>formData.card.fieldName</code>。
         </Paragraph>
         <Table
           size='small'
@@ -197,11 +238,17 @@ export default function HomePage() {
         />
       </Card>
 
-      <Card size='small' style={{ marginBottom: 16 }} title='② 显式依赖图 DependencyGraph'>
+      <Card
+        size='small'
+        style={{ marginBottom: 16 }}
+        title='② 显式依赖图 DependencyGraph'
+      >
         <Paragraph>
-          Schema 初始化时，Parser 从 reactions 与 validate 表达式中静态提取依赖边，
-          构建 source → Set&lt;target&gt; 的反向索引。<code>setFieldValue</code> 只查询
-          该索引（O(1)）触发受影响字段的联动，不做全量 Diff，也无运行时动态扫描。
+          Schema 初始化时，Parser 从 reactions 与 validate
+          表达式中静态提取依赖边， 构建 source → Set&lt;target&gt; 的反向索引。
+          <code>setFieldValue</code> 只查询
+          该索引（O(1)）触发受影响字段的联动，不做全量
+          Diff，也无运行时动态扫描。
         </Paragraph>
         <CodeBlock
           lang='ts'
@@ -215,11 +262,17 @@ const dependents = graph.getDependents('contactMethod');
         />
       </Card>
 
-      <Card size='small' style={{ marginBottom: 16 }} title='③ Reactions 联动协议'>
+      <Card
+        size='small'
+        style={{ marginBottom: 16 }}
+        title='③ Reactions 联动协议'
+      >
         <Paragraph>
-          复杂联动使用结构化 <code>reactions</code> 数组声明「依赖 → 条件 → 补丁」：
-          条件满足执行 <code>fulfill</code>，否则执行 <code>otherwise</code>。
-          表达式仅在受控上下文（<code>$deps / $self / $form / $index / formData / rootValue</code>）中求值。
+          复杂联动使用结构化 <code>reactions</code> 数组声明「依赖 → 条件 →
+          补丁」： 条件满足执行 <code>fulfill</code>，否则执行{' '}
+          <code>otherwise</code>。 表达式仅在受控上下文（
+          <code>$deps / $self / $form / $index / formData / rootValue</code>
+          ）中求值。
         </Paragraph>
         <CodeBlock
           lang='json'
@@ -240,11 +293,19 @@ const dependents = graph.getDependents('contactMethod');
         />
       </Card>
 
-      <Card size='small' style={{ marginBottom: 16 }} title='④ 状态管理与精准订阅'>
+      <Card
+        size='small'
+        style={{ marginBottom: 16 }}
+        title='④ 状态管理与精准订阅'
+      >
         <Paragraph>
-          每个字段维护独立状态 <code>{'{ value, visible, disabled, required, loading, errors, props }'}</code>，
-          状态变更通过 <code>engine.setFieldState(path, patch)</code> 触发并自动通知依赖图。
-          React 渲染层使用 <code>useSyncExternalStore</code> 按字段路径精准订阅版本号，
+          每个字段维护独立状态{' '}
+          <code>
+            {'{ value, visible, disabled, required, loading, errors, props }'}
+          </code>
+          ， 状态变更通过 <code>engine.setFieldState(path, patch)</code>{' '}
+          触发并自动通知依赖图。 React 渲染层使用{' '}
+          <code>useSyncExternalStore</code> 按字段路径精准订阅版本号，
           一个字段变化不会导致整个表单重渲染。
         </Paragraph>
         <CodeBlock
@@ -264,8 +325,11 @@ const dependents = graph.getDependents('contactMethod');
 
       <Card size='small' title='⑤ 插件系统'>
         <Paragraph>
-          Core 主类不硬编码任何业务逻辑，统一通过 <code>engine.use(plugin)</code> 注入。
-          插件可注册校验器、组件、布局，并拦截 <code>init / setFieldValue / validate / arrayOperation</code> 等生命周期。
+          Core 主类不硬编码任何业务逻辑，统一通过{' '}
+          <code>engine.use(plugin)</code> 注入。
+          插件可注册校验器、组件、布局，并拦截{' '}
+          <code>init / setFieldValue / validate / arrayOperation</code>{' '}
+          等生命周期。
         </Paragraph>
         <CodeBlock
           lang='ts'

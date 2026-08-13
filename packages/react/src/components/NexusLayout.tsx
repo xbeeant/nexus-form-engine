@@ -50,9 +50,7 @@ export function NexusLayout({ node }: NexusLayoutProps) {
             Object.keys(wrapperStyle).length > 0 ? wrapperStyle : undefined
           }
         >
-          {node.title && (
-            <div className='mb-2 font-bold'>{node.title}</div>
-          )}
+          {node.title && <div className='mb-2 font-bold'>{node.title}</div>}
           {children}
         </div>
       </LayoutConfigContext.Provider>

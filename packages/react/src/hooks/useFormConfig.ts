@@ -1,4 +1,4 @@
-import type { NexusFormConfig } from '../contexts/NexusContext';
+import type { NexusFormConfig } from '../components/NexusForm.tsx';
 import { useNexusContext } from '../contexts/NexusContext';
 
 /**

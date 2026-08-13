@@ -11,10 +11,10 @@ export { dividerLayout } from './divider';
 export { flexLayout } from './flex';
 export { gridLayout } from './grid';
 export {
-  collapsePanelLayout,  // 折叠面板布局
-  stepLayout,           // 步骤布局
-  tabPaneLayout,        // 标签页布局
-  voidLayout,           // 空白布局
+  collapsePanelLayout, // 折叠面板布局
+  stepLayout, // 步骤布局
+  tabPaneLayout, // 标签页布局
+  voidLayout, // 空白布局
 } from './passThrough';
 export { stepsLayout } from './steps';
 export { tabsLayout } from './tabs';
@@ -44,15 +44,15 @@ export const antdLayouts: Record<
   string,
   (props: WidgetProps<any>) => ReactNode
 > = {
-  card: cardLayout,              // 卡片布局 - 用于分组和卡片化展示
-  grid: gridLayout,              // 网格布局 - 基于栅格系统的响应式布局
-  flex: flexLayout,              // 弹性布局 - 基于 Flexbox 的布局
-  divider: dividerLayout,        // 分割线布局 - 添加视觉分割
-  void: voidLayout,              // 空白布局 - 无渲染内容的布局占位
-  tabs: tabsLayout,              // 标签页布局 - 分组显示多个标签页
-  tabPane: tabPaneLayout,        // 标签页内容布局 - 标签页内部容器
-  collapse: collapseLayout,      // 折叠面板布局 - 可折叠的分组区域
-  collapsePanel: collapsePanelLayout,  // 折叠面板项布局 - 折叠面板中的单项
-  steps: stepsLayout,            // 步骤条布局 - 分步表单布局
-  step: stepLayout,              // 步骤布局 - 步骤条中的步骤项
+  card: cardLayout, // 卡片布局 - 用于分组和卡片化展示
+  grid: gridLayout, // 网格布局 - 基于栅格系统的响应式布局
+  flex: flexLayout, // 弹性布局 - 基于 Flexbox 的布局
+  divider: dividerLayout, // 分割线布局 - 添加视觉分割
+  void: voidLayout, // 空白布局 - 无渲染内容的布局占位
+  tabs: tabsLayout, // 标签页布局 - 分组显示多个标签页
+  tabPane: tabPaneLayout, // 标签页内容布局 - 标签页内部容器
+  collapse: collapseLayout, // 折叠面板布局 - 可折叠的分组区域
+  collapsePanel: collapsePanelLayout, // 折叠面板项布局 - 折叠面板中的单项
+  steps: stepsLayout, // 步骤条布局 - 分步表单布局
+  step: stepLayout, // 步骤布局 - 步骤条中的步骤项
 };

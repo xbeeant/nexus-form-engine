@@ -94,7 +94,11 @@ export function CodeBlock({ code, lang, title }: CodeBlockProps) {
           color: '#e2e8f0',
         }}
       >
-        <code style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+        <code
+          style={{
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+          }}
+        >
           {content}
         </code>
       </pre>

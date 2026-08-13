@@ -27,7 +27,8 @@ function baseCtx(extra?: Partial<ReactionContext>): ReactionContext {
 
 const mockEngine = {
   getFieldValue: (path: string) => (path === 'test' ? 'value' : undefined),
-  getFieldState: (path: string) => ({ value: 'state' } as unknown as FieldState),
+  getFieldState: (_path: string) =>
+    ({ value: 'state' }) as unknown as FieldState,
   getFormData: () => ({ test: 'value' }),
   getAllFieldStates: () => new Map(),
   subscribe: () => () => {},
@@ -152,7 +153,9 @@ describe('ExpressionSandbox', () => {
       // window / document / localStorage 等进入黑名单，Token 级检查直接拦截
       expect(sandbox.evaluate('window.location', ctx)).toBeUndefined();
       expect(sandbox.evaluate('document.body', ctx)).toBeUndefined();
-      expect(sandbox.evaluate('localStorage.getItem("x")', ctx)).toBeUndefined();
+      expect(
+        sandbox.evaluate('localStorage.getItem("x")', ctx),
+      ).toBeUndefined();
     });
 
     it('严格模式抛出错误', () => {
@@ -173,7 +176,9 @@ describe('ExpressionSandbox', () => {
       expect(
         sandbox.evaluate('"".constructor.constructor("return 1")()', ctx),
       ).toBeUndefined();
-      expect(sandbox.evaluate('new Function("return 1")()', ctx)).toBeUndefined();
+      expect(
+        sandbox.evaluate('new Function("return 1")()', ctx),
+      ).toBeUndefined();
     });
 
     it('正则表达式在沙箱内安全求值', () => {

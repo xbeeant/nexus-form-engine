@@ -15,90 +15,75 @@ import {
   getEmptyObject,
   renderInputControl,
 } from './_listShared';
-import { useFormItemProps, type WidgetProps } from './_shared';
+import { type WidgetProps, withFormItem } from './_shared';
 
-export const listWidget = ({
-  value,
-  onChange,
-  title,
-  disabled,
-  readOnly,
-  errors,
-  description,
-  extra,
-  required,
-  items,
-  displayType,
-  labelWidth,
-  width,
-  placeholder: _ph,
-  loading: _ld,
-  options: _opt,
-  column: _col,
-  form: _form,
-  dependValues: _dv,
-  ...rest
-}: WidgetProps) => {
-  const formItemProps = useFormItemProps({ displayType, labelWidth });
-  const mergedStyle = {
-    ...formItemProps.style,
-    ...(width ? { width } : {}),
-  };
+export const listWidget = withFormItem(
+  ({
+    value,
+    onChange,
+    title,
+    disabled,
+    readOnly,
+    errors,
+    description,
+    extra,
+    required,
+    items,
+    displayType,
+    labelWidth,
+    width,
+    placeholder: _ph,
+    loading: _ld,
+    options: _opt,
+    column: _col,
+    form: _form,
+    dependValues: _dv,
+    ...rest
+  }: WidgetProps) => {
+    const array = Array.isArray(value) ? value : [];
+    const itemSchema = items as DataObjectSchema | undefined;
+    const itemProperties = itemSchema?.properties ?? {};
 
-  const array = Array.isArray(value) ? value : [];
-  const itemSchema = items as DataObjectSchema | undefined;
-  const itemProperties = itemSchema?.properties ?? {};
+    const handleAdd = () => {
+      onChange(
+        arrayAdd(
+          array,
+          getEmptyObject({
+            type: 'object',
+            widget: 'object',
+            properties: itemProperties,
+          }),
+        ),
+      );
+    };
 
-  const handleAdd = () => {
-    onChange(
-      arrayAdd(
-        array,
-        getEmptyObject({ type: 'object', widget: 'object', properties: itemProperties }),
-      ),
-    );
-  };
+    const handleRemove = (index: number) => {
+      onChange(arrayRemove(array, index));
+    };
 
-  const handleRemove = (index: number) => {
-    onChange(arrayRemove(array, index));
-  };
+    const handleMoveUp = (index: number) => {
+      onChange(arrayMove(array, index, index - 1));
+    };
 
-  const handleMoveUp = (index: number) => {
-    onChange(arrayMove(array, index, index - 1));
-  };
+    const handleMoveDown = (index: number) => {
+      onChange(arrayMove(array, index, index + 1));
+    };
 
-  const handleMoveDown = (index: number) => {
-    onChange(arrayMove(array, index, index + 1));
-  };
+    const handleCopy = (index: number) => {
+      onChange(arrayCopy(array, index));
+    };
 
-  const handleCopy = (index: number) => {
-    onChange(arrayCopy(array, index));
-  };
+    const handleFieldChange = (
+      index: number,
+      fieldKey: string,
+      fieldValue: unknown,
+    ) => {
+      const newArr = [...array];
+      newArr[index] = { ...(newArr[index] as object), [fieldKey]: fieldValue };
+      onChange(newArr);
+    };
 
-  const handleFieldChange = (
-    index: number,
-    fieldKey: string,
-    fieldValue: unknown,
-  ) => {
-    const newArr = [...array];
-    newArr[index] = { ...(newArr[index] as object), [fieldKey]: fieldValue };
-    onChange(newArr);
-  };
-
-  const formItemHelp = errors?.length ? errors[0] : description;
-  const formItemStatus = errors?.length ? 'error' : '';
-
-  return (
-    <Form.Item
-      label={title}
-      required={required}
-      help={formItemHelp}
-      validateStatus={formItemStatus}
-      extra={extra}
-      style={Object.keys(mergedStyle).length > 0 ? mergedStyle : undefined}
-      labelCol={formItemProps.labelCol}
-      wrapperCol={formItemProps.wrapperCol}
-      colon={formItemProps.colon}
-    >
+    return (
       <div {...rest}>
         {array.length === 0 && (
           <div
@@ -194,6 +179,6 @@ export const listWidget = ({
           </Button>
         )}
       </div>
-    </Form.Item>
-  );
-};
+    );
+  },
+);

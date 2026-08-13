@@ -124,12 +124,14 @@ export const demoSchema: NexusSchema = {
         tmpDateRange: {
           type: 'array',
           widget: 'dateRange',
+          default: ['2026-12-01', '2026-12-21'],
           title: '临时日期范围',
         },
         tmpTimeRange: {
           type: 'array',
           widget: 'timeRange',
           title: '临时时间范围',
+          default: ['02:12:01', '12:21:21'],
         },
         bio: {
           type: 'string',
@@ -473,7 +475,6 @@ export const demoSchema: NexusSchema = {
     },
 
     profile: {
-      widget: '',
       type: 'object',
       properties: {
         website: {
@@ -500,6 +501,7 @@ export const widgetSchemas: Record<string, Record<string, any>> = {
   card: cardSchema,
   password: passwordSchema,
   textarea: textareaSchema,
+  textArea: textareaSchema,
   number: numberSchema,
   select: selectSchema,
   multiSelect: multiSelectSchema,

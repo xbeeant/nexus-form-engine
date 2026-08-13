@@ -1,0 +1,205 @@
+{
+  "type": "object",
+  "displayType": "row",
+  "labelWidth": 110,
+  "properties": {
+    "w_input": {
+      "type": "string",
+      "widget": "input",
+      "title": "输入框",
+      "default": "1"
+    },
+    "w_password": {
+      "type": "string",
+      "widget": "password",
+      "title": "密码框",
+      "default": "1"
+    },
+    "w_number": {
+      "type": "number",
+      "widget": "number",
+      "title": "数字输入",
+      "default": 1
+    },
+    "w_textare": {
+      "type": "string",
+      "widget": "textarea",
+      "title": "文本域",
+      "default": "1"
+    },
+    "w_select": {
+      "type": "string",
+      "widget": "select",
+      "title": "下拉选择",
+      "enum": ["option1", "option2"],
+      "enumNames": ["选项1", "选项2"],
+      "default": "option2"
+    },
+    "w_radio": {
+      "type": "string",
+      "widget": "radio",
+      "title": "单选",
+      "enum": ["a", "b"],
+      "enumNames": ["选项A", "选项B"],
+      "default": "b"
+    },
+    "w_checkbox": {
+      "type": "boolean",
+      "widget": "checkbox",
+      "title": "复选框",
+      "default": true
+    },
+    "w_checkboxes": {
+      "type": "array",
+      "widget": "checkboxes",
+      "title": "多选",
+      "enum": ["a", "b"],
+      "enumNames": ["选项A", "选项B"],
+      "default": ["a", "b"]
+    },
+    "w_multiSelect": {
+      "type": "array",
+      "widget": "multiSelect",
+      "title": "多选下拉",
+      "enum": ["a", "b"],
+      "enumNames": ["选项A", "选项B"],
+      "default": ["a", "b"]
+    },
+    "w_swtich": {
+      "type": "boolean",
+      "widget": "switch",
+      "title": "开关",
+      "default": true
+    },
+    "w_date": {
+      "type": "string",
+      "widget": "date",
+      "title": "日期选择",
+      "default": "2026-07-01"
+    },
+    "w_dateRange": {
+      "type": "string",
+      "widget": "dateRange",
+      "title": "日期范围",
+      "default": ["2026-07-01", "2026-08-01"]
+    },
+    "w_time": {
+      "type": "string",
+      "widget": "time",
+      "title": "时间选择",
+      "default": "12:46:21"
+    },
+    "w_timeRange": {
+      "type": "string",
+      "widget": "timeRange",
+      "title": "时间范围",
+      "default": ["09:32:31", "12:34:21"]
+    },
+    "w_slider": {
+      "type": "number",
+      "widget": "slider",
+      "title": "滑块",
+      "default": 4
+    },
+    "w_color": {
+      "type": "string",
+      "widget": "color",
+      "title": "颜色选择",
+      "default": "#ff22ee"
+    },
+    "w_urlInput": {
+      "type": "string",
+      "widget": "urlInput",
+      "title": "URL输入",
+      "default": "www.baidu.com"
+    },
+    "w_image": {
+      "type": "string",
+      "widget": "image",
+      "title": "图片上传"
+    },
+    "w_voidTitle": {
+      "type": "string",
+      "widget": "voidTitle",
+      "title": "标题文字",
+      "default": "abc"
+    },
+    "w_treeSelect": {
+      "type": "string",
+      "widget": "treeSelect",
+      "title": "树选择"
+    },
+    "w_object": {
+      "type": "object",
+      "title": "数据对象",
+      "default": { "w_input": "1" },
+      "properties": {
+        "w_input": {
+          "type": "string",
+          "widget": "input",
+          "title": "输入框"
+        }
+      }
+    },
+    "w_list": {
+      "type": "array",
+      "widget": "list",
+      "title": "常规列表",
+      "default": [{ "w_input": "1" }, { "w_input": "1" }],
+      "items": {
+        "type": "object",
+        "properties": {
+          "w_input": {
+            "type": "string",
+            "widget": "input",
+            "title": "输入框"
+          }
+        }
+      }
+    },
+    "w_simpleList": {
+      "type": "array",
+      "widget": "simpleList",
+      "title": "简单列表",
+      "default": [{ "w_input": "1" }, { "w_input": "1" }],
+      "items": {
+        "type": "object",
+        "properties": {
+          "w_input": {
+            "type": "string",
+            "widget": "input",
+            "title": "输入框"
+          }
+        }
+      }
+    },
+    "w_tableList": {
+      "type": "array",
+      "widget": "tableList",
+      "title": "表格列表",
+      "default": [{ "w_input": "1" }, { "w_input": "1" }],
+      "items": {
+        "type": "object",
+        "properties": {
+          "w_input": {
+            "type": "string",
+            "widget": "input",
+            "title": "输入框"
+          }
+        }
+      }
+    },
+    "w_richText": {
+      "type": "string",
+      "widget": "richText",
+      "title": "富文本",
+      "default": "1"
+    },
+    "w_rate": {
+      "type": "number",
+      "widget": "rate",
+      "title": "评分",
+      "default": 5
+    }
+  }
+}

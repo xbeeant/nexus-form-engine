@@ -1,5 +1,5 @@
 import { TimePicker } from 'antd';
-import { type WidgetProps, toDayjs, withFormItem } from './_shared';
+import { toDayjs, type WidgetProps, withFormItem } from './_shared';
 
 export const timePickerWidget = withFormItem(
   ({

@@ -14,6 +14,10 @@ import type React from 'react';
 dayjs.extend(customParseFormat);
 
 export interface WidgetProps<T = Record<string, any>> {
+  /** 字段数据路径（供 widget 组件内注册校验规则 / 读取自身状态） */
+  dataPath?: string;
+  /** 字段数据路径（dataPath 别名，x-render 风格） */
+  path?: string;
   value?: unknown;
   onChange: (value: unknown) => void;
   placeholder?: string;
@@ -94,6 +98,11 @@ export function toDayjs(value: unknown, format?: string): dayjs.Dayjs | null {
   if (value === undefined || value === null || value === '') {
     return null;
   }
+
+  if (value instanceof dayjs) {
+    return value as dayjs.Dayjs;
+  }
+
   const str = String(value);
   const withFormat = (format && dayjs(str, format)) || null;
   if (withFormat?.isValid()) {

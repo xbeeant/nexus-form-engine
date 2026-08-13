@@ -37,7 +37,10 @@ export default defineConfig({
     },
     // @ts-expect-error
     rollupOptions: {
-      external: [/node_modules/, ...Object.keys(packageJson.dependencies || {})],
+      external: [
+        /node_modules/,
+        ...Object.keys(packageJson.dependencies || {}),
+      ],
       ...(multipleInputsMode.indexOf(format) === -1 && {
         output: [
           {
@@ -62,7 +65,10 @@ export default defineConfig({
             .map((file) => [
               // The name of the entry point
               // core/nested/foo.ts becomes nested/foo
-              relative('src', file.slice(0, file.length - extname(file).length)),
+              relative(
+                'src',
+                file.slice(0, file.length - extname(file).length),
+              ),
               // The absolute path to the entry file
               // core/nested/foo.ts becomes /project/core/nested/foo.ts
               fileURLToPath(new URL(file, import.meta.url)),

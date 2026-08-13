@@ -66,8 +66,9 @@ export default function ExtensionsPage() {
       <Title level={2}>扩展介绍</Title>
       <Paragraph type='secondary'>
         引擎不内置任何 UI 组件，全部通过 <code>registerWidgets</code> /{' '}
-        <code>registerLayouts</code> 注入。下方是 <code>@nexus/form-engine-ui</code>{' '}
-        基于 Ant Design 提供的开箱即用组件库。
+        <code>registerLayouts</code> 注入。下方是{' '}
+        <code>@nexus/form-engine-ui</code> 基于 Ant Design
+        提供的开箱即用组件库。
       </Paragraph>
 
       {/* ── Widget 组件库 ── */}
@@ -82,7 +83,9 @@ export default function ExtensionsPage() {
                 <span style={{ fontSize: 20 }}>{w.icon}</span>
                 <div>
                   <div style={{ fontWeight: 500 }}>{w.label}</div>
-                  <code style={{ fontSize: 11, color: '#8c8c8c' }}>{w.widget}</code>
+                  <code style={{ fontSize: 11, color: '#8c8c8c' }}>
+                    {w.widget}
+                  </code>
                 </div>
               </Space>
             </Card>
@@ -102,7 +105,9 @@ export default function ExtensionsPage() {
                 <span style={{ fontSize: 20 }}>{l.icon}</span>
                 <div>
                   <div style={{ fontWeight: 500 }}>{l.label}</div>
-                  <code style={{ fontSize: 11, color: '#8c8c8c' }}>{l.layoutType}</code>
+                  <code style={{ fontSize: 11, color: '#8c8c8c' }}>
+                    {l.layoutType}
+                  </code>
                 </div>
               </Space>
             </Card>
@@ -116,7 +121,8 @@ export default function ExtensionsPage() {
       </Title>
       <Paragraph>
         Core 通过 <code>engine.use(plugin)</code> 扩展能力，插件可拦截{' '}
-        <code>init / setFieldValue / validate / arrayOperation</code> 等生命周期钩子。
+        <code>init / setFieldValue / validate / arrayOperation</code>{' '}
+        等生命周期钩子。
       </Paragraph>
       {plugins.map((p) => (
         <Card
@@ -141,8 +147,8 @@ export default function ExtensionsPage() {
         自定义 Widget
       </Title>
       <Paragraph>
-        通过 <code>withFormItem</code> 高阶函数快速包装自定义组件，统一获得布局、校验与只读能力。
-        详细规范见
+        通过 <code>withFormItem</code>{' '}
+        高阶函数快速包装自定义组件，统一获得布局、校验与只读能力。 详细规范见
         <Text type='secondary'> packages/ui/docs/custom-widget-guide.md</Text>。
       </Paragraph>
       <Collapse

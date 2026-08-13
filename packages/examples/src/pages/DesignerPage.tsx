@@ -6,7 +6,12 @@
 import { Designer } from '@nexus/form-engine-designer';
 import { registerAntdUI } from '@nexus/form-engine-ui';
 import { Typography } from 'antd';
-import { customWidgetCatalog, demoSchema, externalFields, widgetSchemas } from '../site/demoSchema';
+import {
+  customWidgetCatalog,
+  demoSchema,
+  externalFields,
+  widgetSchemas,
+} from '../site/demoSchema';
 
 const { Paragraph } = Typography;
 
@@ -24,7 +29,8 @@ export default function DesignerPage() {
           Schema 设计器
         </Typography.Title>
         <Paragraph type='secondary' style={{ margin: '4px 0 0', fontSize: 12 }}>
-          从左侧拖拽 Widget / Layout 到画布，右侧编辑属性；「Schema」标签页可直接粘贴 / 编辑 JSON。
+          从左侧拖拽 Widget / Layout
+          到画布，右侧编辑属性；「Schema」标签页可直接粘贴 / 编辑 JSON。
           支持外部字段列表与自定义 widget catalog 扩展。
         </Paragraph>
       </div>

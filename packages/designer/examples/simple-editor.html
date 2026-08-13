@@ -169,7 +169,7 @@
         const schema = JSON.parse(schemaEditor.value);
         loadSchema(schema);
       } catch (error) {
-        alert('Invalid JSON schema: ' + error.message);
+        alert(`Invalid JSON schema: ${error.message}`);
       }
     });
 

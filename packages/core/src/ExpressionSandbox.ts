@@ -82,7 +82,7 @@ export const ErrorHandlerStrategy = {
   SILENT: 'silent',
 } as const;
 export type ErrorHandlerStrategy =
-  | (typeof ErrorHandlerStrategy)[keyof typeof ErrorHandlerStrategy];
+  (typeof ErrorHandlerStrategy)[keyof typeof ErrorHandlerStrategy];
 
 export interface EvaluateOptions {
   /** 错误处理策略 */
@@ -303,7 +303,9 @@ export class ExpressionSandbox {
       return false;
     }
     const object = value as Record<string, unknown>;
-    return Object.hasOwn(object, '__proto__') || Object.hasOwn(object, 'constructor');
+    return (
+      Object.hasOwn(object, '__proto__') || Object.hasOwn(object, 'constructor')
+    );
   }
 
   /**

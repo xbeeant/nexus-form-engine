@@ -7,7 +7,7 @@
 // ============================================================================
 
 import type { DataFieldSchema, DataObjectSchema } from '@nexus/form-engine';
-import { Button, Form, Space, Typography } from 'antd';
+import { Button, Space, Typography } from 'antd';
 import {
   arrayAdd,
   arrayCopy,
@@ -18,157 +18,142 @@ import {
   getEmptyObject,
   renderInputControl,
 } from './_listShared';
-import { useFormItemProps, type WidgetProps } from './_shared';
+import { type WidgetProps, withFormItem } from './_shared';
 
-export const simpleListWidget = ({
-  value,
-  onChange,
-  title,
-  disabled,
-  readOnly,
-  errors,
-  description,
-  extra,
-  required,
-  items,
-  displayType,
-  labelWidth,
-  width,
-  placeholder: _ph,
-  loading: _ld,
-  options: _opt,
-  column: _col,
-  form: _form,
-  dependValues: _dv,
-  ...rest
-}: WidgetProps) => {
-  const formItemProps = useFormItemProps({ displayType, labelWidth });
-  const mergedStyle = {
-    ...formItemProps.style,
-    ...(width ? { width } : {}),
-  };
+export const simpleListWidget = withFormItem(
+  ({
+    value,
+    onChange,
+    title,
+    disabled,
+    readOnly,
+    errors,
+    description,
+    extra,
+    required,
+    items,
+    displayType,
+    labelWidth,
+    width,
+    placeholder: _ph,
+    loading: _ld,
+    options: _opt,
+    column: _col,
+    form: _form,
+    dependValues: _dv,
+    ...rest
+  }: WidgetProps) => {
+    const array = Array.isArray(value) ? value : [];
 
-  const array = Array.isArray(value) ? value : [];
+    // 判断 items 是对象还是简单类型
+    const isObjectItems = items?.type === 'object';
+    const objSchema = isObjectItems ? (items as DataObjectSchema) : undefined;
+    const objProperties = objSchema?.properties ?? {};
+    const simpleSchema = !isObjectItems
+      ? (items as DataFieldSchema | undefined)
+      : undefined;
 
-  // 判断 items 是对象还是简单类型
-  const isObjectItems = items?.type === 'object';
-  const objSchema = isObjectItems ? (items as DataObjectSchema) : undefined;
-  const objProperties = objSchema?.properties ?? {};
-  const simpleSchema = !isObjectItems
-    ? (items as DataFieldSchema | undefined)
-    : undefined;
+    const handleAdd = () => {
+      if (isObjectItems) {
+        onChange(
+          arrayAdd(
+            array,
+            getEmptyObject({
+              type: 'object',
+              widget: 'object',
+              properties: objProperties,
+            }),
+          ),
+        );
+      } else {
+        onChange(
+          arrayAdd(
+            array,
+            getEmptyField(simpleSchema ?? { type: 'string', widget: 'input' }),
+          ),
+        );
+      }
+    };
 
-  const handleAdd = () => {
-    if (isObjectItems) {
-      onChange(
-        arrayAdd(
-          array,
-          getEmptyObject({ type: 'object', widget: 'object', properties: objProperties }),
-        ),
+    const handleRemove = (index: number) => {
+      onChange(arrayRemove(array, index));
+    };
+
+    const handleMoveUp = (index: number) => {
+      onChange(arrayMove(array, index, index - 1));
+    };
+
+    const handleMoveDown = (index: number) => {
+      onChange(arrayMove(array, index, index + 1));
+    };
+
+    const handleCopy = (index: number) => {
+      onChange(arrayCopy(array, index));
+    };
+
+    // 简单类型：整个 item 值变更
+    const handleSimpleItemChange = (index: number, itemValue: unknown) => {
+      const newArr = [...array];
+      newArr[index] = itemValue;
+      onChange(newArr);
+    };
+
+    // 对象类型：某个字段变更
+    const handleFieldChange = (
+      index: number,
+      fieldKey: string,
+      fieldValue: unknown,
+    ) => {
+      const newArr = [...array];
+      newArr[index] = { ...(newArr[index] as object), [fieldKey]: fieldValue };
+      onChange(newArr);
+    };
+
+    // 渲染操作按钮组
+    const renderActions = (index: number) => {
+      if (readOnly) {
+        return null;
+      }
+      return (
+        <Space size='small' style={{ flexShrink: 0 }}>
+          <Button
+            type='text'
+            size='small'
+            disabled={disabled || index === 0}
+            onClick={() => handleMoveUp(index)}
+          >
+            ↑
+          </Button>
+          <Button
+            type='text'
+            size='small'
+            disabled={disabled || index === array.length - 1}
+            onClick={() => handleMoveDown(index)}
+          >
+            ↓
+          </Button>
+          <Button
+            type='text'
+            size='small'
+            disabled={disabled}
+            onClick={() => handleCopy(index)}
+          >
+            复制
+          </Button>
+          <Button
+            type='text'
+            size='small'
+            danger
+            disabled={disabled}
+            onClick={() => handleRemove(index)}
+          >
+            删除
+          </Button>
+        </Space>
       );
-    } else {
-      onChange(
-        arrayAdd(
-          array,
-          getEmptyField(simpleSchema ?? { type: 'string', widget: 'input' }),
-        ),
-      );
-    }
-  };
+    };
 
-  const handleRemove = (index: number) => {
-    onChange(arrayRemove(array, index));
-  };
-
-  const handleMoveUp = (index: number) => {
-    onChange(arrayMove(array, index, index - 1));
-  };
-
-  const handleMoveDown = (index: number) => {
-    onChange(arrayMove(array, index, index + 1));
-  };
-
-  const handleCopy = (index: number) => {
-    onChange(arrayCopy(array, index));
-  };
-
-  // 简单类型：整个 item 值变更
-  const handleSimpleItemChange = (index: number, itemValue: unknown) => {
-    const newArr = [...array];
-    newArr[index] = itemValue;
-    onChange(newArr);
-  };
-
-  // 对象类型：某个字段变更
-  const handleFieldChange = (
-    index: number,
-    fieldKey: string,
-    fieldValue: unknown,
-  ) => {
-    const newArr = [...array];
-    newArr[index] = { ...(newArr[index] as object), [fieldKey]: fieldValue };
-    onChange(newArr);
-  };
-
-  const formItemHelp = errors?.length ? errors[0] : description;
-  const formItemStatus = errors?.length ? 'error' : '';
-
-  // 渲染操作按钮组
-  const renderActions = (index: number) => {
-    if (readOnly) {
-      return null;
-    }
     return (
-      <Space size='small' style={{ flexShrink: 0 }}>
-        <Button
-          type='text'
-          size='small'
-          disabled={disabled || index === 0}
-          onClick={() => handleMoveUp(index)}
-        >
-          ↑
-        </Button>
-        <Button
-          type='text'
-          size='small'
-          disabled={disabled || index === array.length - 1}
-          onClick={() => handleMoveDown(index)}
-        >
-          ↓
-        </Button>
-        <Button
-          type='text'
-          size='small'
-          disabled={disabled}
-          onClick={() => handleCopy(index)}
-        >
-          复制
-        </Button>
-        <Button
-          type='text'
-          size='small'
-          danger
-          disabled={disabled}
-          onClick={() => handleRemove(index)}
-        >
-          删除
-        </Button>
-      </Space>
-    );
-  };
-
-  return (
-    <Form.Item
-      label={title}
-      required={required}
-      help={formItemHelp}
-      validateStatus={formItemStatus}
-      extra={extra}
-      style={Object.keys(mergedStyle).length > 0 ? mergedStyle : undefined}
-      labelCol={formItemProps.labelCol}
-      wrapperCol={formItemProps.wrapperCol}
-      colon={formItemProps.colon}
-    >
       <div {...rest}>
         {array.length === 0 && (
           <div
@@ -244,6 +229,6 @@ export const simpleListWidget = ({
           </Button>
         )}
       </div>
-    </Form.Item>
-  );
-};
+    );
+  },
+);

@@ -1,7 +1,6 @@
 import dayjs from 'dayjs';
 import { createRoot } from 'react-dom/client';
 import 'dayjs/locale/zh-cn';
-import 'antd/dist/reset.css';
 import './index.css';
 
 import App from './App.tsx';

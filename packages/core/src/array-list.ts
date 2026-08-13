@@ -157,7 +157,11 @@ export class ArrayOperationsPlugin implements NexusPlugin {
    * @param value - 要插入的值
    * @returns 操作后的新数组
    */
-  insert(path: string, index: number, value: unknown): Array<unknown> | undefined {
+  insert(
+    path: string,
+    index: number,
+    value: unknown,
+  ): Array<unknown> | undefined {
     return this.apply(path, { operation: 'insert', index, value });
   }
 
@@ -253,7 +257,9 @@ export class ArrayOperationsPlugin implements NexusPlugin {
       case 'remove': {
         const index = options.index;
         if (index === undefined || index < 0 || index >= arr.length) {
-          console.warn(`[ArrayOperationsPlugin] Invalid index for remove: ${index}`);
+          console.warn(
+            `[ArrayOperationsPlugin] Invalid index for remove: ${index}`,
+          );
           return undefined;
         }
         result = arr.filter((_, i) => i !== index);
@@ -262,11 +268,15 @@ export class ArrayOperationsPlugin implements NexusPlugin {
       case 'update': {
         const index = options.index;
         if (index === undefined || index < 0 || index >= arr.length) {
-          console.warn(`[ArrayOperationsPlugin] Invalid index for update: ${index}`);
+          console.warn(
+            `[ArrayOperationsPlugin] Invalid index for update: ${index}`,
+          );
           return undefined;
         }
         if (options.value === undefined) {
-          console.warn(`[ArrayOperationsPlugin] update operation requires value`);
+          console.warn(
+            `[ArrayOperationsPlugin] update operation requires value`,
+          );
           return undefined;
         }
         result = arr.map((item, i) => (i === index ? options.value : item));
@@ -275,14 +285,12 @@ export class ArrayOperationsPlugin implements NexusPlugin {
       case 'insert': {
         const index = options.index;
         if (index === undefined || index < 0 || index > arr.length) {
-          console.warn(`[ArrayOperationsPlugin] Invalid index for insert: ${index}`);
+          console.warn(
+            `[ArrayOperationsPlugin] Invalid index for insert: ${index}`,
+          );
           return undefined;
         }
-        result = [
-          ...arr.slice(0, index),
-          options.value,
-          ...arr.slice(index),
-        ];
+        result = [...arr.slice(0, index), options.value, ...arr.slice(index)];
         break;
       }
       case 'move': {
@@ -296,7 +304,9 @@ export class ArrayOperationsPlugin implements NexusPlugin {
           index >= arr.length ||
           toIndex >= arr.length
         ) {
-          console.warn(`[ArrayOperationsPlugin] Invalid index/toIndex for move`);
+          console.warn(
+            `[ArrayOperationsPlugin] Invalid index/toIndex for move`,
+          );
           return undefined;
         }
         // 不可变移动：先拷贝，再 splice，避免原地修改 state.value

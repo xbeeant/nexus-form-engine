@@ -9,15 +9,22 @@ import DesignerPage from './pages/DesignerPage';
 import ExamplesPage from './pages/ExamplesPage';
 import ExtensionsPage from './pages/ExtensionsPage';
 import HomePage from './pages/HomePage';
+import WidgetValidationPage from './pages/WidgetValidationPage';
 
 const { Header, Content, Footer } = Layout;
 
-type PageKey = 'home' | 'extensions' | 'examples' | 'designer';
+type PageKey =
+  | 'home'
+  | 'extensions'
+  | 'examples'
+  | 'designer'
+  | 'widget-validation';
 
 const NAV_ITEMS = [
   { key: 'home', label: '核心机制' },
   { key: 'extensions', label: '扩展介绍' },
   { key: 'examples', label: '使用示例' },
+  { key: 'widget-validation', label: '组件内校验' },
   { key: 'designer', label: '设计器' },
 ];
 
@@ -87,6 +94,7 @@ function App() {
         {page === 'home' && <HomePage />}
         {page === 'extensions' && <ExtensionsPage />}
         {page === 'examples' && <ExamplesPage />}
+        {page === 'widget-validation' && <WidgetValidationPage />}
         {page === 'designer' && <DesignerPage />}
       </Content>
 

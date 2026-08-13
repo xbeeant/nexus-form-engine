@@ -1,30 +1,14 @@
-import { Form, Typography } from 'antd';
-import { useFormItemProps, type WidgetProps } from './_shared';
+import { Typography } from 'antd';
+import { type WidgetProps, withFormItem } from './_shared';
 
-export const htmlWidget = ({
-  value,
-  title,
-  description,
-  errors,
-}: WidgetProps) => {
-  const formItemProps = useFormItemProps();
-
+export const htmlWidget = withFormItem(({ value }: WidgetProps) => {
   return (
-    <Form.Item
-      label={title}
-      help={errors?.length ? errors[0] : description}
-      validateStatus={errors?.length ? 'error' : ''}
-      style={formItemProps.style}
-      labelCol={formItemProps.labelCol}
-      wrapperCol={formItemProps.wrapperCol}
-      colon={formItemProps.colon}
-    >
-      <Typography>
-        <div
-          style={{ padding: '4px 0', minHeight: 24 }}
-          dangerouslySetInnerHTML={{ __html: (value as string) ?? '' }}
-        />
-      </Typography>
-    </Form.Item>
+    <Typography>
+      <div
+        style={{ padding: '4px 0', minHeight: 24 }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: html渲染
+        dangerouslySetInnerHTML={{ __html: (value as string) ?? '' }}
+      />
+    </Typography>
   );
-};
+});

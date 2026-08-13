@@ -33,6 +33,7 @@ export { listWidget } from './list'; // 列表渲染器
 export { multiSelectWidget } from './multiSelect'; // 多选下拉框
 export { passwordWidget } from './password'; // 密码输入框
 export { radioWidget } from './radio'; // 单选框
+export { rateWidget } from './rate'; // 评分
 export { selectWidget } from './select'; // 下拉选择器
 export { simpleListWidget } from './simpleList'; // 简单列表渲染器
 export { sliderWidget } from './slider'; // 滑块选择器
@@ -41,7 +42,6 @@ export { tableListWidget } from './tableList'; // 表格列表渲染器
 export { textAreaWidget } from './textArea'; // 多行文本输入框
 export { timePickerWidget } from './timePicker'; // 时间选择器
 export { timeRangeWidget } from './timeRange'; // 时间范围选择器
-export { treeSelectWidget } from './treeSelect'; // 树形选择器
 export { urlInputWidget } from './urlInput'; // URL 输入框
 export { voidTitleWidget } from './voidTitle'; // 无标题空白组件
 
@@ -59,6 +59,7 @@ import { listWidget } from './list';
 import { multiSelectWidget } from './multiSelect';
 import { passwordWidget } from './password';
 import { radioWidget } from './radio';
+import { rateWidget } from './rate';
 import { selectWidget } from './select';
 import { simpleListWidget } from './simpleList';
 import { sliderWidget } from './slider';
@@ -67,7 +68,6 @@ import { tableListWidget } from './tableList';
 import { textAreaWidget } from './textArea';
 import { timePickerWidget } from './timePicker';
 import { timeRangeWidget } from './timeRange';
-import { treeSelectWidget } from './treeSelect';
 import { urlInputWidget } from './urlInput';
 import { voidTitleWidget } from './voidTitle';
 
@@ -75,22 +75,20 @@ import { voidTitleWidget } from './voidTitle';
 // antdWidgets 对象将布局名称映射到对应的 Widget 组件实现
 // 引擎通过此映射表找到对应的组件来渲染表单字段
 
-// 核心 Widget（旧名 + 新名兼容）
 export const antdWidgets: Record<string, (props: WidgetProps) => ReactNode> = {
-  // 核心 Widget（保留旧名称，支持向后兼容）
   input: inputWidget,
   password: passwordWidget,
   select: selectWidget,
   radio: radioWidget,
+  rate: rateWidget,
   checkbox: checkboxWidget,
   switch: switchWidget,
-
-  // 新增 Widget（推荐使用的新名称）
   voidTitle: voidTitleWidget, // 无标题空白组件
   number: inputNumberWidget, // 数字输入框
   multiSelect: multiSelectWidget, // 多选下拉框
   checkboxes: checkboxesWidget, // 复选框组
   textarea: textAreaWidget, // 多行文本输入框
+  textArea: textAreaWidget, // 多行文本输入框
   date: datePickerWidget, // 日期选择器
   dateRange: dateRangeWidget, // 日期范围选择器
   time: timePickerWidget, // 时间选择器
@@ -100,9 +98,6 @@ export const antdWidgets: Record<string, (props: WidgetProps) => ReactNode> = {
   image: imageInputWidget, // 图片上传组件
   color: colorWidget, // 颜色选择器
   urlInput: urlInputWidget, // URL 输入框
-  treeSelect: treeSelectWidget, // 树形选择器
-
-  // 列表 Widget（用于 x-render 列表渲染）
   list: listWidget,
   simpleList: simpleListWidget,
   tableList: tableListWidget,

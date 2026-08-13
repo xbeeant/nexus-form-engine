@@ -53,6 +53,10 @@ export const LAYOUT_TYPES: ReadonlySet<LayoutType> = new Set([
  * - 没有 properties 属性（排除 DataObjectSchema 和 LayoutNode）
  * - 有 widget 属性，或 type 为基础类型
  *
+ * 特例：带 widget 的 object 节点（如子表单组件）视为数据字段——
+ * 子表单组件的 Key 应进入数据路径（value 为对象，由组件内部维护），
+ * 而非当作布局容器（Key 丢弃）或数据对象容器（无值）。
+ *
  * @param node - Schema 节点
  * @returns 如果是 DataFieldSchema 返回 true
  */
@@ -60,6 +64,11 @@ export function isDataField(node: SchemaNode): node is DataFieldSchema {
   // DataArraySchema 也可能有 widget，需排除
   if ('items' in node) {
     return false;
+  }
+  // 子表单特例：带 widget 的 object 节点视为数据字段
+  // （对齐 x-render：自定义组件为子表单时，其 Key 需进入数据路径）
+  if ('properties' in node && 'widget' in node && node.type === 'object') {
+    return true;
   }
   // DataObjectSchema / LayoutNode 有 properties，需排除
   if ('properties' in node) {

@@ -99,7 +99,7 @@ export type RuleType =
  * - len: 精确长度（string/array）
  * - enum: 值必须在枚举列表内（对齐 async-validator / JSON Schema）
  * - whitespace: 仅空白字符串视为空（对 string 生效）
- * - validator: 自定义校验函数名（对应注册的 validator）
+ * - validator: 自定义校验函数（支持 string 函数名或 Function 类型）
  * - message: 错误提示消息（支持 {min}/{max}/{len}/{title} 占位符；省略时使用默认消息）
  * - trigger: 触发时机（change/blur/submit）
  */
@@ -115,8 +115,8 @@ export interface ValidationRule {
   enum?: Array<string | number>;
   /** 仅空白字符串视为空（对齐 async-validator whitespace 规则） */
   whitespace?: boolean;
-  /** 自定义校验函数名（对应注册的 validator） */
-  validator?: string;
+  /** 自定义校验函数（string 函数名或 Function 类型） */
+  validator?: string | NexusFormValidator;
   /**
    * 错误提示消息（可选）
    * - 省略时按规则类型使用默认消息（可通过 NexusEngine options.messages 覆盖）
@@ -193,6 +193,49 @@ export interface Reaction {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// 4.0 Widget 级校验规则与状态联动（注册在 widget 上，而非仅写在 Schema）
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Widget 声明级校验 / 联动描述
+ *
+ * 允许把校验规则与状态联动「注册在 widget 定义上」，而不必全部写进每条 Schema。
+ * 某个字段使用该 widget 时，这些规则/联动自动合并进字段状态：
+ * - rules：组件默认校验规则。Schema 已显式声明的同键规则优先，widget 规则只补缺，
+ *   避免与用户 Schema 冲突产生双错误消息。
+ * - reactions：组件默认联动（与 `{{ }}`/dependencies 相同的联动协议），
+ *   如「确认密码」字段注册依赖 password 的重校验 / required 联动。
+ * - props：组件默认属性，Schema props 覆盖同键值（widget 默认 → schema 覆盖）。
+ *
+ * 通过给 widget 函数挂载 `widgetMeta` 字段声明（NexusComponent & widgetMeta），
+ * 引擎在 registerWidgets/registerLayouts/插件注入时快照该描述，
+ * SchemaParser 解析字段时合并进 FieldState.meta.rules / state.reactions / props。
+ *
+ * @example
+ * ```ts
+ * export const confirmPasswordWidget = withFormItem((props) => <Input {...props} />);
+ * confirmPasswordWidget.widgetMeta = {
+ *   rules: [{
+ *     _validateExpr: "{{ formData.password === $self.value }}",
+ *     trigger: 'change',
+ *   }],
+ *   reactions: [{ dependencies: ['password'], fulfill: { state: {} } }],
+ * };
+ * ```
+ */
+export interface WidgetValidationDescriptor {
+  /** 组件默认校验规则（schema 显式声明的同键规则优先，widget 规则仅补缺） */
+  rules?: ValidationRule[];
+  /** 组件默认联动规则（与 schema reactions 合并执行，参与依赖图构建） */
+  reactions?: Reaction[];
+  /** 组件默认 props（schema props 覆盖同键值） */
+  props?: Record<string, unknown>;
+}
+
+/** widget 名称 → 声明描述 的映射表（由引擎注册时快照） */
+export type WidgetDescriptors = Record<string, WidgetValidationDescriptor>;
+
+// ────────────────────────────────────────────────────────────────────────────
 // 4.1 数据绑定协议 (Bind) — 数据结构转换
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -242,8 +285,11 @@ export type FieldFormat = string;
  * 所有数据节点和布局节点的公共属性
  */
 export interface BaseSchemaNode {
-  /** 组件类型，用于渲染该字段/布局 */
-  widget: string;
+  /**
+   * 组件类型，用于渲染该字段/布局
+   * 可选：省略时 Parser 按 type/format 推断（inferWidgetFromSchema）
+   */
+  widget?: string;
   /** 字段标题 */
   title?: string;
   /** 字段描述 */
@@ -367,8 +413,11 @@ export type DataNode = DataFieldSchema | DataObjectSchema | DataArraySchema;
  * 所有布局节点的公共属性
  */
 export interface LayoutBaseProps {
-  /** 组件类型，用于渲染该布局 */
-  widget: string;
+  /**
+   * 组件类型，用于渲染该布局
+   * 可选：省略时 Parser 按 type 推断布局容器类型
+   */
+  widget?: string;
   /** 布局列数（Grid 布局） */
   column?: number;
   /** 间距（Flex/Grid 布局） */
@@ -676,6 +725,12 @@ export interface RenderObjectNode {
   title?: string;
   /** 子节点列表 */
   children: RenderTreeNode[];
+  /** 是否可见 */
+  visible?: boolean;
+  /** 是否禁用 */
+  disabled?: boolean;
+  /** 是否只读 */
+  readOnly?: boolean;
 }
 
 /**
@@ -710,8 +765,14 @@ export type RenderTreeNode =
  *
  * Core 层禁止依赖任何 UI 框架（React/Vue/DOM）。
  * Widget / Layout 组件由 Renderer 层注入，Core 只负责按名称注册与分发。
+ *
+ * 组件函数可额外挂载 `widgetMeta`，用于声明「组件级校验规则 / 联动 / 默认 props」，
+ * 在引擎注册时被快照，SchemaParser 解析字段时合并（见 WidgetValidationDescriptor）。
  */
-export type NexusComponent<P = any> = (props: P) => any;
+export type NexusComponent<P = any> = ((props: P) => any) & {
+  /** 组件声明级校验 / 联动 / 默认 props 描述（可选） */
+  widgetMeta?: WidgetValidationDescriptor;
+};
 
 /**
  * 引擎生命周期钩子
@@ -999,7 +1060,7 @@ export interface NexusFormInstance {
   getFieldState(path: string): FieldState | undefined;
   /**
    * 注册字段校验逻辑
-   * @param path 字段路径
+   * @param path 字段路径（如 'username'）
    * @param validator 校验函数，返回错误消息数组
    */
   registerValidator(
@@ -1009,4 +1070,20 @@ export interface NexusFormInstance {
       formData: Record<string, unknown>,
     ) => string[] | Promise<string[]>,
   ): void;
+  /**
+   * 注销字段校验逻辑（按函数引用移除）
+   * 与 registerValidator 配对使用；widget 组件卸载时清理，避免校验器累积
+   */
+  unregisterValidator(
+    path: string,
+    validator: (
+      value: unknown,
+      formData: Record<string, unknown>,
+    ) => string[] | Promise<string[]>,
+  ): void;
+  /**
+   * 实时重校验指定字段（同步，触发 trigger='change'/无 trigger 的规则与已注册校验器）
+   * 供 widget 组件内部状态变化（非字段值变化）时主动刷新错误态
+   */
+  revalidateField(path: string): void;
 }

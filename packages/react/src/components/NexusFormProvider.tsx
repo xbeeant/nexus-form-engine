@@ -1,10 +1,9 @@
 import type { NexusEngine } from '@nexus/form-engine';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
-
-import type { NexusFormConfig } from '../contexts/NexusContext';
-import { NexusContext } from '../contexts/NexusContext';
+import { NexusContext } from '../contexts/NexusContext.ts';
 import type { FormController } from './FormController';
+import type { NexusFormConfig } from './NexusForm.tsx';
 
 interface NexusFormProviderProps {
   engine: NexusEngine;

@@ -3,7 +3,7 @@ import type {
   NexusFormInstance,
   NexusSchema,
 } from '@nexus/form-engine';
-import { NexusEngine } from '@nexus/form-engine';
+import { AsyncValidatorPlugin, NexusEngine } from '@nexus/form-engine';
 import type { RefObject } from 'react';
 
 /**
@@ -28,6 +28,12 @@ export class FormController implements NexusFormInstance {
 
   constructor(engine?: NexusEngine) {
     this.engine = engine ?? new NexusEngine();
+    // 默认注入异步校验器插件：useFieldValidator / registerFieldValidator
+    // 注册的异步校验器即可在字段值变化时被触发（防抖调度，与默认 'change' trigger 对齐）。
+    // 外部已注入同名插件时不重复注入（hasPlugin 幂等）。
+    if (!this.engine.hasPlugin('async-validator')) {
+      this.engine.use(new AsyncValidatorPlugin(this.engine));
+    }
     this.formElementRef = {
       current: null,
     } as RefObject<HTMLFormElement | null>;
@@ -202,6 +208,28 @@ export class FormController implements NexusFormInstance {
   ): void {
     // 注册到 Engine（validate 与 实时校验 统一由 Engine 执行）
     this.engine.registerFieldValidator(path, validator);
+  }
+
+  /**
+   * 注销字段校验逻辑（按函数引用移除）
+   * 与 registerValidator 配对；widget 组件卸载时清理，避免校验器累积
+   */
+  unregisterValidator(
+    path: string,
+    validator: (
+      value: unknown,
+      formData: Record<string, unknown>,
+    ) => string[] | Promise<string[]>,
+  ): void {
+    this.engine.unregisterFieldValidator(path, validator);
+  }
+
+  /**
+   * 实时重校验指定字段（同步）
+   * 供 widget 组件内部状态变化（非字段值变化）时主动刷新错误态
+   */
+  revalidateField(path: string): void {
+    this.engine.validateField(path, { trigger: 'change' });
   }
 
   getSchema(): NexusSchema | null {

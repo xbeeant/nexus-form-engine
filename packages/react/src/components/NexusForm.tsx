@@ -8,12 +8,32 @@ import {
   useSyncExternalStore,
 } from 'react';
 
-import type { NexusFormConfig } from '../contexts/NexusContext';
 import { renderTreeNode } from '../utils/renderTreeNode';
 import type { FormController } from './FormController';
 import { NexusFormProvider } from './NexusFormProvider';
 
-interface NexusFormProps {
+// ────────────────────────────────────────────────────────────────────────────
+// Form 布局配置
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface NexusFormConfig {
+  /** label 列配置（由 ui 层 Form.Item 消费） */
+  labelCol?: Record<string, unknown>;
+  /** label 宽度（px 或 %），快捷方式 — 映射到 labelCol.style.width */
+  labelWidth?: number | string;
+  /** 是否显示冒号 */
+  colon?: boolean | ReactNode;
+  /** 是否显示 label（默认 true） */
+  label?: boolean;
+  /** 表单布局方向 */
+  displayType?: 'row' | 'column' | 'inline';
+  /** 整个表单只读，所有字段以文本展示 */
+  readOnly?: boolean;
+  /** 表单每行显示多少列 */
+  column?: number;
+}
+
+export interface NexusFormProps {
   /** Form 实例，由 useForm() 创建 */
   form: FormController;
   /** Schema 定义 */
@@ -169,6 +189,7 @@ export function NexusForm({
     engine.getSnapshot,
   );
   // 依赖 _version：engine.init() / setSchema() 会 bump version，
+  // 需要在此后重新读取 renderTree（首次渲染时 engine 尚未 init，renderTree 为空）
   // 需要在此后重新读取 renderTree（首次渲染时 engine 尚未 init，renderTree 为空）
   const renderTree = useMemo(() => engine.getRenderTree(), [engine, _version]);
 

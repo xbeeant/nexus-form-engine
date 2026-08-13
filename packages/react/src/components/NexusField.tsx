@@ -1,11 +1,10 @@
 import type { RenderTreeNode } from '@nexus/form-engine';
 import type { CSSProperties, FocusEvent } from 'react';
 import { useCallback, useContext, useSyncExternalStore } from 'react';
-
-import { GridContext } from '../contexts/GridContext';
 import { FieldInheritContext } from '../contexts/FieldInheritContext';
+import { GridContext } from '../contexts/GridContext';
 import { LayoutConfigContext } from '../contexts/LayoutConfigContext';
-import { useNexusContext } from '../contexts/NexusContext';
+import { useNexusContext } from '../contexts/NexusContext.ts';
 import { resolveColSpan } from '../utils/resolveColSpan';
 
 interface NexusFieldProps {
@@ -22,8 +21,10 @@ export function NexusField({
 }: NexusFieldProps & { node?: RenderTreeNode }) {
   const { engine, config, form } = useNexusContext();
   // 按路径精准订阅：仅该字段版本变化时重渲染（reaction 影响其他字段不会触发本组件）
+  // 第三个参数 getServerSnapshot 与 getSnapshot 一致（引擎状态同步，SSR 必需）
   useSyncExternalStore(
     (onStoreChange) => engine.subscribeField(dataPath, onStoreChange),
+    () => engine.getFieldVersion(dataPath),
     () => engine.getFieldVersion(dataPath),
   );
   const state = engine.getFieldState(dataPath);
@@ -85,7 +86,7 @@ export function NexusField({
 
   // 从 enum + enumNames 构建选项（x-render 对齐）
   const options = state.meta.enum
-    ? state.meta.enum.map((value, index) => ({
+    ? state.meta.enum.map((value: any, index: number) => ({
         value,
         label: state.meta.enumNames?.[index] ?? String(value),
       }))
@@ -134,6 +135,8 @@ export function NexusField({
     >
       <Widget
         key={layoutKey}
+        dataPath={dataPath}
+        path={dataPath}
         value={state.value}
         onChange={handleChange}
         disabled={disabled}

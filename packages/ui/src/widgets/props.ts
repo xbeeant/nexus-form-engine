@@ -267,12 +267,11 @@ declare module '@nexus/form-engine' {
     password: PasswordWidgetProps;
     /** TextArea 文本域（注意：注册键名为 textarea，全小写） */
     textarea: TextAreaWidgetProps;
+    textArea: TextAreaWidgetProps;
     /** InputNumber 数字输入框 */
     number: InputNumberWidgetProps;
     /** Select 下拉选择 */
     select: SelectWidgetProps;
-    /** TreeSelect 树形选择 */
-    treeSelect: TreeSelectWidgetProps;
     /** Radio 单选框组 */
     radio: RadioWidgetProps;
     /** Checkbox 单个复选框 */

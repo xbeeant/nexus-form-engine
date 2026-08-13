@@ -30,11 +30,13 @@ import type {
   SchemaNode,
   ValidationRule,
   ValidationTrigger,
+  WidgetDescriptors,
 } from './types/schema';
 import {
   getNestedValue,
   isDeepEqual,
   isEmptyValue,
+  isThenable,
   setNestedValue,
   toBoolean,
 } from './utils/schema-helper';
@@ -131,6 +133,12 @@ export class NexusEngine implements IFormEngine {
   private widgetRegistry: Map<string, NexusComponent> = new Map();
   /** 自定义布局组件注册表，key 为布局名称（UI 无关，Renderer 层注入） */
   private layoutRegistry: Map<string, NexusComponent> = new Map();
+  /**
+   * 组件声明级校验/联动描述快照（widget 名称 → WidgetValidationDescriptor）
+   * registerWidgets/registerLayouts/插件注入时从 widget.widgetMeta 快照，
+   * SchemaParser 解析字段时合并进 FieldState（规则/联动/默认 props）
+   */
+  private widgetMetas: WidgetDescriptors = {};
   /** 外部注册的字段校验器（由 FormController 注册），按字段路径分组 */
   private fieldValidators: Map<
     string,
@@ -189,7 +197,11 @@ export class NexusEngine implements IFormEngine {
     // 清空监听器会导致 bump() + notifyAll() 无法通知到 React，造成 UI 不更新
 
     // 解析 Schema，生成字段状态和渲染树
-    const result = SchemaParser.parse(schema, this.initialValues);
+    const result = SchemaParser.parse(
+      schema,
+      this.initialValues,
+      this.widgetMetas,
+    );
     this.fieldStates = result.fieldStates;
     this.renderTree = result.renderTree;
     this.dependencyGraph = result.dependencyGraph;
@@ -676,16 +688,42 @@ export class NexusEngine implements IFormEngine {
           errors.push(this.resolveRuleMessage(state, rule));
         }
       }
+
+      // 自定义校验器（rule.validator）：
+      // - string 函数名：按注册表查同名校验器，同步返回 string 时立即生效
+      // - 内联函数：直接调用，同步返回 string 时立即生效
+      // Promise 返回值的异步校验由 AsyncValidatorPlugin 通过 onValidateField 钩子接管
+      const ruleValidator = this.resolveRuleValidator(rule);
+      if (ruleValidator) {
+        const formData = this.getFormData();
+        const result = ruleValidator(
+          state.value,
+          rule,
+          formData,
+          path,
+        ) as unknown;
+        if (typeof result === 'string') {
+          errors.push(result);
+        } else if (Array.isArray(result)) {
+          errors.push(...(result as string[]));
+        }
+      }
     }
 
     // 2. 外部同步校验器（registerValidator）
-    // Promise 返回值的异步校验由 AsyncValidatorPlugin 通过 onValidateField 钩子接管
+    // Promise 返回值的异步校验由 AsyncValidatorPlugin 通过 onValidateField 钩子接管：
+    // 同步路径只处理同步结果（string[]），thenable 结果交由插件防抖调度后写回，
+    // 与 schema 规则的默认 'change' trigger 保持一致的触发时机
     const validators = this.fieldValidators.get(path);
     if (validators && validators.length > 0) {
       const formData = this.getFormData();
       for (const validator of validators) {
         try {
           const result = validator(state.value, formData);
+          if (isThenable(result)) {
+            // 异步校验：不在此处应用结果，交给 AsyncValidatorPlugin 调度
+            continue;
+          }
           if (Array.isArray(result)) {
             errors.push(...result);
           }
@@ -724,6 +762,29 @@ export class NexusEngine implements IFormEngine {
     this.bump();
     this.notifyField(path);
     this.notifyAll();
+  }
+
+  /**
+   * 解析规则上的自定义校验器（rule.validator）
+   *
+   * 支持两种形式：
+   * - string 函数名：从 customValidators 注册表查同名校验器（插件/引擎注入）
+   * - 内联函数：直接作为校验器返回（widget 声明式 rules 或 TS 构建 Schema 时可用）
+   *
+   * @param rule - 校验规则
+   * @returns 解析到的校验器函数；未注册/不存在时返回 undefined
+   */
+  private resolveRuleValidator(
+    rule: ValidationRule,
+  ): NexusFormValidator | undefined {
+    const validator = rule.validator;
+    if (typeof validator === 'function') {
+      return validator;
+    }
+    if (typeof validator === 'string') {
+      return this.customValidators.get(validator);
+    }
+    return undefined;
   }
 
   /**
@@ -953,10 +1014,10 @@ export class NexusEngine implements IFormEngine {
           errors.push(builtinError);
         }
 
-        // 2) 注册的自定义 validator
-        if (rule.validator && this.customValidators.has(rule.validator)) {
-          const validator = this.customValidators.get(rule.validator)!;
-          const error = await validator(state.value, rule, formData, path);
+        // 2) 注册的自定义 validator（string 函数名或内联函数，统一解析）
+        const ruleValidator = this.resolveRuleValidator(rule);
+        if (ruleValidator) {
+          const error = await ruleValidator(state.value, rule, formData, path);
           if (error) {
             errors.push(error);
           }
@@ -1440,6 +1501,10 @@ export class NexusEngine implements IFormEngine {
     if (plugin.widgets) {
       for (const [name, widget] of Object.entries(plugin.widgets)) {
         this.widgetRegistry.set(name, widget);
+        // 快照组件声明元数据（校验规则/联动/默认 props）
+        if (widget?.widgetMeta) {
+          this.widgetMetas[name] = widget.widgetMeta;
+        }
       }
     }
 
@@ -1447,8 +1512,20 @@ export class NexusEngine implements IFormEngine {
     if (plugin.layouts) {
       for (const [name, layout] of Object.entries(plugin.layouts)) {
         this.layoutRegistry.set(name, layout);
+        if (layout?.widgetMeta) {
+          this.widgetMetas[name] = layout.widgetMeta;
+        }
       }
     }
+  }
+
+  /**
+   * 是否已注册指定名称的插件（供上层按名称幂等注入）
+   *
+   * @param name - 插件名称
+   */
+  hasPlugin(name: string): boolean {
+    return this.plugins.some((p) => p.name === name);
   }
 
   /** 注册值变更回调（由 FormController 使用，用于 watch 功能） */
@@ -1458,7 +1535,12 @@ export class NexusEngine implements IFormEngine {
     this.onFieldValueChangeCallback = callback;
   }
 
-  /** 注册外部字段校验器（由 FormController.registerValidator 调用） */
+  /**
+   * 注册外部字段校验器（由 FormController.registerValidator 调用）
+   *
+   * 对同一字段重复注册同一函数引用时去重，避免组件/插件在多次挂载中
+   * 重复注册导致错误消息累积。
+   */
   registerFieldValidator(
     path: string,
     validator: (
@@ -1467,8 +1549,40 @@ export class NexusEngine implements IFormEngine {
     ) => string[] | Promise<string[]>,
   ): void {
     const list = this.fieldValidators.get(path) ?? [];
-    list.push(validator);
-    this.fieldValidators.set(path, list);
+    // 同一字段重复注册同一函数引用时去重，避免组件/插件重复注册累积错误
+    if (!list.some((fn) => fn === validator)) {
+      list.push(validator);
+      this.fieldValidators.set(path, list);
+    }
+  }
+
+  /**
+   * 注销字段校验器（按函数引用移除）
+   *
+   * 供组件卸载 / 校验器重建时清理，避免校验器随组件反复挂载而累积。
+   * 与 registerFieldValidator 配合：widget 组件内 useFieldValidator 的 effect
+   * cleanup 即调用本方法。
+   *
+   * @param path - 字段路径
+   * @param validator - 已注册的校验函数引用
+   */
+  unregisterFieldValidator(
+    path: string,
+    validator: (
+      value: unknown,
+      formData: Record<string, unknown>,
+    ) => string[] | Promise<string[]>,
+  ): void {
+    const list = this.fieldValidators.get(path);
+    if (!list) {
+      return;
+    }
+    const next = list.filter((fn) => fn !== validator);
+    if (next.length > 0) {
+      this.fieldValidators.set(path, next);
+    } else {
+      this.fieldValidators.delete(path);
+    }
   }
 
   /**
@@ -1496,6 +1610,10 @@ export class NexusEngine implements IFormEngine {
   registerWidgets(widgets: Record<string, NexusComponent>): void {
     for (const [name, widget] of Object.entries(widgets)) {
       this.widgetRegistry.set(name, widget);
+      // 快照组件声明元数据（校验规则/联动/默认 props）
+      if (widget?.widgetMeta) {
+        this.widgetMetas[name] = widget.widgetMeta;
+      }
     }
   }
 
@@ -1507,6 +1625,9 @@ export class NexusEngine implements IFormEngine {
   registerLayouts(layouts: Record<string, NexusComponent>): void {
     for (const [name, layout] of Object.entries(layouts)) {
       this.layoutRegistry.set(name, layout);
+      if (layout?.widgetMeta) {
+        this.widgetMetas[name] = layout.widgetMeta;
+      }
     }
   }
 
@@ -1555,6 +1676,7 @@ export class NexusEngine implements IFormEngine {
     this.customValidators.clear();
     this.widgetRegistry.clear();
     this.layoutRegistry.clear();
+    this.widgetMetas = {};
     this.fieldValidators.clear();
   }
 
@@ -1603,10 +1725,13 @@ export class NexusEngine implements IFormEngine {
    * 避免再次递归扫描 Schema 树。
    */
   private runAllReactions(): void {
+    // 复用单份 formData 快照（与 runReactionsForSource 一致，AGENTS.md §3.1），
+    // 避免每个 reaction 都重新构建一次 formData，O(n) 表达式字段的 init 可降 10x+
+    const formData = this.getFormData();
     for (const [path, state] of this.fieldStates) {
       if (state.reactions) {
         for (const reaction of state.reactions) {
-          this.executeReaction(path, reaction);
+          this.executeReaction(path, reaction, formData);
         }
       }
     }
