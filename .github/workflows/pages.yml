@@ -6,7 +6,7 @@
 #   （也可在 Actions 页面左侧手动点击运行）
 #
 # 说明：
-#   - 手动触发（workflow_dispatch），不会因推送自动发布
+#   - 推送 master 分支时自动触发构建发布；也可手动触发（workflow_dispatch）
 #   - 使用 bun 安装依赖（仓库使用 bun.lock 锁定）
 #   - 构建产物为 packages/examples/dist，通过官方 Pages 动作发布
 #   - 部署前需在 Settings → Pages 中将 Source 设为 "GitHub Actions"
@@ -16,15 +16,15 @@ name: Deploy GitHub Pages
 
 on:
   workflow_dispatch:
-    # 可选：手动触发时选择分支（默认为 main）
+    # 可选：手动触发时选择分支（默认为 master）
     inputs:
       ref:
-        description: '分支名（默认 main）'
+        description: '分支名（默认 master）'
         required: false
-        default: 'main'
+        default: 'master'
   push:
     branches:
-      - main
+      - master
 
 permissions:
   contents: read
