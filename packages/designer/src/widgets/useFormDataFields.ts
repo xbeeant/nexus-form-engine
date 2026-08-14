@@ -3,8 +3,8 @@
 // ============================================================================
 
 import { useMemo } from 'react';
-import { collectDataFieldPaths } from '../schemaUtils';
 import { useDesigner } from '../DesignerContext';
+import { collectDataFieldPaths } from '../schemaUtils';
 
 export function useFormDataFields(): string[] {
   const { schema } = useDesigner();

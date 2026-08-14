@@ -7,6 +7,7 @@ export const timePickerWidget = withFormItem(
     onChange,
     disabled,
     loading,
+    readOnly,
     format,
     form,
     dependValues: _dv,
@@ -17,6 +18,7 @@ export const timePickerWidget = withFormItem(
     <TimePicker
       value={toDayjs(value, (format as string) ?? 'HH:mm:ss')}
       onChange={(_, timeString) => onChange(timeString || undefined)}
+      readOnly={readOnly}
       disabled={disabled || loading}
       style={{ width: '100%' }}
       format={(format as string) ?? 'HH:mm:ss'}

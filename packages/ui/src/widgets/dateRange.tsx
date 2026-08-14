@@ -8,6 +8,7 @@ export const dateRangeWidget = withFormItem(
     onChange,
     disabled,
     loading: _ld,
+    readOnly,
     format,
     placeholder,
   }: WidgetProps) => {
@@ -58,6 +59,7 @@ export const dateRangeWidget = withFormItem(
           format={formatStr}
           placeholder={_placeholder?.[0] ?? ''}
           disabled={disabled}
+          readOnly={readOnly}
         />
         <span className='mx-2 text-black/25 shrink-0'>~</span>
         <DatePicker
@@ -68,6 +70,7 @@ export const dateRangeWidget = withFormItem(
           format={formatStr}
           placeholder={_placeholder?.[1] ?? ''}
           disabled={disabled}
+          readOnly={readOnly}
         />
       </div>
     );

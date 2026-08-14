@@ -77,7 +77,6 @@ export type {
   WidgetValidationDescriptor,
 } from './types/schema';
 export {
-  DataConverter,
   formatField,
   toFormData,
   toMultipart,
@@ -107,7 +106,6 @@ export {
   decompressFromBase64,
   deserialize,
   diff,
-  SchemaSerializer,
   serialize,
   sizeOf,
 } from './utils/schema-serializer';

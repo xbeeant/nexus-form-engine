@@ -1,19 +1,11 @@
 // ============================================================================
 // _listShared — list / simpleList / tableList 共享的工具函数
-// 提供数组操作、空值生成、单项字段渲染（轻量内联渲染器，不依赖引擎 widget 注册表）
+// 提供数组操作、空值生成、单项字段渲染（按引擎 widget 注册表解析，与 NexusField 一致）
 // ============================================================================
 
 import type { DataFieldSchema, DataObjectSchema } from '@nexus/form-engine';
-import {
-  Checkbox,
-  DatePicker,
-  Input,
-  InputNumber,
-  Radio,
-  Select,
-  Switch,
-} from 'antd';
-import type React from 'react';
+import { useNexusContext } from '@nexus/form-engine-react/contexts/NexusContext.ts';
+import { useSyncExternalStore } from 'react';
 
 // ────────────────────────────────────────────────────────────────────────────
 // 数组操作工具
@@ -106,8 +98,9 @@ export function getEmptyItem(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// 单项字段渲染 — 轻量内联渲染器
-// 不使用 withFormItem 包裹，由调用方控制 label / layout
+// 单项字段渲染 — 获取 widget 方式与 NexusField 保持一致
+// 优先按 widgetName 从引擎 widget 注册表（engine.getWidget）解析并渲染，
+// 支持全部内置 widget 与自定义 widget；未注册时回退为轻量内联基础控件。
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface ItemFieldProps {
@@ -151,124 +144,108 @@ export function inferWidget(field: {
   }
 }
 
-/**
- * 根据 widget 名渲染单项输入控件
- * 仅支持基础 widget（input / number / select / textarea / date / switch / checkbox / radio）
- * 复杂 widget 回退为 Input
- */
-export function renderInputControl(
-  widgetName: string | undefined,
-  fieldSchema: DataFieldSchema,
-  props: ItemFieldProps,
-): React.ReactNode {
-  // widget 名缺失时从 type/format 推断（x-render schema 中 items 子字段常无 widget）
-  const effectiveWidget = inferWidget({
-    type: fieldSchema.type,
-    format: (fieldSchema as { format?: string }).format,
-    widget: widgetName,
-  });
-
-  const { value, onChange, disabled, readOnly, placeholder } = props;
-
-  // 选项类 widget 共用 options 构建
-  const options = fieldSchema.enum
-    ? fieldSchema.enum.map((v, i) => ({
+/** 从 enum / enumNames 构建选项（与 NexusField 一致） */
+function buildItemOptions(
+  enumValues?: Array<string | number>,
+  enumNames?: Array<string>,
+) {
+  return enumValues
+    ? enumValues.map((v, i) => ({
         value: v,
-        label: fieldSchema.enumNames?.[i] ?? String(v),
+        label: enumNames?.[i] ?? String(v),
       }))
     : undefined;
+}
 
-  const commonProps = {
-    value: value as never,
-    onChange,
-    disabled: disabled || readOnly,
-    placeholder,
-    style: { width: '100%' },
-  };
+/**
+ * 单项输入控件渲染组件
+ * 字段属性能力与 NexusField 保持一致：
+ * - 通过引擎 widget 注册表按 widgetName 解析并渲染（engine.getWidget）；
+ * - 按项字段完整路径（如 "items[0].name"）读取引擎维护的 FieldState，
+ *   readOnly / disabled / required / props 等与 NexusField 同源解析
+ *   （含表达式联动按项生效），并按路径精准订阅、状态变化实时重渲染；
+ * - widget 未注册时优雅回退为基础 antd 控件内联渲染。
+ * 注意：title / description / extra 属于列表容器的结构信息（列头 / 行内标签由
+ * 列表自行渲染），此处不透传给 widget，避免表单单元格出现重复 label。
+ */
+export function RenderItemControl({
+  widget,
+  fieldSchema,
+  path,
+  value,
+  onChange,
+  disabled,
+  readOnly,
+  placeholder,
+}: ItemFieldProps & {
+  widget?: string;
+  fieldSchema: DataFieldSchema;
+  /** 该项子字段在引擎中的完整路径（如 "items[0].name"），缺省时无引擎状态 */
+  path?: string;
+}) {
+  const { engine, form } = useNexusContext();
 
-  switch (effectiveWidget) {
-    case 'number':
-      return (
-        <InputNumber
-          {...commonProps}
-          value={value as number | undefined}
-          onChange={(v) => onChange(v ?? undefined)}
-        />
-      );
-    case 'textarea':
-      return (
-        <Input.TextArea
-          {...commonProps}
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-          autoSize={{ minRows: 1, maxRows: 3 }}
-        />
-      );
-    case 'select':
-      return (
-        <Select
-          {...commonProps}
-          value={value as never}
-          options={options}
-          allowClear
-        />
-      );
-    case 'multiSelect':
-      return (
-        <Select
-          {...commonProps}
-          mode='multiple'
-          value={(value as unknown[]) ?? []}
-          options={options}
-          allowClear
-        />
-      );
-    case 'date':
-      return <DatePicker {...commonProps} style={{ width: '100%' }} />;
-    case 'switch':
-      return (
-        <Switch
-          checked={value as boolean}
-          onChange={(checked) => onChange(checked)}
-          disabled={disabled || readOnly}
-        />
-      );
-    case 'checkbox':
-      return (
-        <Checkbox
-          checked={value as boolean}
-          onChange={(e) => onChange(e.target.checked)}
-          disabled={disabled || readOnly}
-        >
-          {fieldSchema.title ?? ''}
-        </Checkbox>
-      );
-    case 'radio':
-      return (
-        <Radio.Group
-          value={value as never}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={disabled || readOnly}
-          options={options}
-        />
-      );
-    case 'password':
-      return (
-        <Input.Password
-          {...commonProps}
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      );
-    default:
-      return (
-        <Input
-          {...commonProps}
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      );
+  // 与 NexusField 一致：按项字段路径精准订阅，readOnly/disabled 等状态变化实时重渲染
+  useSyncExternalStore(
+    (onStoreChange) =>
+      path ? engine.subscribeField(path, onStoreChange) : () => {},
+    () => (path ? engine.getFieldVersion(path) : 0),
+    () => (path ? engine.getFieldVersion(path) : 0),
+  );
+
+  // 读取引擎维护的字段状态（含表达式联动解析后的 readOnly/disabled/required 等）
+  const fieldState = path ? engine.getFieldState(path) : undefined;
+
+  // widget 名：优先引擎解析结果，其次显式声明 / type / format 推断
+  // （x-render schema 中 items 子字段常无 widget）
+  const effectiveWidget =
+    fieldState?.meta.widget ??
+    inferWidget({
+      type: fieldSchema.type,
+      format: fieldSchema.format,
+      widget,
+    });
+
+  const Widget = engine.getWidget(effectiveWidget);
+
+  // readOnly / disabled：列表容器传入（列表级只读/禁用）与项字段引擎状态（含联动）取并集
+  const finalReadOnly = readOnly || fieldState?.readOnly || false;
+  const finalDisabled = disabled || fieldState?.disabled || false;
+  const finalRequired = fieldState?.required ?? false;
+  const finalPlaceholder =
+    fieldState?.meta.placeholder ?? placeholder ?? fieldSchema.placeholder;
+  const finalProps = fieldState?.props ?? fieldSchema.props ?? {};
+  const finalOptions = buildItemOptions(
+    fieldState?.meta.enum ?? fieldSchema.enum,
+    fieldState?.meta.enumNames ?? fieldSchema.enumNames,
+  );
+
+  if (Widget) {
+    return (
+      <Widget
+        dataPath={path}
+        path={path}
+        value={value}
+        onChange={onChange}
+        disabled={finalDisabled}
+        readOnly={finalReadOnly}
+        required={finalRequired}
+        loading={fieldState?.loading}
+        placeholder={finalPlaceholder}
+        options={finalOptions}
+        errors={fieldState?.errors}
+        form={form}
+        {...finalProps}
+      />
+    );
   }
+
+  // 未注册 widget：回退为轻量内联基础控件
+  return (
+    <div className='text-xs text-red-500' data-nexus-field={path}>
+      ⚠️ Widget "{widget}" 未注册 (path: {path})
+    </div>
+  );
 }
 
 // ────────────────────────────────────────────────────────────────────────────

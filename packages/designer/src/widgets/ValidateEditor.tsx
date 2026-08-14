@@ -8,8 +8,8 @@ import type { WidgetProps } from '@nexus/form-engine-ui';
 import { Button, Form, Input } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { ExpressionBuilder } from './ExpressionBuilder';
-import { useFormDataFields } from './useFormDataFields';
 import { genId } from './reactionsModel';
+import { useFormDataFields } from './useFormDataFields';
 
 interface ValidateRow {
   id: string;

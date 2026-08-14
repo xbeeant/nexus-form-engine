@@ -7,7 +7,7 @@ import {
   LayoutConfigContext,
   type LayoutConfigContextValue,
 } from '../contexts/LayoutConfigContext';
-import { useNexusContext } from '../contexts/NexusContext';
+import { useNexusContext } from '../contexts/NexusContext.ts';
 import { renderTreeNode } from '../utils/renderTreeNode';
 import { resolveColSpan } from '../utils/resolveColSpan';
 

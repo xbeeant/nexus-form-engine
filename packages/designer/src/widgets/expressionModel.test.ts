@@ -1,14 +1,14 @@
+import type { NexusSchema } from '@nexus/form-engine';
 import { describe, expect, it } from 'vitest';
+import { collectDataFieldPaths } from '../schemaUtils';
 import {
   buildExpression,
+  type ConditionOperator,
   parseExpression,
   parseVariable,
   stripBraces,
   variableToString,
-  type ConditionOperator,
 } from './expressionModel';
-import { collectDataFieldPaths } from '../schemaUtils';
-import type { NexusSchema } from '@nexus/form-engine';
 
 describe('buildExpression', () => {
   it('构建基本比较表达式（文本 / 数字 / 布尔 / 变量右值）', () => {

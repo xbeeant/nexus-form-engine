@@ -1,5 +1,10 @@
 import { Checkbox } from 'antd';
-import { mapOptions, type WidgetProps, withFormItem } from './_shared';
+import {
+  mapOptions,
+  ReadOnlyDisplay,
+  type WidgetProps,
+  withFormItem,
+} from './_shared';
 
 export const checkboxesWidget = withFormItem(
   ({
@@ -25,6 +30,9 @@ export const checkboxesWidget = withFormItem(
     path: _p,
     ...rest
   }: WidgetProps) => {
+    if (readOnly) {
+      return <ReadOnlyDisplay value={value} options={options} />;
+    }
     return (
       <Checkbox.Group
         value={(value as unknown[]) ?? []}

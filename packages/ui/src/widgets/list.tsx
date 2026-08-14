@@ -13,7 +13,7 @@ import {
   arrayRemove,
   formatFieldValue,
   getEmptyObject,
-  renderInputControl,
+  RenderItemControl,
 } from './_listShared';
 import { type WidgetProps, withFormItem } from './_shared';
 
@@ -38,7 +38,7 @@ export const listWidget = withFormItem(
     column: _col,
     form: _form,
     dependValues: _dv,
-    dataPath: _dp,
+    dataPath,
     path: _p,
     ...rest
   }: WidgetProps) => {
@@ -164,11 +164,14 @@ export const listWidget = withFormItem(
                       {formatFieldValue(fieldValue, fieldDef)}
                     </Typography.Text>
                   ) : (
-                    renderInputControl(fieldDef.widget, fieldDef, {
-                      value: fieldValue,
-                      onChange: (v) => handleFieldChange(index, key, v),
-                      disabled,
-                    })
+                    <RenderItemControl
+                      widget={fieldDef.widget}
+                      fieldSchema={fieldDef}
+                      path={`${dataPath}[${index}].${key}`}
+                      value={fieldValue}
+                      onChange={(v) => handleFieldChange(index, key, v)}
+                      disabled={disabled}
+                    />
                   )}
                 </Form.Item>
               );

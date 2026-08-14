@@ -25,7 +25,6 @@ import type { CatalogItem, DesignerMode, FieldDef } from './types';
 const DEFAULT_SCHEMA: NexusSchema = {
   type: 'object',
   displayType: 'row',
-  labelWidth: 110,
   properties: {},
 };
 
@@ -103,16 +102,10 @@ function DesignerForm() {
 
   // 清空画布：重置为空 schema 并取消选中（必须新建对象，保证触发重渲染）
   const handleClearSchema = () => {
-    const emptySchema: NexusSchema = {
-      type: 'object',
-      displayType: 'row',
-      labelWidth: 110,
-      properties: {},
-    };
-    setSchema(emptySchema);
+    setSchema(DEFAULT_SCHEMA);
     selectNode(null);
     if (mode === 'schema') {
-      setSchemaText(JSON.stringify(emptySchema, null, 2));
+      setSchemaText(JSON.stringify(DEFAULT_SCHEMA, null, 2));
     }
   };
 

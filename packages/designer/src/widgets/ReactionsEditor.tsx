@@ -11,19 +11,19 @@ import type { WidgetProps } from '@nexus/form-engine-ui';
 import { Button, Form, Input, Select, Switch } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { ExpressionBuilder } from './ExpressionBuilder';
-import { useFormDataFields } from './useFormDataFields';
 import {
   BOOLEAN_STATE_KEYS,
-  PROPS_KEY,
-  STATE_KEY_OPTIONS,
+  type Card,
   cardToReaction,
   genId,
+  type PatchRow,
+  PROPS_KEY,
   parsePatchValue,
   reactionToCard,
+  STATE_KEY_OPTIONS,
   toManualReactions,
-  type Card,
-  type PatchRow,
 } from './reactionsModel';
+import { useFormDataFields } from './useFormDataFields';
 
 function depsCountOf(deps: string): number {
   return deps

@@ -1,6 +1,6 @@
 import { toBoolean } from '@nexus/form-engine/utils/schema-helper.ts';
 import { Input } from 'antd';
-import { type WidgetProps, withFormItem } from './_shared';
+import { ReadOnlyDisplay, type WidgetProps, withFormItem } from './_shared';
 
 export const inputWidget = withFormItem(
   ({
@@ -17,12 +17,17 @@ export const inputWidget = withFormItem(
     required,
     ...rest
   }: WidgetProps) => {
+    if (readOnly) {
+      return <ReadOnlyDisplay value={value} />;
+    }
+
     return (
       <Input
         value={(value as string) ?? ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={toBoolean(required)}
+        readOnly={toBoolean(readOnly)}
         disabled={toBoolean(disabled || loading)}
         {...rest}
       />

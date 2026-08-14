@@ -502,13 +502,13 @@ export function treeSelectWidget({
   }, [loadData]);
 
   // params 变化时重新加载
-  const paramsStr = JSON.stringify(cfg.params || {});
+  const _paramsStr = JSON.stringify(cfg.params || {});
   useEffect(() => {
     if (!loadedRef.current) {
       return;
     }
     loadData();
-  }, [loadData, paramsStr]);
+  }, [loadData, _paramsStr]);
 
   // ── 远程搜索 ──
   const handleSearch = useCallback(
@@ -906,9 +906,7 @@ export function treeSelectWidget({
         showSearch={cfg.showSearch}
         onSearch={remoteSearchable ? handleSearch : undefined}
         filterTreeNode={
-          localFilterable
-            ? (localFilter as unknown as TreeFilterFn)
-            : undefined
+          localFilterable ? (localFilter as unknown as TreeFilterFn) : undefined
         }
         treeExpandedKeys={
           expandedKeys.length > 0

@@ -1,3 +1,4 @@
+import { toBoolean } from '@nexus/form-engine/utils/schema-helper.ts';
 import { Input } from 'antd';
 import { type WidgetProps, withFormItem } from './_shared';
 
@@ -30,6 +31,7 @@ export const urlInputWidget = withFormItem(
         value={(value as string) ?? ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? 'https://'}
+        readOnly={toBoolean(readOnly)}
         disabled={disabled || loading}
         prefix={<span style={{ color: '#999' }}>🔗</span>}
         {...rest}

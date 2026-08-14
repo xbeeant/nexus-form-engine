@@ -73,17 +73,6 @@ export function NexusField({
     return <div className='hidden' data-nexus-hidden={dataPath} />;
   }
 
-  /** 获取UI组件库 进行渲染 **/
-  const Widget = engine.getWidget(state.meta.widget);
-
-  if (!Widget) {
-    return (
-      <div className='text-xs text-red-500' data-nexus-field={dataPath}>
-        ⚠️ Widget "{state.meta.widget}" 未注册 (path: {dataPath})
-      </div>
-    );
-  }
-
   // 从 enum + enumNames 构建选项（x-render 对齐）
   const options = state.meta.enum
     ? state.meta.enum.map((value: any, index: number) => ({
@@ -99,6 +88,30 @@ export function NexusField({
     config.readOnly || inherit.readOnly === true || state.readOnly;
   // 对象容器继承 disabled（父级激活时优先），与字段级 disabled 合并
   const disabled = inherit.disabled === true || state.disabled;
+
+  // readOnlyWidget：指定 readOnly 生效时切换使用的渲染 widget（x-render readOnlyWidget 对齐）。
+  // - 配置了 readOnlyWidget 且字段为只读时，切换渲染该 widget（readOnly 一并透传，
+  //   widget 按自身逻辑决定只读展示形态，如 treeSelect 的 readOnly 回显）；
+  // - 未配置时 readOnly 原样透传给 widget，由 widget 自身决定只读形态
+  //   （antd 原生 readOnly，或内置 widget 的 ReadOnlyDisplay 文本回退）。
+  const wantReadOnlyWidget = readOnly && !!state.meta.readOnlyWidget;
+  const widgetName = wantReadOnlyWidget
+    ? state.meta.readOnlyWidget!
+    : state.meta.widget;
+  /** 获取UI组件库 进行渲染 **/
+  let Widget = engine.getWidget(widgetName);
+  // readOnlyWidget 未注册时优雅降级：退回原 widget，沿用现有只读渲染方式
+  if (!Widget && wantReadOnlyWidget) {
+    Widget = engine.getWidget(state.meta.widget);
+  }
+
+  if (!Widget) {
+    return (
+      <div className='text-xs text-red-500' data-nexus-field={dataPath}>
+        ⚠️ Widget "{state.meta.widget}" 未注册 (path: {dataPath})
+      </div>
+    );
+  }
 
   // 字段级配置优先于表单级配置
   const fieldDisplayType = state.meta.displayType ?? config.displayType;
@@ -146,6 +159,7 @@ export function NexusField({
         title={state.meta.title}
         description={state.meta.description}
         placeholder={state.meta.placeholder}
+        label={state.meta.label}
         options={options}
         errors={state.errors}
         extra={state.meta.extra}

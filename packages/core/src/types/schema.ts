@@ -290,6 +290,12 @@ export interface BaseSchemaNode {
    * 可选：省略时 Parser 按 type/format 推断（inferWidgetFromSchema）
    */
   widget?: string;
+  /**
+   * 只读时切换使用的渲染 widget（x-render readOnlyWidget 对齐）
+   * 字段 readOnly 生效时使用该 widget 渲染（以其自有形态展示，不降级为只读纯文本），
+   * 未配置时沿用现有只读渲染方式（ReadOnlyDisplay 纯文本）。
+   */
+  readOnlyWidget?: string;
   /** 字段标题 */
   title?: string;
   /** 字段描述 */
@@ -341,6 +347,8 @@ export interface BaseSchemaNode {
   colSpan?: number;
   /** 字段级布局方向，覆盖表单级 displayType */
   displayType?: 'row' | 'column' | 'inline';
+  /** 字段级是否显示 label（默认 true，覆盖表单级 label） */
+  label?: boolean;
   /** 字段级 label 宽度，覆盖表单级 labelWidth */
   labelWidth?: number | string;
   /** 字段级列数，覆盖表单级 column（用于 grid 布局） */
@@ -647,6 +655,8 @@ export interface FieldState {
   meta: {
     title: string;
     widget: string;
+    /** 只读时切换渲染的 widget（x-render readOnlyWidget 对齐） */
+    readOnlyWidget?: string;
     type?: DataType;
     rules: ValidationRule[];
     description?: string;
@@ -662,6 +672,8 @@ export interface FieldState {
     /** 在父 Grid 布局中横跨多少列（tailwind 风格） */
     colSpan?: number;
     displayType?: 'row' | 'column' | 'inline';
+    /** 是否显示 label（默认 true，字段级覆盖表单级） */
+    label?: boolean;
     labelWidth?: number | string;
     column?: number;
     /** 数据绑定配置（路径映射：string | string[] | false） */

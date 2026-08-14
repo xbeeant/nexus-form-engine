@@ -65,7 +65,9 @@ export function parsePatchValue(text: string): unknown {
   return text;
 }
 
-export function rowsToState(rows: PatchRow[]): Record<string, unknown> | undefined {
+export function rowsToState(
+  rows: PatchRow[],
+): Record<string, unknown> | undefined {
   const state: Record<string, unknown> = {};
   for (const r of rows) {
     const key = r.key.trim();
@@ -134,8 +136,11 @@ export function reactionToCard(r: Reaction): Card {
 function buildBranch(
   card: Card,
   branch: 'fulfill' | 'otherwise',
-): { state?: Record<string, unknown>; schema?: Record<string, unknown> } | undefined {
-  const enabled = branch === 'fulfill' ? card.fulfillEnabled : card.otherwiseEnabled;
+):
+  | { state?: Record<string, unknown>; schema?: Record<string, unknown> }
+  | undefined {
+  const enabled =
+    branch === 'fulfill' ? card.fulfillEnabled : card.otherwiseEnabled;
   if (!enabled) {
     return undefined;
   }

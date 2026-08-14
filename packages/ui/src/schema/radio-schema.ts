@@ -1,5 +1,5 @@
 export const radioSchema = {
-  options: { widget: 'simpleList', title: '选项' },
+  options: { widget: 'propertyOptions', title: '选项（value/label）' },
   optionType: {
     type: 'string',
     widget: 'select',

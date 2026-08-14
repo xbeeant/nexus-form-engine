@@ -8,6 +8,7 @@ import { defaultEditorWidget } from './DefaultEditor';
 import { dependenciesEditorWidget } from './DependenciesEditor';
 import { enumEditorWidget, enumNamesEditorWidget } from './EnumEditor';
 import { expressionSwitchWidget } from './ExpressionSwitch';
+import { optionsEditorWidget } from './OptionsEditor';
 import { reactionsEditorWidget } from './ReactionsEditor';
 import { validateEditorWidget } from './ValidateEditor';
 
@@ -20,6 +21,7 @@ export const propertyWidgets: Record<string, (props: any) => ReactNode> = {
   propertyReactions: reactionsEditorWidget,
   propertyEnum: enumEditorWidget,
   propertyEnumNames: enumNamesEditorWidget,
+  propertyOptions: optionsEditorWidget,
   propertyDefault: defaultEditorWidget,
 };
 
@@ -27,10 +29,11 @@ export { bindEditorWidget } from './BindEditor';
 export { defaultEditorWidget } from './DefaultEditor';
 export { dependenciesEditorWidget } from './DependenciesEditor';
 export { enumEditorWidget, enumNamesEditorWidget } from './EnumEditor';
-export { ExpressionBuilder } from './ExpressionBuilder';
 export type { ExpressionBuilderProps } from './ExpressionBuilder';
+export { ExpressionBuilder } from './ExpressionBuilder';
 export { expressionSwitchWidget } from './ExpressionSwitch';
-export { reactionsEditorWidget } from './ReactionsEditor';
-export { validateEditorWidget } from './ValidateEditor';
-export { useFormDataFields } from './useFormDataFields';
 export * from './expressionModel';
+export { optionsEditorWidget } from './OptionsEditor';
+export { reactionsEditorWidget } from './ReactionsEditor';
+export { useFormDataFields } from './useFormDataFields';
+export { validateEditorWidget } from './ValidateEditor';

@@ -1,3 +1,3 @@
 export const checkboxesSchema = {
-  options: { widget: 'simpleList', title: '选项' },
+  options: { widget: 'propertyOptions', title: '选项（value/label）' },
 };

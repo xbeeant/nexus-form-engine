@@ -8,6 +8,7 @@ export const passwordWidget = withFormItem(
     placeholder,
     disabled,
     loading,
+    readOnly,
     form,
     dependValues: _dv,
     dataPath: _dp,
@@ -18,6 +19,7 @@ export const passwordWidget = withFormItem(
       value={(value as string) ?? ''}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
+      readOnly={readOnly}
       disabled={disabled || loading}
       {...rest}
     />

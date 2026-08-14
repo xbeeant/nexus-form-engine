@@ -25,6 +25,8 @@ import {
   validationPropertyFields,
 } from './property/basic-property.ts';
 import {
+  diffPropertyPatch,
+  extractFormLevelConfig,
   flattenNodeForPropertyEditor,
   getNodeAtProperties,
 } from './schemaUtils';
@@ -99,21 +101,25 @@ const formLevelProps: Record<string, SchemaNode> = {
     widget: 'switch',
     type: 'boolean',
     title: '显示冒号（colon）',
+    default: true,
   },
   label: {
     widget: 'switch',
     type: 'boolean',
     title: '显示 label（label）',
+    default: true,
   },
   readOnly: {
     widget: 'switch',
     type: 'boolean',
     title: '整个表单只读（readOnly）',
+    default: false,
   },
   column: {
     widget: 'number',
     type: 'number',
     title: '每行显示列数（column）',
+    default: 1,
   },
 };
 
@@ -182,7 +188,7 @@ function KeyEditor({ oldKey, locked, onRename }: KeyEditorProps) {
             {oldKey}
           </code>
         </div>
-        <span className='flex-shrink-0 rounded bg-[#f0f0f0] px-1.5 py-0.5 text-[11px] text-[#999]'>
+        <span className='shrink-0 rounded bg-[#f0f0f0] px-1.5 py-0.5 text-[11px] text-[#999]'>
           🔒 锁定
         </span>
       </div>
@@ -316,16 +322,28 @@ export function PropertyPanel() {
     } as NexusSchema;
   }, [isFormLevel, selectedWidgetKey, propertySchemaMap]);
 
+  // 表单级属性面板的取值来源：只提取 NexusSchema 顶层的表单配置键，
+  // 而非整个 schema 对象（schema 含 properties 与嵌套字段，不是表单级配置）
+  const formLevelConfig = useMemo<Record<string, unknown>>(
+    () =>
+      extractFormLevelConfig(
+        schema as unknown as Record<string, unknown>,
+        Object.keys(formLevelProps),
+      ),
+    [schema],
+  );
+
   const handleValuesChange = useCallback(
     (allValues: Record<string, unknown>) => {
-      // 跳过 undefined 值（避免写入无意义字段）
-      const patch: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(allValues)) {
-        if (v === undefined) {
-          continue;
-        }
-        patch[k] = v;
-      }
+      // 只写回「真正变化」的值：空字符串（''/undefined/null）视为未赋值，一律不写回 Schema
+      // （详见 diffPropertyPatch：bind:'' / hidden:'' / required:'' 会导致 key 丢失 / 空联动）
+      const initial = selectedNode
+        ? flattenNodeForPropertyEditor(
+            selectedNode as unknown as Record<string, any>,
+          )
+        : formLevelConfig;
+
+      const patch = diffPropertyPatch(initial, allValues);
       if (Object.keys(patch).length === 0) {
         return;
       }
@@ -342,7 +360,14 @@ export function PropertyPanel() {
         updateNode(selectedPath, rest);
       }
     },
-    [selectedPath, updateNode, setSchema, schema],
+    [
+      selectedPath,
+      updateNode,
+      setSchema,
+      schema,
+      selectedNode,
+      formLevelConfig,
+    ],
   );
 
   const handleRename = useCallback(
@@ -373,7 +398,7 @@ export function PropertyPanel() {
             <button
               type='button'
               onClick={() => selectNode(null)}
-              className='-ml-1 mr-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-[#999] transition-colors hover:bg-[#f0f0f0] hover:text-[#333]'
+              className='-ml-1 mr-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[#999] transition-colors hover:bg-[#f0f0f0] hover:text-[#333]'
               title='返回表单属性'
             >
               <svg
@@ -391,12 +416,12 @@ export function PropertyPanel() {
               </svg>
             </button>
           )}
-          <span className='truncate text-[13px] font-semibold text-[#333]'>
+          <span className='truncate pl-5 text-[13px] font-semibold text-[#333]'>
             {isFormLevel ? '表单属性' : '节点属性'}
           </span>
         </div>
         {!isFormLevel && nodeKind && (
-          <span className='ml-2 flex-shrink-0 rounded-md bg-[#e8f1ff] px-1.5 py-0.5 text-[11px] text-[#1677ff]'>
+          <span className='ml-2 shrink-0 rounded-md bg-[#e8f1ff] px-1.5 py-0.5 text-[11px] text-[#1677ff]'>
             {nodeKind}
           </span>
         )}
@@ -421,7 +446,7 @@ export function PropertyPanel() {
               ? flattenNodeForPropertyEditor(
                   selectedNode as unknown as Record<string, any>,
                 )
-              : (schema as unknown as Record<string, any>)
+              : formLevelConfig
           }
           onValuesChange={handleValuesChange}
         />

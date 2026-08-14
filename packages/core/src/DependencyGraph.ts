@@ -2,7 +2,10 @@
 // DependencyGraph — 显式依赖图
 // 目标：在 Schema 初始化时静态构建依赖边，提供 O(1) 的查询能力
 // 严禁运行时动态扫描 Schema，保证 O(k) 的联动更新复杂度
+// 性能优化：增加 getDependentsRef 避免防御性拷贝
 // ============================================================================
+
+const EMPTY_SET: ReadonlySet<string> = new Set();
 
 /**
  * 依赖图结构：
@@ -50,7 +53,7 @@ export class DependencyGraph {
   }
 
   /**
-   * 获取依赖指定字段的所有字段集合
+   * 返回依赖指定字段的所有字段集合（副本，供外部安全使用）
    *
    * source 变化时，这些字段的 reactions 需要重新执行
    * 返回防御性拷贝，防止外部篡改依赖图
@@ -60,6 +63,11 @@ export class DependencyGraph {
    */
   getDependents(path: string): Set<string> {
     return new Set(this.dependentsOf.get(path));
+  }
+
+  /** 返回依赖指定字段的所有字段集合（只读引用，内部热路径使用，避免复制） */
+  getDependentsRef(path: string): ReadonlySet<string> {
+    return this.dependentsOf.get(path) ?? EMPTY_SET;
   }
 
   /**

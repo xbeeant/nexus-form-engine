@@ -8,6 +8,7 @@ import {
   isDataArray,
   isDataField,
   isDataObject,
+  isDeepEqual,
   isLayoutNode,
   type NexusSchema,
   type SchemaNode,
@@ -350,6 +351,7 @@ const SCHEMA_LEVEL_KEYS = new Set([
   'style',
   'disabled',
   'readOnly',
+  'readOnlyWidget',
   'hidden',
   'width',
   'order',
@@ -389,14 +391,29 @@ const SCHEMA_LEVEL_KEYS = new Set([
  * 读取节点用于属性面板的初始值：
  * - 直接保留 schema 级属性
  * - 扁平化 props 与 schema 级属性同一平面暴露给表单，
+ * - 当节点使用 enum/enumNames（canonical 选项格式）而未显式配置 props.options 时，
+ *   合成 options 供 value/label 编辑器回显
  */
 export function flattenNodeForPropertyEditor(
   node: Record<string, unknown>,
 ): Record<string, unknown> {
   const result: Record<string, unknown> = { ...node };
   // 再展开 props（新统一格式）高优先级
-  if (node.props && typeof node.props === 'object' && node.props !== null) {
+  if (node.props && typeof node.props === 'object') {
     Object.assign(result, node.props as Record<string, unknown>);
+  }
+  if (
+    result.options === undefined &&
+    Array.isArray(node.enum) &&
+    node.enum.length > 0
+  ) {
+    const names = Array.isArray(node.enumNames)
+      ? (node.enumNames as unknown[])
+      : [];
+    result.options = (node.enum as unknown[]).map((value, index) => ({
+      value,
+      label: names[index] == null ? String(value) : String(names[index]),
+    }));
   }
   return result;
 }
@@ -432,6 +449,59 @@ export function nestPatchForNode(
 }
 
 /**
+ * 从 NexusSchema 顶层提取表单级配置（供属性面板 form-level 编辑器作为 initialValues）
+ *
+ * 只提取 schema 顶层可配置键（displayType/labelWidth/colon/label/readOnly/column 等），
+ * 而非整个 schema 对象——整个 schema 含 properties 与嵌套字段定义，
+ * 不属于表单级配置的取值来源，直接作为 initialValues 是错误的。
+ *
+ * @param schema 被编辑的 NexusSchema
+ * @param keys 表单级可编辑键集合（对应属性面板 formLevelProps 的 key）
+ * @returns 仅包含 schema 中存在的表单级配置
+ */
+export function extractFormLevelConfig(
+  schema: Record<string, unknown>,
+  keys: readonly string[],
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (key in schema) {
+      result[key] = schema[key];
+    }
+  }
+  return result;
+}
+
+/**
+ * 计算属性表单 allValues → 节点 patch 的差异：
+ * - 空字符串（undefined / null / ''）一律视为「未赋值」，不写回 Schema——
+ *   属性表单会把未触碰的字符串字段初始化为 ''，若写回会污染 Schema
+ *   （如 bind:'' 被引擎当作 bind 路径导致数据 key 丢失、hidden:''/required:''
+ *   被当作空表达式联动），因此空值统一跳过
+ * - 跳过与初始值深相等的字段（未触碰的字段不重复写回）
+ *
+ * @param initialValues 节点当前的扁平值（flattenNodeForPropertyEditor 输出）
+ * @param allValues 属性表单当前全部值
+ * @returns 需要写回节点的 patch（不含任何空字符串）
+ */
+export function diffPropertyPatch(
+  initialValues: Record<string, unknown>,
+  allValues: Record<string, unknown>,
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(allValues)) {
+    if (value === undefined || value === null || value === '') {
+      continue;
+    }
+    if (isDeepEqual(initialValues[key], value)) {
+      continue;
+    }
+    patch[key] = value;
+  }
+  return patch;
+}
+
+/**
  * 合并 props patch 到已存在的 props 中（UI 组件属性统一入口），
  * 而不是整体覆盖，避免修改一个属性时丢失其它属性。
  */
@@ -449,6 +519,27 @@ export function updateNodeWithNesting(
     return next;
   }
   const nodeRec = node as unknown as Record<string, unknown>;
+
+  // value/label 选项编辑器：同步写出 canonical 的 enum + enumNames，
+  // 使选项同时作用于控件展示、校验（enum 规则）与只读回显
+  if (Array.isArray(flatPatch.options)) {
+    const enumValues: unknown[] = [];
+    const enumLabels: string[] = [];
+    for (const item of flatPatch.options as unknown[]) {
+      if (item && typeof item === 'object') {
+        const rec = item as { value?: unknown; label?: unknown };
+        enumValues.push(rec.value);
+        enumLabels.push(
+          rec.label == null ? String(rec.value ?? '') : String(rec.label),
+        );
+      } else {
+        enumValues.push(item);
+        enumLabels.push(String(item));
+      }
+    }
+    nodeRec.enum = enumValues;
+    nodeRec.enumNames = enumLabels;
+  }
 
   // schema 级属性直接覆盖
   for (const [key, value] of Object.entries(flatPatch)) {

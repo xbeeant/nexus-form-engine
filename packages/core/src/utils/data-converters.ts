@@ -342,13 +342,3 @@ export function toSearchParams(
 
   return params;
 }
-
-/**
- * @deprecated 兼容旧 API：类转换为纯函数后，请直接使用 toFormData/toMultipart/toSearchParams/formatField
- */
-export const DataConverter = {
-  toFormData,
-  toMultipart,
-  toSearchParams,
-  formatField,
-};

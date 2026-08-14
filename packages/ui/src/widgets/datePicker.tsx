@@ -7,6 +7,7 @@ export const datePickerWidget = withFormItem(
     onChange,
     disabled,
     loading,
+    readOnly,
     format,
     form,
     dependValues: _dv,
@@ -17,6 +18,7 @@ export const datePickerWidget = withFormItem(
     <DatePicker
       value={toDayjs(value, format as string)}
       onChange={(_, dateString) => onChange(dateString || undefined)}
+      readOnly={readOnly}
       disabled={disabled || loading}
       style={{ width: '100%' }}
       format={format as string}

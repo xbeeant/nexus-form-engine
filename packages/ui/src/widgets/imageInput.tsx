@@ -67,6 +67,29 @@ export const imageInputWidget = withFormItem(
 
     const isPictureCard = listType === 'picture-card';
 
+    if (readOnly) {
+      const urls = Array.isArray(value)
+        ? (value as string[])
+        : value
+          ? [value as string]
+          : [];
+      if (urls.length === 0) {
+        return <span style={{ color: '#bfbfbf' }}>-</span>;
+      }
+      return (
+        <div className='flex flex-wrap gap-2'>
+          {urls.map((url, i) => (
+            <img
+              key={i}
+              src={url}
+              alt={`image-${i}`}
+              className='h-16 w-16 rounded border border-black/10 object-cover'
+            />
+          ))}
+        </div>
+      );
+    }
+
     return (
       <Upload
         action={(action as string) ?? '/api/upload'}

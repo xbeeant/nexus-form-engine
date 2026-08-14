@@ -42,6 +42,12 @@ export const commonPropertyFields: Record<string, SchemaNode> = {
     type: 'string',
     title: '只读（readOnly）',
   },
+  readOnlyWidget: {
+    widget: 'input',
+    type: 'string',
+    title: '只读渲染组件（readOnlyWidget）',
+    placeholder: '如 html，未配置时沿用只读文本渲染',
+  },
   hidden: {
     widget: 'propertyExpr',
     type: 'string',

@@ -1,5 +1,10 @@
 import { Checkbox } from 'antd';
-import { type WidgetProps, withFormItem } from './_shared';
+import {
+  mapOptions,
+  ReadOnlyDisplay,
+  type WidgetProps,
+  withFormItem,
+} from './_shared';
 
 export const checkboxWidget = withFormItem(
   ({
@@ -15,7 +20,7 @@ export const checkboxWidget = withFormItem(
     readOnly,
     required,
     placeholder: _ph,
-    options: _opt,
+    options,
     displayType,
     labelWidth,
     column: _col,
@@ -25,6 +30,13 @@ export const checkboxWidget = withFormItem(
     path: _p,
     ...rest
   }: WidgetProps) => {
+    if (readOnly) {
+      return <ReadOnlyDisplay value={value} options={options} />;
+    }
+    // 配置了选项时，以选中（value=true）项的文案作为复选框标签
+    const checkedLabel = mapOptions(options).find(
+      (o) => o.value === true,
+    )?.label;
     return (
       <Checkbox
         checked={!!value}
@@ -32,7 +44,7 @@ export const checkboxWidget = withFormItem(
         disabled={disabled || loading}
         {...rest}
       >
-        {title}
+        {checkedLabel ?? title}
       </Checkbox>
     );
   },

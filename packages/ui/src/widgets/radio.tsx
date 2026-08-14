@@ -1,5 +1,10 @@
 import { Radio } from 'antd';
-import { mapOptions, type WidgetProps, withFormItem } from './_shared';
+import {
+  mapOptions,
+  ReadOnlyDisplay,
+  type WidgetProps,
+  withFormItem,
+} from './_shared';
 
 export const radioWidget = withFormItem(
   ({
@@ -8,18 +13,24 @@ export const radioWidget = withFormItem(
     options,
     disabled,
     loading,
+    readOnly,
     form,
     dependValues: _dv,
     dataPath: _dp,
     path: _p,
     ...rest
-  }: WidgetProps) => (
-    <Radio.Group
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled || loading}
-      options={mapOptions(options)}
-      {...rest}
-    />
-  ),
+  }: WidgetProps) => {
+    if (readOnly) {
+      return <ReadOnlyDisplay value={value} options={options} />;
+    }
+    return (
+      <Radio.Group
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled || loading}
+        options={mapOptions(options)}
+        {...rest}
+      />
+    );
+  },
 );

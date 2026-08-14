@@ -1,5 +1,5 @@
 import { Slider } from 'antd';
-import { type WidgetProps, withFormItem } from './_shared';
+import { ReadOnlyDisplay, type WidgetProps, withFormItem } from './_shared';
 
 export const sliderWidget = withFormItem(
   ({
@@ -7,6 +7,7 @@ export const sliderWidget = withFormItem(
     onChange,
     disabled,
     loading,
+    readOnly,
     min,
     max,
     step,
@@ -15,15 +16,20 @@ export const sliderWidget = withFormItem(
     dataPath: _dp,
     path: _p,
     ...rest
-  }: WidgetProps) => (
-    <Slider
-      value={(value as number) ?? 0}
-      onChange={(v) => onChange(v as number)}
-      disabled={disabled || loading}
-      min={(min as number) ?? 0}
-      max={(max as number) ?? 100}
-      step={(step as number) ?? 1}
-      {...rest}
-    />
-  ),
+  }: WidgetProps) => {
+    if (readOnly) {
+      return <ReadOnlyDisplay value={value} />;
+    }
+    return (
+      <Slider
+        value={(value as number) ?? 0}
+        onChange={(v) => onChange(v as number)}
+        disabled={disabled || loading}
+        min={(min as number) ?? 0}
+        max={(max as number) ?? 100}
+        step={(step as number) ?? 1}
+        {...rest}
+      />
+    );
+  },
 );

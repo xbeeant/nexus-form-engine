@@ -1,6 +1,7 @@
 // ============================================================================
 // ExpressionSandbox — 表达式安全求值沙箱
 // 目标：确保 {{ }} 表达式求值的安全性，防止恶意代码执行
+// 性能优化：编译函数缓存，避免每次求值都 new Function
 // ============================================================================
 
 import type { ReactionContext } from './types/schema';
@@ -70,6 +71,9 @@ const CONTEXT_WHITELIST = new Set([
   'rootValue',
 ]);
 
+/** 白名单键数组（编译函数参数顺序固定） */
+const CONTEXT_KEYS = Array.from(CONTEXT_WHITELIST);
+
 /**
  * 错误处理策略
  * - strict: 抛出错误（开发环境推荐）
@@ -114,6 +118,8 @@ export class ExpressionSandbox {
   private evaluationCount: number = 0;
   private errorCount: number = 0;
   private evaluationTimes: number[] = [];
+  /** 编译函数缓存：sanitized expression → Function */
+  private functionCache = new Map<string, Function>();
 
   constructor(options?: EvaluateOptions) {
     this.errorHandler = options?.errorHandler ?? ErrorHandlerStrategy.DEFAULT;
@@ -129,8 +135,7 @@ export class ExpressionSandbox {
    */
   createContext(context: ReactionContext): Record<string, unknown> {
     const safeContext: Record<string, unknown> = {};
-
-    for (const key of CONTEXT_WHITELIST) {
+    for (const key of CONTEXT_KEYS) {
       safeContext[key] = (context as unknown as Record<string, unknown>)[key];
     }
 
@@ -158,13 +163,17 @@ export class ExpressionSandbox {
       const sanitized = this.sanitizeExpression(expression);
       this.lastExpression = sanitized;
 
+      // 从缓存获取编译函数，若不存在则创建并缓存
+      let fn = this.functionCache.get(sanitized);
+      if (!fn) {
+        fn = new Function(...CONTEXT_KEYS, `return (${sanitized});`);
+        this.functionCache.set(sanitized, fn);
+      }
       // 2. 构建安全上下文
       const safeContext = this.createContext(context);
 
       // 3. 安全求值
-      const keys = Object.keys(safeContext);
-      const values = Object.values(safeContext);
-      const fn = new Function(...keys, `return (${sanitized});`);
+      const values = CONTEXT_KEYS.map((key) => safeContext[key]);
       const result = fn(...values);
 
       // 4. 额外的安全检查（防止绕过白名单）
@@ -323,7 +332,7 @@ export class ExpressionSandbox {
         '\nExpression:',
         this.lastExpression,
         '\nContext keys:',
-        Array.from(CONTEXT_WHITELIST),
+        CONTEXT_KEYS,
       );
     } else {
       console.warn(

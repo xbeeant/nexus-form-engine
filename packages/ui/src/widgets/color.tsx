@@ -25,6 +25,18 @@ export const colorWidget = withFormItem(
     path: _p,
     ...rest
   }: WidgetProps) => {
+    if (readOnly) {
+      const colorValue = value as string | undefined;
+      return (
+        <div className='flex items-center gap-2 h-8'>
+          <span
+            className='inline-block h-5 w-5 shrink-0 rounded border border-black/10'
+            style={{ backgroundColor: colorValue || 'transparent' }}
+          />
+          <span className='text-[13px] text-black/85'>{colorValue || '-'}</span>
+        </div>
+      );
+    }
     return (
       <ColorPicker
         value={value as string}

@@ -5,7 +5,7 @@ import type {
 } from '@nexus/form-engine';
 import { toBoolean } from '@nexus/form-engine/utils/schema-helper.ts';
 import { useFormConfig } from '@nexus/form-engine-react';
-import { Form, Typography } from 'antd';
+import { Form } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import type React from 'react';
@@ -28,6 +28,8 @@ export interface WidgetProps<T = Record<string, any>> {
   title?: string;
   description?: string;
   errors?: string[];
+  /** 是否显示 label（默认 true；字段级覆盖表单级，见 FieldState.meta.label） */
+  label?: boolean;
   options?: Array<{ label: string; value: unknown } | string | number>;
   /** 额外说明信息，展示在元素下方（x-render 对齐） */
   extra?: string;
@@ -113,10 +115,93 @@ export function toDayjs(value: unknown, format?: string): dayjs.Dayjs | null {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// ReadOnlyDisplay — 只读模式下将值渲染为纯文本
+// ReadOnlyDisplay — 只读模式下将值渲染为纯文本 / 结构化键值块
+// 支持基础值（字符串/数字/布尔/options 枚举）与结构化值（object / array）：
+// simpleList / tableList / list / object 等复杂组件的值在 readOnly 时
+// 递归渲染为键值块，避免直接 String(value) 输出 "[object Object]"。
 // ────────────────────────────────────────────────────────────────────────────
 
 const EMPTY_PLACEHOLDER = <span style={{ color: '#bfbfbf' }}>-</span>;
+
+const isPrimitive = (v: unknown): boolean =>
+  v === null || typeof v !== 'object';
+
+const renderScalarLabel = (
+  v: unknown,
+  mapped: ReturnType<typeof mapOptions>,
+): string => {
+  if (typeof v === 'boolean') {
+    return v ? '是' : '否';
+  }
+  const hit = mapped.find((o) => o.value === v);
+  return hit ? hit.label : String(v);
+};
+
+/** 递归渲染只读值（depth 限制嵌套深度，防止极端 schema 导致布局失控） */
+function renderReadOnlyValue(
+  value: unknown,
+  mapped: ReturnType<typeof mapOptions>,
+  depth = 0,
+): React.ReactNode {
+  if (value === undefined || value === null || value === '') {
+    return EMPTY_PLACEHOLDER;
+  }
+
+  // 数组值
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return EMPTY_PLACEHOLDER;
+    }
+    // 基础值数组（multiSelect / checkboxes / simpleList 字符串项）：顿号拼接
+    if (value.every((item) => isPrimitive(item))) {
+      return (
+        <>{value.map((item) => renderScalarLabel(item, mapped)).join('、')}</>
+      );
+    }
+    // 对象数组（tableList / list）：逐项渲染为键值块
+    return (
+      <div className='flex flex-col gap-1'>
+        {value.map((item, index) => (
+          <div key={index}>{renderReadOnlyValue(item, mapped, depth + 1)}</div>
+        ))}
+      </div>
+    );
+  }
+
+  // 普通对象
+  if (typeof value === 'object') {
+    if (value instanceof Date || dayjs.isDayjs(value)) {
+      return <>{String(value)}</>;
+    }
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) {
+      return EMPTY_PLACEHOLDER;
+    }
+    if (depth >= 3) {
+      return <>{JSON.stringify(value)}</>;
+    }
+    return (
+      <div className='overflow-hidden rounded-md border border-black/5'>
+        {entries.map(([key, entryValue]) => (
+          <div
+            key={key}
+            className='flex items-start gap-2 border-b border-black/5 px-2.5 py-1'
+          >
+            <span className='w-28 shrink-0 truncate text-[13px] text-black/45'>
+              {key}
+            </span>
+            <span className='flex-1 text-right text-[13px] text-black/85'>
+              {renderReadOnlyValue(entryValue, mapped, depth + 1)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // 基础值（含 options 枚举映射）
+  return <>{renderScalarLabel(value, mapped)}</>;
+}
 
 export function ReadOnlyDisplay({
   value,
@@ -125,39 +210,7 @@ export function ReadOnlyDisplay({
   value: unknown;
   options?: WidgetProps['options'];
 }) {
-  // 空值
-  if (value === undefined || value === null || value === '') {
-    return EMPTY_PLACEHOLDER;
-  }
-
-  const mapped = mapOptions(options);
-
-  // 数组值（multiSelect / checkboxes）
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      return EMPTY_PLACEHOLDER;
-    }
-    const labels = value.map((v) => {
-      const hit = mapped.find((o) => o.value === v);
-      return hit ? hit.label : String(v);
-    });
-    return <>{labels.join('、')}</>;
-  }
-
-  // 布尔值
-  if (typeof value === 'boolean') {
-    return <>{value ? '是' : '否'}</>;
-  }
-
-  // 有 options 的单选值
-  if (mapped.length > 0) {
-    const hit = mapped.find((o) => o.value === value);
-    if (hit) {
-      return <>{hit.label}</>;
-    }
-  }
-
-  return <>{String(value)}</>;
+  return <>{renderReadOnlyValue(value, mapOptions(options))}</>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -166,18 +219,20 @@ export function ReadOnlyDisplay({
 
 export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
   return (props: WidgetProps) => {
-    const { label } = useFormConfig();
-    const showLabel = label !== false;
+    const configLabel = useFormConfig().label;
     // Form.Item 消费的元数据需从 rest 中剥离，避免透传到底层 antd 控件：
     //  - required: 会让 <input required> 触发浏览器原生校验，拦截 submit 导致自定义校验不执行
     //  - errors / title / description: 作为未知属性渲染到 DOM，产生 React 警告
     //  - dependValues / dataPath / path: 引擎内部 props，透传到 antd 控件会
     //    渲染到 DOM 触发 "React does not recognize" 警告（剥除后显式传给 render，
     //    自定义 widget 仍可通过 props.dataPath / props.dependValues 访问）
+    //  - readOnly 不做拦截，原样透传给 widget：多数 antd 组件原生支持 readOnly，
+    //    由 widget 自身决定只读展示形态；无法原生实现的组件内置回退为 ReadOnlyDisplay。
     const {
       extra,
       width,
       readOnly,
+      label,
       options,
       required,
       errors,
@@ -198,6 +253,10 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
       path,
       ...rest
     } = props;
+
+    // 字段级 label（meta.label，Parser 默认 true）与表单级 label 同时生效，
+    // 任一为 false 即不显示该字段 label
+    const showLabel = label !== false && configLabel !== false;
 
     const formItemProps = useFormItemProps({ displayType, labelWidth });
 
@@ -223,26 +282,21 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
         wrapperCol={formItemProps.wrapperCol}
         colon={formItemProps.colon}
       >
-        {readOnly ? (
-          <Typography.Text>
-            <ReadOnlyDisplay value={value} options={options} />
-          </Typography.Text>
-        ) : (
-          render({
-            value,
-            onChange,
-            disabled,
-            loading,
-            placeholder,
-            options,
-            form,
-            items,
-            dependValues,
-            dataPath,
-            path,
-            ...rest,
-          })
-        )}
+        {render({
+          value,
+          onChange,
+          disabled,
+          readOnly,
+          loading,
+          placeholder,
+          options,
+          form,
+          items,
+          dependValues,
+          dataPath,
+          path,
+          ...rest,
+        })}
       </Form.Item>
     );
   };

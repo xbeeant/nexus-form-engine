@@ -439,17 +439,3 @@ export function compressionRate(schema: NexusSchema): number {
 
   return ((originalSize - compressedSize) / originalSize) * 100;
 }
-
-/**
- * @deprecated 兼容旧 API：类转换为纯函数后，请直接使用 serialize/deserialize/diff/compress 等导出函数
- */
-export const SchemaSerializer = {
-  serialize,
-  deserialize,
-  diff,
-  compress,
-  compressToBase64,
-  decompressFromBase64,
-  sizeOf,
-  compressionRate,
-};

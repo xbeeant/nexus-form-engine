@@ -149,6 +149,7 @@ function getDefaultValue(node: DataFieldSchema): unknown {
  *
  * @param schema - 表单 Schema 定义
  * @param initialValues - 可选的初始表单数据
+ * @param widgetMetas - 组件元数据
  * @returns 解析结果
  */
 export function parse(
@@ -681,7 +682,7 @@ function processDataField(
   let initialValue: unknown;
   if (node.bind === false) {
     initialValue = node.default ?? getDefaultValue(node);
-  } else if (typeof node.bind === 'string') {
+  } else if (typeof node.bind === 'string' && node.bind.length > 0) {
     initialValue =
       getNestedValue(initialValues, node.bind) ??
       getNestedValue(initialValues, dataPath) ??
@@ -771,6 +772,7 @@ function processDataField(
     meta: {
       title: node.title || key,
       widget: widgetName,
+      readOnlyWidget: node.readOnlyWidget,
       type: node.type,
       rules,
       description: node.description,
@@ -785,6 +787,7 @@ function processDataField(
       order: node.order,
       colSpan: node.colSpan,
       displayType: node.displayType,
+      label: node.label ?? true,
       labelWidth: node.labelWidth,
       column: node.column,
       bind: node.bind,

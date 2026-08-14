@@ -11,18 +11,18 @@
 import { Button, Input, InputNumber, Select } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  buildExpression,
+  type ConditionOperator,
+  createCondition,
+  type ExprCondition,
   NO_RIGHT_OPERATORS,
   OPERATOR_OPTIONS,
-  RIGHT_MODE_OPTIONS,
-  buildExpression,
-  createCondition,
   parseExpression,
   parseVariable,
+  RIGHT_MODE_OPTIONS,
+  type RightMode,
   stripBraces,
   variableToString,
-  type ConditionOperator,
-  type ExprCondition,
-  type RightMode,
 } from './expressionModel';
 
 // ────────────────────────────────────────────────────────────────────────────

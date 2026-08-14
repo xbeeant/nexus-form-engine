@@ -158,6 +158,10 @@ export class NexusEngine implements IFormEngine {
 
   private messageTemplates: Partial<DefaultRuleMessages>;
 
+  /** formData 缓存与脏标记 */
+  private formDataCache: Record<string, unknown> | null = null;
+  private formDataDirty = true;
+
   /**
    * 创建引擎实例
    *
@@ -166,6 +170,11 @@ export class NexusEngine implements IFormEngine {
    */
   constructor(options?: NexusEngineOptions) {
     this.messageTemplates = options?.messages ?? {};
+  }
+
+  // 标记 formData 缓存失效
+  private markFormDataDirty(): void {
+    this.formDataDirty = true;
   }
 
   // =========================================================================
@@ -192,6 +201,7 @@ export class NexusEngine implements IFormEngine {
     // 浅拷贝保存初始值快照：reset() 时恢复 schema 级初始状态（含 hidden/disabled/props 默认值）
     this.initialValues = initialValues ? { ...initialValues } : undefined;
     this.fieldStates.clear();
+    this.markFormDataDirty();
     // 注意：不清空 fieldListeners / globalListeners
     // React 的 useSyncExternalStore 会在组件卸载或依赖变化时自动清理订阅
     // 清空监听器会导致 bump() + notifyAll() 无法通知到 React，造成 UI 不更新
@@ -298,8 +308,8 @@ export class NexusEngine implements IFormEngine {
       if (bind === false) {
         // bind: false — 不参与数据收集，不从 values 读取
         continue;
-      } else if (typeof bind === 'string') {
-        // bind: string — 从 bind 路径读取
+      } else if (typeof bind === 'string' && bind.length > 0) {
+        // bind: string — 从 bind 路径读取（空字符串视为未配置）
         newValue = getNestedValue(values, bind);
       } else if (Array.isArray(bind)) {
         // bind: string[] — 从多个路径读取并组装成数组
@@ -358,6 +368,11 @@ export class NexusEngine implements IFormEngine {
     }
 
     const oldValue = state.value;
+
+    // formData 缓存失效必须先于任何状态变更：
+    // onFieldValueChangeCallback（FormController._onFieldValueChange）会在本方法内
+    // 读取 engine.getFormData()，若缓存未失效将拿到旧值快照
+    this.markFormDataDirty();
 
     // 插件拦截：onBeforeFieldValueChange（返回 false 可阻止更新）
     for (const plugin of this.plugins) {
@@ -421,34 +436,70 @@ export class NexusEngine implements IFormEngine {
    * - 传入路径：只返回指定路径的可见字段数据
    */
   getFormData(paths?: string[]): Record<string, unknown> {
-    const data: Record<string, unknown> = {};
-    const pathSet = paths ? new Set(paths) : null;
+    // 指定路径时仍需按需构建
+    if (paths) {
+      const data: Record<string, unknown> = {};
+      const pathSet = paths ? new Set(paths) : null;
 
+      for (const [path, state] of this.fieldStates) {
+        // 数组项子字段不单独收集（数组整体由数组字段序列化）
+        if (state.meta.itemOf) {
+          continue;
+        }
+        // 数据对象容器不参与数据收集（仅承载 UI 状态）
+        if (state.meta.containerOnly) {
+          continue;
+        }
+        // 只收集可见字段（隐藏字段由 getHiddenValues 处理）
+        if (!state.visible) {
+          continue;
+        }
+        // 祖先对象容器隐藏 → 整个子树视为隐藏
+        if (this.isContainerHidden(path)) {
+          continue;
+        }
+        // 指定路径时只收集匹配的字段
+        if (pathSet && !pathSet.has(path)) {
+          continue;
+        }
+        this.applyBindToData(data, path, state);
+      }
+
+      return data;
+    }
+    // 无路径：使用缓存
+    if (!this.formDataDirty && this.formDataCache) {
+      // 返回浅拷贝，防止外部修改内部缓存
+      return { ...this.formDataCache };
+    }
+
+    const data: Record<string, unknown> = {};
     for (const [path, state] of this.fieldStates) {
-      // 数组项子字段不单独收集（数组整体由数组字段序列化）
-      if (state.meta.itemOf) {
+      if (state.meta.itemOf || state.meta.containerOnly) {
         continue;
       }
-      // 数据对象容器不参与数据收集（仅承载 UI 状态）
-      if (state.meta.containerOnly) {
-        continue;
-      }
-      // 只收集可见字段（隐藏字段由 getHiddenValues 处理）
       if (!state.visible) {
         continue;
       }
-      // 祖先对象容器隐藏 → 整个子树视为隐藏
       if (this.isContainerHidden(path)) {
-        continue;
-      }
-      // 指定路径时只收集匹配的字段
-      if (pathSet && !pathSet.has(path)) {
         continue;
       }
       this.applyBindToData(data, path, state);
     }
 
-    return data;
+    this.formDataCache = data;
+    this.formDataDirty = false;
+    // 返回浅拷贝
+    return { ...data };
+  }
+
+  /** 内部使用：直接返回缓存引用（只读） */
+  private getFormDataInternal(): Record<string, unknown> {
+    if (this.formDataDirty || !this.formDataCache) {
+      // 强制刷新缓存
+      this.getFormData(); // 构建并设置缓存
+    }
+    return this.formDataCache!;
   }
 
   /**
@@ -476,8 +527,8 @@ export class NexusEngine implements IFormEngine {
       return;
     }
 
-    if (typeof bind === 'string') {
-      // bind: string — 写入 bind 路径
+    if (typeof bind === 'string' && bind.length > 0) {
+      // bind: string — 写入 bind 路径（空字符串视为未配置，回落字段原始路径）
       setNestedValue(data, bind, value);
       return;
     }
@@ -515,10 +566,6 @@ export class NexusEngine implements IFormEngine {
     }
     return false;
   }
-
-  // =========================================================================
-  // 字段状态操作
-  // =========================================================================
 
   // =========================================================================
   // 字段状态操作
@@ -605,14 +652,11 @@ export class NexusEngine implements IFormEngine {
       state.props = { ...state.props, ...patch.props };
     }
 
+    this.markFormDataDirty();
     this.bump();
     this.notifyField(path);
     this.notifyAll();
   }
-
-  // =========================================================================
-  // 校验
-  // =========================================================================
 
   // =========================================================================
   // 校验
@@ -649,6 +693,7 @@ export class NexusEngine implements IFormEngine {
     }
 
     const errors: string[] = [];
+    const formData = this.getFormDataInternal(); // 使用缓存引用
 
     // 0. 必填校验（required 为 true 且值为空时立即显示）
     if (state.required && isEmptyValue(state.value)) {
@@ -676,7 +721,6 @@ export class NexusEngine implements IFormEngine {
       // 表达式校验（validate 字段定义的表达式）
       const validateExpr = rule._validateExpr;
       if (typeof validateExpr === 'string') {
-        const formData = this.getFormData();
         const exprResult = this.evaluateExpression(validateExpr, {
           $deps: [],
           $self: state,
@@ -695,7 +739,6 @@ export class NexusEngine implements IFormEngine {
       // Promise 返回值的异步校验由 AsyncValidatorPlugin 通过 onValidateField 钩子接管
       const ruleValidator = this.resolveRuleValidator(rule);
       if (ruleValidator) {
-        const formData = this.getFormData();
         const result = ruleValidator(
           state.value,
           rule,
@@ -1102,16 +1145,12 @@ export class NexusEngine implements IFormEngine {
       state.loading = false;
       state.props = {};
     }
-
+    this.markFormDataDirty();
     // 重新执行联动，恢复初始联动状态
     this.runAllReactions();
     this.bump();
     this.notifyAll();
   }
-
-  // =========================================================================
-  // Schema & 错误操作
-  // =========================================================================
 
   // =========================================================================
   // Schema & 错误操作
@@ -1655,10 +1694,6 @@ export class NexusEngine implements IFormEngine {
   // 销毁
   // =========================================================================
 
-  // =========================================================================
-  // 销毁
-  // =========================================================================
-
   /**
    * 销毁引擎实例，清理所有内部状态和订阅
    */
@@ -1678,6 +1713,8 @@ export class NexusEngine implements IFormEngine {
     this.layoutRegistry.clear();
     this.widgetMetas = {};
     this.fieldValidators.clear();
+    this.formDataCache = null;
+    this.formDataDirty = true;
   }
 
   // =========================================================================
@@ -1710,11 +1747,7 @@ export class NexusEngine implements IFormEngine {
   }
 
   // =========================================================================
-  // 内部：Reactions 执行
-  // =========================================================================
-
-  // =========================================================================
-  // 内部：Reactions 执行
+  // Reactions 执行（性能优化：使用队列避免递归过深）
   // =========================================================================
 
   /**
@@ -1727,7 +1760,7 @@ export class NexusEngine implements IFormEngine {
   private runAllReactions(): void {
     // 复用单份 formData 快照（与 runReactionsForSource 一致，AGENTS.md §3.1），
     // 避免每个 reaction 都重新构建一次 formData，O(n) 表达式字段的 init 可降 10x+
-    const formData = this.getFormData();
+    const formData = this.getFormDataInternal();
     for (const [path, state] of this.fieldStates) {
       if (state.reactions) {
         for (const reaction of state.reactions) {
@@ -1749,36 +1782,48 @@ export class NexusEngine implements IFormEngine {
    * @param sourcePath - 变更的源字段路径
    */
   private runReactionsForSource(sourcePath: string): void {
-    const dependents = this.dependencyGraph.getDependents(sourcePath);
-    if (dependents.size === 0) {
-      return;
-    }
+    // 使用队列（BFS）替代直接递归，防止循环依赖造成栈溢出
+    const queue: string[] = [sourcePath];
+    const processed = new Set<string>();
 
-    // 单次批量执行复用同一份 formData 快照，避免对每个 dependent 重复构建
-    const formData = this.getFormData();
-
-    for (const targetPath of dependents) {
-      const state = this.fieldStates.get(targetPath);
-      if (!state) {
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      if (processed.has(current)) {
         continue;
       }
-
-      // 执行依赖了 sourcePath 的 reactions
-      const reactions = state.reactions;
-      if (reactions) {
-        for (const reaction of reactions) {
-          if (!reaction.dependencies.includes(sourcePath)) {
-            continue;
-          }
-          this.executeReaction(targetPath, reaction, formData);
-        }
+      processed.add(current);
+      const dependents = this.dependencyGraph.getDependentsRef(current);
+      if (dependents.size === 0) {
+        return;
       }
 
-      // 跨字段 validate 表达式依赖：依赖字段变化时实时重校验目标字段
-      if (this.validateExprFields.has(targetPath)) {
-        this.validateFieldRealtime(targetPath, state);
-        // 错误变化需按路径通知，否则精准订阅的组件无法感知重校验结果
-        this.notifyField(targetPath);
+      // 单次批量执行复用同一份 formData 快照，避免对每个 dependent 重复构建
+      const formData = this.getFormDataInternal();
+
+      for (const targetPath of dependents) {
+        const state = this.fieldStates.get(targetPath);
+        if (!state) {
+          continue;
+        }
+
+        // 执行依赖了 current 的 reactions
+        const reactions = state.reactions;
+        if (reactions) {
+          for (const reaction of reactions) {
+            if (!reaction.dependencies.includes(current)) {
+              continue;
+            }
+            this.executeReaction(targetPath, reaction, formData);
+          }
+        }
+
+        // 跨字段 validate 表达式依赖：依赖字段变化时实时重校验目标字段
+        if (this.validateExprFields.has(targetPath)) {
+          this.validateFieldRealtime(targetPath, state);
+          // 错误变化需按路径通知，否则精准订阅的组件无法感知重校验结果
+          this.notifyField(targetPath);
+        }
+        queue.push(targetPath);
       }
     }
   }
@@ -1810,7 +1855,7 @@ export class NexusEngine implements IFormEngine {
     }
 
     // 单次 reaction 执行中复用同一份 formData，避免多次遍历 Map
-    const data = formData ?? this.getFormData();
+    const data = formData ?? this.getFormDataInternal();
 
     // 检查 when 条件
     if (reaction.when) {
@@ -1897,7 +1942,7 @@ export class NexusEngine implements IFormEngine {
     }
 
     // 调用方通常已提供 formData；缺失时再补一次
-    const data = formData ?? this.getFormData();
+    const data = formData ?? this.getFormDataInternal();
     const context: ReactionContext = {
       $deps: dependValues,
       $self: state,
@@ -1917,14 +1962,17 @@ export class NexusEngine implements IFormEngine {
       this.syncArrayItemStates(path);
       this.validateFieldRealtime(path, state);
       this.runReactionsForSource(path);
+      this.markFormDataDirty();
     }
     // 处理可见性（visible 优先于 hidden）
     if (patch.visible !== undefined) {
       state.visible = toBoolean(this.resolveValue(patch.visible, context));
+      this.markFormDataDirty();
     }
     if (patch.hidden !== undefined) {
       const hidden = toBoolean(this.resolveValue(patch.hidden, context));
       state.visible = !hidden;
+      this.markFormDataDirty();
     }
     // 处理禁用状态
     if (patch.disabled !== undefined) {
@@ -1984,7 +2032,7 @@ export class NexusEngine implements IFormEngine {
       return;
     }
 
-    const data = formData ?? this.getFormData();
+    const data = formData ?? this.getFormDataInternal();
     const context: ReactionContext = {
       $deps: dependValues,
       $self: state,

@@ -16,7 +16,7 @@ import {
   formatFieldValue,
   getEmptyField,
   getEmptyObject,
-  renderInputControl,
+  RenderItemControl,
 } from './_listShared';
 import { type WidgetProps, withFormItem } from './_shared';
 
@@ -41,7 +41,7 @@ export const simpleListWidget = withFormItem(
     column: _col,
     form: _form,
     dependValues: _dv,
-    dataPath: _dp,
+    dataPath,
     path: _p,
     ...rest
   }: WidgetProps) => {
@@ -193,11 +193,14 @@ export const simpleListWidget = withFormItem(
                           {formatFieldValue(fieldValue, fieldDef)}
                         </Typography.Text>
                       ) : (
-                        renderInputControl(fieldDef.widget, fieldDef, {
-                          value: fieldValue,
-                          onChange: (v) => handleFieldChange(index, key, v),
-                          disabled,
-                        })
+                        <RenderItemControl
+                          widget={fieldDef.widget}
+                          fieldSchema={fieldDef}
+                          path={`${dataPath}[${index}].${key}`}
+                          value={fieldValue}
+                          onChange={(v) => handleFieldChange(index, key, v)}
+                          disabled={disabled}
+                        />
                       )}
                     </div>
                   );
@@ -208,16 +211,17 @@ export const simpleListWidget = withFormItem(
                   {readOnly ? (
                     <span>{formatFieldValue(item, simpleSchema)}</span>
                   ) : (
-                    renderInputControl(
-                      simpleSchema?.widget,
-                      simpleSchema ?? { type: 'string', widget: 'input' },
-                      {
-                        value: item,
-                        onChange: (v) => handleSimpleItemChange(index, v),
-                        disabled,
-                        placeholder: simpleSchema?.placeholder,
-                      },
-                    )
+                    <RenderItemControl
+                      widget={simpleSchema?.widget}
+                      fieldSchema={
+                        simpleSchema ?? { type: 'string', widget: 'input' }
+                      }
+                      path={`${dataPath}[${index}]`}
+                      value={item}
+                      onChange={(v) => handleSimpleItemChange(index, v)}
+                      disabled={disabled}
+                      placeholder={simpleSchema?.placeholder}
+                    />
                   )}
                 </div>
               )}

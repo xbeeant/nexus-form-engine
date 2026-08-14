@@ -42,6 +42,7 @@ export { tableListWidget } from './tableList'; // 表格列表渲染器
 export { textAreaWidget } from './textArea'; // 多行文本输入框
 export { timePickerWidget } from './timePicker'; // 时间选择器
 export { timeRangeWidget } from './timeRange'; // 时间范围选择器
+export { treeSelectWidget } from './treeSelect'; // 树形选择器
 export { urlInputWidget } from './urlInput'; // URL 输入框
 export { voidTitleWidget } from './voidTitle'; // 无标题空白组件
 
@@ -68,6 +69,7 @@ import { tableListWidget } from './tableList';
 import { textAreaWidget } from './textArea';
 import { timePickerWidget } from './timePicker';
 import { timeRangeWidget } from './timeRange';
+import { treeSelectWidget } from './treeSelect';
 import { urlInputWidget } from './urlInput';
 import { voidTitleWidget } from './voidTitle';
 
@@ -98,6 +100,7 @@ export const antdWidgets: Record<string, (props: WidgetProps) => ReactNode> = {
   image: imageInputWidget, // 图片上传组件
   color: colorWidget, // 颜色选择器
   urlInput: urlInputWidget, // URL 输入框
+  treeSelect: treeSelectWidget, // 树形选择器
   list: listWidget,
   simpleList: simpleListWidget,
   tableList: tableListWidget,
