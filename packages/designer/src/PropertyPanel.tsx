@@ -312,7 +312,11 @@ export function PropertyPanel() {
               '通用属性',
               commonPropertyFields,
             ),
-            ...collapseSection('sectionFieldProps', '组件属性', widgetProps),
+            ...collapseSection(
+              'sectionFieldProps',
+              '组件属性',
+              widgetProps as Record<string, SchemaNode>,
+            ),
             ...collapseSection(
               'sectionValidation',
               '校验配置',
@@ -419,7 +423,7 @@ export function PropertyPanel() {
     <div className='flex h-full flex-col border-l border-[#f0f0f0] bg-white'>
       {/* 导航头 */}
       <div className='flex items-center justify-between border-b border-[#f0f0f0] px-4 py-2.5'>
-        <div className='flex min-w-0 items-center gap-1'>
+        <div className='pl-5 flex min-w-0 items-center gap-1 h-6'>
           {!isFormLevel && (
             <button
               type='button'
@@ -442,7 +446,7 @@ export function PropertyPanel() {
               </svg>
             </button>
           )}
-          <span className='truncate pl-5 text-[13px] font-semibold text-[#333]'>
+          <span className='truncate text-[13px] font-semibold text-[#333]'>
             {isFormLevel ? '表单属性' : '节点属性'}
           </span>
         </div>

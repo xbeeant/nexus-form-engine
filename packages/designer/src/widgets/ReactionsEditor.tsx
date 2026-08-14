@@ -23,7 +23,10 @@ import {
   STATE_KEY_OPTIONS,
   toManualReactions,
 } from './reactionsModel';
-import { useFormDataFields } from './useFormDataFields';
+import {
+  useFormDataFieldOptions,
+  useFormDataFields,
+} from './useFormDataFields';
 
 function depsCountOf(deps: string): number {
   return deps
@@ -38,15 +41,18 @@ function depsCountOf(deps: string): number {
 
 function InsertVariableSelect({
   fields,
+  fieldOptions,
   depsCount,
   onInsert,
 }: {
   fields: string[];
+  fieldOptions?: Array<{ value: string; label: string }>;
   depsCount: number;
   onInsert: (text: string) => void;
 }) {
+  const base = fieldOptions && fieldOptions.length > 0 ? fieldOptions : fields.map((f) => ({ value: f, label: f }));
   const options = [
-    ...fields.map((f) => ({ value: `formData.${f}`, label: `formData.${f}` })),
+    ...base.map((o) => ({ value: `formData.${o.value}`, label: o.label })),
     { value: '$self.value', label: '$self.value' },
     ...(depsCount > 0
       ? Array.from({ length: depsCount }, (_, i) => ({
@@ -83,12 +89,14 @@ function PatchValueInput({
   value,
   onChange,
   fields,
+  fieldOptions,
   depsCount,
 }: {
   rowKey: string;
   value: unknown;
   onChange: (v: unknown) => void;
   fields: string[];
+  fieldOptions?: Array<{ value: string; label: string }>;
   depsCount: number;
 }) {
   const booleanish = BOOLEAN_STATE_KEYS.has(rowKey);
@@ -102,6 +110,7 @@ function PatchValueInput({
             value={value as string}
             onChange={(s) => onChange(s)}
             fields={fields}
+            fieldOptions={fieldOptions}
             depsCount={depsCount}
             emitEmpty='empty'
           />
@@ -152,6 +161,7 @@ function PatchValueInput({
       />
       <InsertVariableSelect
         fields={fields}
+        fieldOptions={fieldOptions}
         depsCount={depsCount}
         onInsert={insertVariable}
       />
@@ -281,6 +291,7 @@ function ReactionCard({
   onRemove: (index: number) => void;
 }) {
   const fields = useFormDataFields();
+  const fieldOptions = useFormDataFieldOptions();
   const depsCount = depsCountOf(card.deps);
   const depsTags = card.deps
     .split(',')
@@ -322,7 +333,7 @@ function ReactionCard({
           mode='tags'
           value={depsTags}
           onChange={(tags) => onChange(index, { deps: tags.join(', ') })}
-          options={fields.map((f) => ({ value: f, label: f }))}
+          options={fieldOptions}
           placeholder='选择或输入依赖字段'
           style={{ width: '100%' }}
         />
@@ -336,6 +347,7 @@ function ReactionCard({
           value={card.when}
           onChange={(s) => onChange(index, { when: s })}
           fields={fields}
+          fieldOptions={fieldOptions}
           depsCount={depsCount}
           emitEmpty='empty'
           placeholder='{{ $deps[0] === true }}'
@@ -348,6 +360,7 @@ function ReactionCard({
         rows={card.fulfillRows}
         schemaText={card.fulfillSchema}
         fields={fields}
+        fieldOptions={fieldOptions}
         depsCount={depsCount}
         onToggle={(v) => onChange(index, { fulfillEnabled: v })}
         onRows={(rows) => onChange(index, { fulfillRows: rows })}
@@ -360,6 +373,7 @@ function ReactionCard({
         rows={card.otherwiseRows}
         schemaText={card.otherwiseSchema}
         fields={fields}
+        fieldOptions={fieldOptions}
         depsCount={depsCount}
         onToggle={(v) => onChange(index, { otherwiseEnabled: v })}
         onRows={(rows) => onChange(index, { otherwiseRows: rows })}
@@ -379,6 +393,7 @@ function BranchEditor({
   rows,
   schemaText,
   fields,
+  fieldOptions,
   depsCount,
   onToggle,
   onRows,
@@ -389,6 +404,7 @@ function BranchEditor({
   rows: PatchRow[];
   schemaText: string;
   fields: string[];
+  fieldOptions?: Array<{ value: string; label: string }>;
   depsCount: number;
   onToggle: (enabled: boolean) => void;
   onRows: (rows: PatchRow[]) => void;
@@ -442,6 +458,7 @@ function BranchEditor({
                   value={row.value}
                   onChange={(v) => updateRow(idx, { value: v })}
                   fields={fields}
+                  fieldOptions={fieldOptions}
                   depsCount={depsCount}
                 />
               </div>

@@ -89,24 +89,36 @@ export function isContainerNode(node: SchemaNode): boolean {
  * - 带 widget 的 object（子表单）视为叶子字段
  */
 export function collectDataFieldPaths(schema: NexusSchema): string[] {
-  const result: string[] = [];
+  return collectDataFieldOptions(schema).map((o) => o.value);
+}
+
+/**
+ * 收集 schema 中所有会进入 formData 数据路径的字段（供变量选择器 / 依赖选择使用）
+ * 返回「路径 + 字段标题」对：依赖字段（dependencies）等选择器显示字段名称
+ * （title || key），提交/存储时使用路径 key
+ */
+export function collectDataFieldOptions(
+  schema: NexusSchema,
+): Array<{ value: string; label: string }> {
+  const result: Array<{ value: string; label: string }> = [];
   const walk = (node: SchemaNode, parentPath: string, key: string): void => {
     // 数据节点路径 = 父路径 + 自身 key；布局节点不计算（Key 被丢弃）
     const ownPath = parentPath ? `${parentPath}.${key}` : key;
+    const title = node.title || key;
     if (isDataArray(node)) {
-      result.push(ownPath);
+      result.push({ value: ownPath, label: title });
       const items = node.items;
       if (items && typeof items === 'object') {
         if (isDataObject(items)) {
           walkProperties(items.properties, `${ownPath}[0]`);
         } else if (isDataField(items)) {
-          result.push(`${ownPath}[0]`);
+          result.push({ value: `${ownPath}[0]`, label: items.title || '项' });
         }
       }
       return;
     }
     if (isDataField(node)) {
-      result.push(ownPath);
+      result.push({ value: ownPath, label: title });
       return;
     }
     if (isDataObject(node)) {
@@ -366,7 +378,11 @@ const SCHEMA_LEVEL_KEYS = new Set([
   'enum',
   'enumNames',
   'placeholder',
-  'format',
+  // 注意：'format' 不在 schema 级列表中——
+  // 属性面板编辑的 format 是 antd 控件的「显示格式」（date/time 系列），
+  // 必须写入 node.props 才能经 state.props 透传到 widget；
+  // JSON Schema 的校验语义（format: 'email' | 'url'）由 Parser 直接读 node.format，
+  // 与属性面板写回路径互不干扰。
   // 字段级校验约束
   'pattern',
   'min',

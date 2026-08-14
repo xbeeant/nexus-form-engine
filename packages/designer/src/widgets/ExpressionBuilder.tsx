@@ -33,6 +33,8 @@ interface VariableSelectProps {
   value: string;
   onChange: (text: string) => void;
   fields: string[];
+  /** 可选字段标题列表（显示 title，值为路径 key）；缺省时退化为 path 即 label */
+  fieldOptions?: Array<{ value: string; label: string }>;
   depsCount: number;
   showSelf: boolean;
   placeholder?: string;
@@ -42,14 +44,16 @@ function VariableSelect({
   value,
   onChange,
   fields,
+  fieldOptions,
   depsCount,
   showSelf,
   placeholder,
 }: VariableSelectProps) {
   const groups = useMemo(() => {
-    const fieldOptions = fields.map((f) => ({
-      value: `formData.${f}`,
-      label: `formData.${f}`,
+    const base = fieldOptions && fieldOptions.length > 0 ? fieldOptions : fields.map((f) => ({ value: f, label: f }));
+    const fieldOptions2 = base.map((o) => ({
+      value: `formData.${o.value}`,
+      label: o.label,
     }));
     const special: Array<{ value: string; label: string }> = [];
     if (showSelf) {
@@ -69,12 +73,12 @@ function VariableSelect({
     special.push({ value: '$index', label: '列表下标（$index）' });
     special.push({ value: 'rootValue', label: '根值（rootValue）' });
     return [
-      ...(fieldOptions.length > 0
-        ? [{ label: '表单字段', options: fieldOptions }]
+      ...(fieldOptions2.length > 0
+        ? [{ label: '表单字段', options: fieldOptions2 }]
         : []),
       ...(special.length > 0 ? [{ label: '快捷变量', options: special }] : []),
     ];
-  }, [fields, depsCount, showSelf]);
+  }, [fields, fieldOptions, depsCount, showSelf]);
 
   return (
     <Select
@@ -104,6 +108,7 @@ function RightValueEditor({
   value,
   onChange,
   fields,
+  fieldOptions,
   depsCount,
   showSelf,
 }: {
@@ -111,6 +116,7 @@ function RightValueEditor({
   value: string;
   onChange: (right: string) => void;
   fields: string[];
+  fieldOptions?: Array<{ value: string; label: string }>;
   depsCount: number;
   showSelf: boolean;
 }) {
@@ -135,6 +141,7 @@ function RightValueEditor({
           value={value}
           onChange={onChange}
           fields={fields}
+          fieldOptions={fieldOptions}
           depsCount={depsCount}
           showSelf={showSelf}
           placeholder='选择值变量'
@@ -168,6 +175,7 @@ function ConditionRow({
   condition,
   isFirst,
   fields,
+  fieldOptions,
   depsCount,
   showSelf,
   onChange,
@@ -176,6 +184,7 @@ function ConditionRow({
   condition: ExprCondition;
   isFirst: boolean;
   fields: string[];
+  fieldOptions?: Array<{ value: string; label: string }>;
   depsCount: number;
   showSelf: boolean;
   onChange: (patch: Partial<ExprCondition>) => void;
@@ -230,6 +239,7 @@ function ConditionRow({
           value={variableToString(condition.variable)}
           onChange={(text) => onChange({ variable: parseVariable(text) })}
           fields={fields}
+          fieldOptions={fieldOptions}
           depsCount={depsCount}
           showSelf={showSelf}
         />
@@ -258,6 +268,7 @@ function ConditionRow({
               value={condition.right}
               onChange={(right) => onChange({ right })}
               fields={fields}
+              fieldOptions={fieldOptions}
               depsCount={depsCount}
               showSelf={showSelf}
             />
@@ -287,6 +298,8 @@ export interface ExpressionBuilderProps {
   onChange: (next: string) => void;
   /** 可选表单字段路径（formData.<path>） */
   fields?: string[];
+  /** 可选字段标题列表（显示 title，值为路径 key）；缺省时表单字段退化为 path 即 label */
+  fieldOptions?: Array<{ value: string; label: string }>;
   /** 渲染 $deps[0..depsCount-1] 快捷变量 */
   depsCount?: number;
   showSelf?: boolean;
@@ -320,6 +333,7 @@ export function ExpressionBuilder({
   value,
   onChange,
   fields = [],
+  fieldOptions,
   depsCount = 0,
   showSelf = true,
   emitEmpty = 'template',
@@ -413,6 +427,7 @@ export function ExpressionBuilder({
                 condition={c}
                 isFirst={i === 0}
                 fields={fields}
+                fieldOptions={fieldOptions}
                 depsCount={depsCount}
                 showSelf={showSelf}
                 onChange={(patch) => updateCondition(c.id, patch)}

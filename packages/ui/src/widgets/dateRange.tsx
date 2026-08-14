@@ -17,6 +17,7 @@ export const dateRangeWidget = withFormItem(
     path: _p,
     ...rest
   }: WidgetProps) => {
+    console.log(format, rest);
     const formatStr = typeof format === 'string' ? format : undefined;
     const [startDate, endDate] =
       Array.isArray(value) && value.length === 2

@@ -3,6 +3,7 @@
 // ============================================================================
 
 import type { NexusEngine, NexusSchema, SchemaNode } from '@nexus/form-engine';
+import type { PropertySchemaMap } from '@nexus/form-engine-ui';
 import type { ReactNode } from 'react';
 import {
   createContext,
@@ -29,7 +30,7 @@ export interface DesignerState {
 
 export interface DesignerContextValue {
   schema: NexusSchema;
-  propertySchemaMap: Record<string, Record<string, SchemaNode>>;
+  propertySchemaMap: PropertySchemaMap;
   selectedPath: string[] | null;
   mode: DesignerMode;
   /** UI 注册函数，向引擎注册 widgets/layouts */
@@ -53,7 +54,7 @@ export interface DesignerContextValue {
 
 interface DesignerProviderProps {
   initialSchema: NexusSchema;
-  propertySchemaMap: Record<string, Record<string, SchemaNode>>;
+  propertySchemaMap: PropertySchemaMap;
   onSchemaChange?: (schema: NexusSchema) => void;
   registerUI?: (engine: NexusEngine) => void;
   fields?: FieldDef[];

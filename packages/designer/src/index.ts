@@ -10,6 +10,7 @@ export { DesignerProvider, useDesigner } from './DesignerContext';
 export {
   addChildToSchema,
   collectDataFieldPaths,
+  collectDataFieldOptions,
   flattenNodeForPropertyEditor,
   getNodeAtProperties,
   removeNodeFromSchema,

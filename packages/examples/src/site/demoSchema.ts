@@ -1,38 +1,12 @@
 // ============================================================================
-// 站点共享的演示数据：Schema、widgetSchemas、外部字段、自定义 catalog
+// 站点共享的演示数据：Schema、外部字段、自定义 catalog
 // 供「使用示例」与「设计器」两个页面复用
+// 属性描述符（propertySchemaMap）与 UI 注册由 Designer 内置默认提供
+// （@nexus/form-engine-ui 的 widgetSchemas / registerAntdUI），无需此处组装
 // ============================================================================
 
 import type { NexusSchema } from '@nexus/form-engine';
 import type { CatalogItem, FieldDef } from '@nexus/form-engine-designer';
-import {
-  cardSchema,
-  checkboxesSchema,
-  checkboxSchema,
-  colorSchema,
-  dateRangeSchema,
-  dateSchema,
-  htmlSchema,
-  imageSchema,
-  inputSchema,
-  listSchema,
-  multiSelectSchema,
-  numberSchema,
-  passwordSchema,
-  radioSchema,
-  rateSchema,
-  selectSchema,
-  simpleListSchema,
-  sliderSchema,
-  switchSchema,
-  tableListSchema,
-  textareaSchema,
-  timeRangeSchema,
-  timeSchema,
-  treeSelectSchema,
-  urlInputSchema,
-  voidTitleSchema,
-} from '@nexus/form-engine-ui';
 
 // ============================================================================
 // 外部字段列表示例：传入 Designer 后左侧 palette 多一个「字段列表」分组
@@ -126,12 +100,14 @@ export const demoSchema: NexusSchema = {
           widget: 'dateRange',
           default: ['2026-12-01', '2026-12-21'],
           title: '临时日期范围',
+          items: { type: 'string', widget: 'date' },
         },
         tmpTimeRange: {
           type: 'array',
           widget: 'timeRange',
           title: '临时时间范围',
           default: ['02:12:01', '12:21:21'],
+          items: { type: 'string', widget: 'time' },
         },
         bio: {
           type: 'string',
@@ -491,37 +467,4 @@ export const demoSchema: NexusSchema = {
       },
     },
   },
-};
-
-// ============================================================================
-// widget 名 → 属性 descriptor 映射（设计器专用）
-// ============================================================================
-export const widgetSchemas: Record<string, Record<string, any>> = {
-  input: inputSchema,
-  card: cardSchema,
-  password: passwordSchema,
-  textarea: textareaSchema,
-  textArea: textareaSchema,
-  number: numberSchema,
-  select: selectSchema,
-  multiSelect: multiSelectSchema,
-  radio: radioSchema,
-  checkbox: checkboxSchema,
-  checkboxes: checkboxesSchema,
-  switch: switchSchema,
-  date: dateSchema,
-  dateRange: dateRangeSchema,
-  time: timeSchema,
-  timeRange: timeRangeSchema,
-  slider: sliderSchema,
-  color: colorSchema,
-  rate: rateSchema,
-  urlInput: urlInputSchema,
-  image: imageSchema,
-  html: htmlSchema,
-  voidTitle: voidTitleSchema,
-  treeSelect: treeSelectSchema,
-  list: listSchema,
-  simpleList: simpleListSchema,
-  tableList: tableListSchema,
 };

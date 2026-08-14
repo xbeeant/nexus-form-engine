@@ -3,6 +3,7 @@ import { NexusEngine } from '@nexus/form-engine';
 import { describe, expect, it } from 'vitest';
 import {
   addChildToSchema,
+  collectDataFieldOptions,
   diffPropertyPatch,
   extractFormLevelConfig,
   flattenNodeForPropertyEditor,
@@ -119,6 +120,24 @@ describe('updateNodeWithNesting deletion semantics', () => {
     expect('bind' in node).toBe(false);
     expect(node.title).toBe('单选');
   });
+
+  it('widget display format is written into node.props (antd passthrough)', () => {
+    // date 等控件的 format 是显示格式，必须走 props 通道才能被 widget 消费；
+    // 顶层 node.format 保留给 JSON Schema 校验语义（email/url）
+    const schema: NexusSchema = {
+      type: 'object',
+      properties: {
+        birthday: { type: 'string', widget: 'date', title: '出生日期' },
+      },
+    };
+    const next = updateNodeWithNesting(schema, ['birthday'], {
+      format: 'YYYY/MM/DD',
+    });
+    const node = next.properties.birthday as Record<string, unknown>;
+    expect(node.format).toBeUndefined();
+    expect('format' in node).toBe(false);
+    expect((node.props as Record<string, unknown>).format).toBe('YYYY/MM/DD');
+  });
 });
 
 describe('designer full property-panel patch', () => {
@@ -197,5 +216,46 @@ describe('extractFormLevelConfig', () => {
       ['labelWidth', 'column'],
     );
     expect(config).toEqual({});
+  });
+});
+
+describe('collectDataFieldOptions', () => {
+  it('labels options with field title, values with path key', () => {
+    const schema: NexusSchema = {
+      type: 'object',
+      properties: {
+        user: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', title: '姓名' },
+            gender: { type: 'string', widget: 'radio', title: '性别' },
+          },
+        },
+        tags: {
+          type: 'array',
+          widget: 'list',
+          items: { type: 'string', widget: 'input', title: '标签项' },
+        },
+      },
+    };
+    const options = collectDataFieldOptions(schema);
+    expect(options).toEqual([
+      { value: 'user.name', label: '姓名' },
+      { value: 'user.gender', label: '性别' },
+      { value: 'tags', label: 'tags' },
+      { value: 'tags[0]', label: '标签项' },
+    ]);
+  });
+
+  it('falls back to key when title is missing', () => {
+    const schema: NexusSchema = {
+      type: 'object',
+      properties: {
+        birthday: { type: 'string', widget: 'date' },
+      },
+    };
+    expect(collectDataFieldOptions(schema)).toEqual([
+      { value: 'birthday', label: 'birthday' },
+    ]);
   });
 });

@@ -357,6 +357,57 @@ describe('SchemaParser', () => {
     });
   });
 
+  describe('顶层 format 显示格式兼容（x-render）', () => {
+    it('date 字段顶层 format 并入 props 供控件消费', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          birthday: {
+            type: 'string',
+            widget: 'date',
+            format: 'YYYY/MM/DD',
+          },
+        },
+      };
+
+      const { fieldStates } = SchemaParser.parse(schema);
+      const state = fieldStates.get('birthday');
+      expect(state?.meta.format).toBe('YYYY/MM/DD');
+      expect(state?.props.format).toBe('YYYY/MM/DD');
+    });
+
+    it('props 内显式 format 优先于顶层', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          birthday: {
+            type: 'string',
+            widget: 'date',
+            format: 'YYYY/MM/DD',
+            props: { format: 'YYYY年MM月DD日' },
+          },
+        },
+      };
+
+      const { fieldStates } = SchemaParser.parse(schema);
+      expect(fieldStates.get('birthday')?.props.format).toBe('YYYY年MM月DD日');
+    });
+
+    it('校验语义 format（email/url）不并入 props', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          email: { type: 'string', widget: 'input', format: 'email' },
+          home: { type: 'string', widget: 'input', format: 'url' },
+        },
+      };
+
+      const { fieldStates } = SchemaParser.parse(schema);
+      expect(fieldStates.get('email')?.props.format).toBeUndefined();
+      expect(fieldStates.get('home')?.props.format).toBeUndefined();
+    });
+  });
+
   describe('表达式标记内部字段', () => {
     it('validate 生成的规则携带 _validateExpr / _validateKey', () => {
       const schema: NexusSchema = {

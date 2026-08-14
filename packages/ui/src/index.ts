@@ -51,7 +51,9 @@ export {
   treeSelectSchema, // 树形选择器 Schema
   urlInputSchema, // URL 输入框 Schema
   voidTitleSchema, // 无标题 Schema
+  widgetSchemas, // 聚合映射：widget 名 → 属性描述符（设计器默认属性面板）
 } from './schema';
+export type { PropertySchemaMap } from './schema';
 
 // ── Widget 组件导出 ─────────────────────────────────────────────────────────────
 // 所有可用的表单组件，支持双向绑定、表单验证和自定义渲染

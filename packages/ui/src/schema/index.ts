@@ -59,3 +59,39 @@ export {
   urlInputSchema,
   voidTitleSchema,
 };
+
+// ── 聚合映射 ────────────────────────────────────────────────────────────────────
+// widget 名 → 属性描述符（descriptor）映射，供设计器属性面板直接使用。
+// key 与 antdWidgets 注册的 widget 名对齐，textArea 为 textarea 的别名。
+// 用户可整体替换，也可按 key 覆盖单个 widget 的描述符。
+// 描述符是属性面板的字段定义（非完整 SchemaNode），故使用宽松类型。
+export type PropertySchemaMap = Record<string, Record<string, any>>;
+
+export const widgetSchemas: PropertySchemaMap = {
+  input: inputSchema,
+  password: passwordSchema,
+  select: selectSchema,
+  radio: radioSchema,
+  checkbox: checkboxSchema,
+  checkboxes: checkboxesSchema,
+  switch: switchSchema,
+  voidTitle: voidTitleSchema,
+  number: numberSchema,
+  multiSelect: multiSelectSchema,
+  textarea: textareaSchema,
+  textArea: textareaSchema,
+  date: dateSchema,
+  dateRange: dateRangeSchema,
+  time: timeSchema,
+  timeRange: timeRangeSchema,
+  html: htmlSchema,
+  slider: sliderSchema,
+  image: imageSchema,
+  color: colorSchema,
+  urlInput: urlInputSchema,
+  treeSelect: treeSelectSchema,
+  list: listSchema,
+  simpleList: simpleListSchema,
+  tableList: tableListSchema,
+  card: cardSchema,
+};

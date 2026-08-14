@@ -6,10 +6,10 @@
 import type { WidgetProps } from '@nexus/form-engine-ui';
 import { Form, Select } from 'antd';
 import { useEffect, useRef, useState } from 'react';
-import { useFormDataFields } from './useFormDataFields';
+import { useFormDataFieldOptions } from './useFormDataFields';
 
 export function DependenciesEditor({ value, onChange, title }: WidgetProps) {
-  const fields = useFormDataFields();
+  const fieldOptions = useFormDataFieldOptions();
   const [tags, setTags] = useState<string[]>(() =>
     Array.isArray(value) ? [...value] : [],
   );
@@ -41,7 +41,7 @@ export function DependenciesEditor({ value, onChange, title }: WidgetProps) {
         onChange={(v) =>
           commit((v as string[]).map((s) => s.trim()).filter(Boolean))
         }
-        options={fields.map((f) => ({ value: f, label: f }))}
+        options={fieldOptions}
         placeholder='选择或输入依赖字段路径'
         style={{ width: '100%' }}
       />

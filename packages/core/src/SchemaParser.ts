@@ -610,6 +610,29 @@ function mergeWidgetProps(
 }
 
 /**
+ * 合并字段级 props（widget 默认 props + node.props），并兼容 x-render 的
+ * 顶层 format 写法：`{ type: 'string', widget: 'date', format: 'YYYY-MM-DD' }`。
+ * 仅当 props 未显式声明 format 且顶层 format 不是校验语义（email/url）时并入，
+ * 供 date/time 系列控件消费；校验语义仍由 meta.format 承载（SchemaParser 直接读取）。
+ */
+function mergeFieldProps(
+  widgetProps: Record<string, unknown> | undefined,
+  schemaProps: Record<string, unknown> | undefined,
+  nodeFormat: unknown,
+): Record<string, unknown> {
+  const merged = mergeWidgetProps(widgetProps, schemaProps);
+  if (
+    merged.format === undefined &&
+    typeof nodeFormat === 'string' &&
+    nodeFormat !== 'email' &&
+    nodeFormat !== 'url'
+  ) {
+    merged.format = nodeFormat;
+  }
+  return merged;
+}
+
+/**
  * 获取 widget 名称对应的声明描述（无 widgetMetas 或未注册时返回 undefined）
  *
  * @param widgetName - 字段实际使用的 widget 名称
@@ -767,7 +790,7 @@ function processDataField(
     required: typeof node.required === 'boolean' ? node.required : false,
     loading: false,
     errors: [],
-    props: mergeWidgetProps(widgetMeta?.props, node.props),
+    props: mergeFieldProps(widgetMeta?.props, node.props, node.format),
     reactions,
     meta: {
       title: node.title || key,
@@ -1254,7 +1277,7 @@ export function createArrayItemState(
     required: typeof node.required === 'boolean' ? node.required : false,
     loading: false,
     errors: [],
-    props: mergeWidgetProps(widgetMeta?.props, node.props),
+    props: mergeFieldProps(widgetMeta?.props, node.props, node.format),
     reactions,
     meta: {
       title: node.title || key,
