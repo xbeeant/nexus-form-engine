@@ -43,8 +43,22 @@ export const simpleListWidget = withFormItem(
     dependValues: _dv,
     dataPath,
     path: _p,
+    addText: _addText,
+    removeText: _removeText,
+    copyText: _copyText,
+    hideAddButton: _hideAddButton,
+    hideDeleteButton: _hideDeleteButton,
+    hideMoveButton: _hideMoveButton,
+    hideCopyButton: _hideCopyButton,
     ...rest
   }: WidgetProps) => {
+    const addText = _addText as string | undefined;
+    const removeText = _removeText as string | undefined;
+    const copyText = _copyText as string | undefined;
+    const hideAddButton = _hideAddButton as boolean | undefined;
+    const hideDeleteButton = _hideDeleteButton as boolean | undefined;
+    const hideMoveButton = _hideMoveButton as boolean | undefined;
+    const hideCopyButton = _hideCopyButton as boolean | undefined;
     const array = Array.isArray(value) ? value : [];
 
     // 判断 items 是对象还是简单类型
@@ -118,39 +132,47 @@ export const simpleListWidget = withFormItem(
       }
       return (
         <Space size='small' style={{ flexShrink: 0 }}>
-          <Button
-            type='text'
-            size='small'
-            disabled={disabled || index === 0}
-            onClick={() => handleMoveUp(index)}
-          >
-            ↑
-          </Button>
-          <Button
-            type='text'
-            size='small'
-            disabled={disabled || index === array.length - 1}
-            onClick={() => handleMoveDown(index)}
-          >
-            ↓
-          </Button>
-          <Button
-            type='text'
-            size='small'
-            disabled={disabled}
-            onClick={() => handleCopy(index)}
-          >
-            复制
-          </Button>
-          <Button
-            type='text'
-            size='small'
-            danger
-            disabled={disabled}
-            onClick={() => handleRemove(index)}
-          >
-            删除
-          </Button>
+          {!hideMoveButton && (
+            <>
+              <Button
+                type='text'
+                size='small'
+                disabled={disabled || index === 0}
+                onClick={() => handleMoveUp(index)}
+              >
+                ↑
+              </Button>
+              <Button
+                type='text'
+                size='small'
+                disabled={disabled || index === array.length - 1}
+                onClick={() => handleMoveDown(index)}
+              >
+                ↓
+              </Button>
+            </>
+          )}
+          {!hideCopyButton && (
+            <Button
+              type='text'
+              size='small'
+              disabled={disabled}
+              onClick={() => handleCopy(index)}
+            >
+              {copyText ?? '复制'}
+            </Button>
+          )}
+          {!hideDeleteButton && (
+            <Button
+              type='text'
+              size='small'
+              danger
+              disabled={disabled}
+              onClick={() => handleRemove(index)}
+            >
+              {removeText ?? '删除'}
+            </Button>
+          )}
         </Space>
       );
     };
@@ -229,9 +251,9 @@ export const simpleListWidget = withFormItem(
             {renderActions(index)}
           </div>
         ))}
-        {!readOnly && (
+        {!readOnly && !hideAddButton && (
           <Button type='dashed' onClick={handleAdd} disabled={disabled} block>
-            + 添加
+            + {addText ?? '添加'}
           </Button>
         )}
       </div>

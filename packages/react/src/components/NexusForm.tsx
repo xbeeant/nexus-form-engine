@@ -60,12 +60,14 @@ export interface NexusFormProps {
    * 表单值变化监听
    * - key 为字段路径（如 'username'），值为回调函数
    * - 使用 '#' 作为 key 可监听所有字段变化
-   * - 回调参数为 (value, allValues)
+   * - 回调参数为 (value, allValues)；全局（'#'）监听额外提供第三参 changedPath，
+   *   即本次实际变更的字段路径（用于区分「未触碰的默认空值」与「用户主动清空」）
    */
   watch?: {
     [path: string]: (
       value: unknown,
       allValues: Record<string, unknown>,
+      changedPath?: string,
     ) => void;
   };
   /**

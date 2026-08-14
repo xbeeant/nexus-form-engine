@@ -23,7 +23,11 @@ export class FormController implements NexusFormInstance {
     (value: unknown, allValues: Record<string, unknown>) => void
   > = new Map();
   private globalWatcher:
-    | ((value: unknown, allValues: Record<string, unknown>) => void)
+    | ((
+        value: Record<string, unknown>,
+        allValues: Record<string, unknown>,
+        changedPath?: string,
+      ) => void)
     | null = null;
 
   constructor(engine?: NexusEngine) {
@@ -64,6 +68,7 @@ export class FormController implements NexusFormInstance {
       [path: string]: (
         value: unknown,
         allValues: Record<string, unknown>,
+        changedPath?: string,
       ) => void;
     };
   }): void {
@@ -90,9 +95,10 @@ export class FormController implements NexusFormInstance {
       ? allValues
       : this.engine.getAllFormData();
 
-    // 全局 watcher（# 监听所有字段变化，value 即为全部表单值）
+    // 全局 watcher（# 监听所有字段变化，value 即为全部表单值；
+    // 第三参携带本次实际变更的字段路径，供清空值场景区分「未赋值默认值」与「用户主动清空」）
     if (this.globalWatcher) {
-      this.globalWatcher(globalData, globalData);
+      this.globalWatcher(globalData, globalData, path);
     }
     // 路径匹配的 watcher
     const fn = this.watchers.get(path);

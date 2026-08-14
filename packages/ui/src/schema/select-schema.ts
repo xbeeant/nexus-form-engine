@@ -1,18 +1,31 @@
+import { formControlCommon } from './_common';
+
 export const selectSchema = {
   options: { widget: 'propertyOptions', title: '选项（value/label）' },
-  mode: {
+  showSearch: { type: 'boolean', widget: 'switch', title: '可搜索' },
+  allowClear: { type: 'boolean', widget: 'switch', title: '允许清除' },
+  optionFilterProp: {
     type: 'string',
     widget: 'select',
-    title: '模式',
+    title: '搜索匹配字段',
     props: {
       options: [
-        { value: 'multiple', label: '多选' },
-        { value: 'tags', label: '标签' },
+        { value: 'value', label: '值（value）' },
+        { value: 'label', label: '文案（label）' },
+        { value: 'children', label: '子节点（children）' },
       ],
     },
   },
-  showSearch: { type: 'boolean', widget: 'switch', title: '可搜索' },
-  allowClear: { type: 'boolean', widget: 'switch', title: '允许清除' },
-  maxTagCount: { type: 'number', widget: 'number', title: '最大标签数' },
-  bordered: { type: 'boolean', widget: 'switch', title: '显示边框' },
+  listHeight: {
+    type: 'number',
+    widget: 'number',
+    title: '下拉列表高度',
+    placeholder: '默认 256',
+  },
+  popupMatchSelectWidth: {
+    type: 'boolean',
+    widget: 'switch',
+    title: '下拉框与选择器同宽',
+  },
+  ...formControlCommon,
 };

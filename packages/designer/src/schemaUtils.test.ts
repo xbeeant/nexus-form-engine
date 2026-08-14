@@ -66,6 +66,59 @@ describe('diffPropertyPatch', () => {
     const patch = diffPropertyPatch(initial, allValues);
     expect(patch).toEqual({});
   });
+
+  it('user-cleared field is written back as undefined for deletion', () => {
+    const initial = { title: '单选', variant: 'outlined', description: '说明' };
+    const allValues = { title: '单选', variant: '', description: '' };
+    const changed = new Set(['variant']);
+    const patch = diffPropertyPatch(initial, allValues, changed);
+    expect(patch).toEqual({ variant: undefined });
+  });
+
+  it('untouched empty fields stay skipped even with changedFields set', () => {
+    const initial = { title: '单选' };
+    const allValues = { title: '单选', description: '', placeholder: '' };
+    const changed = new Set(['title']);
+    const patch = diffPropertyPatch(initial, allValues, changed);
+    expect(patch).toEqual({});
+  });
+});
+
+describe('updateNodeWithNesting deletion semantics', () => {
+  it('cleared UI prop is removed from node.props instead of written as undefined', () => {
+    const schema: NexusSchema = {
+      type: 'object',
+      properties: {
+        card: {
+          type: 'card',
+          title: '卡片',
+          props: { variant: 'outlined', hoverable: true },
+          properties: {},
+        },
+      },
+    };
+    const next = updateNodeWithNesting(schema, ['card'], {
+      variant: undefined,
+    });
+    const node = next.properties.card as Record<string, unknown>;
+    expect((node.props as Record<string, unknown>).variant).toBeUndefined();
+    expect('variant' in (node.props as Record<string, unknown>)).toBe(false);
+    expect((node.props as Record<string, unknown>).hoverable).toBe(true);
+  });
+
+  it('cleared schema-level key is removed from the node', () => {
+    const schema: NexusSchema = {
+      type: 'object',
+      properties: {
+        gender: { ...radioNode, bind: 'user.gender' },
+      },
+    };
+    const next = updateNodeWithNesting(schema, ['gender'], { bind: undefined });
+    const node = next.properties.gender as Record<string, unknown>;
+    expect(node.bind).toBeUndefined();
+    expect('bind' in node).toBe(false);
+    expect(node.title).toBe('单选');
+  });
 });
 
 describe('designer full property-panel patch', () => {
@@ -120,7 +173,14 @@ describe('extractFormLevelConfig', () => {
       colon: true,
       properties: { gender: radioNode },
     };
-    const keys = ['displayType', 'labelWidth', 'colon', 'label', 'readOnly', 'column'];
+    const keys = [
+      'displayType',
+      'labelWidth',
+      'colon',
+      'label',
+      'readOnly',
+      'column',
+    ];
     const config = extractFormLevelConfig(
       schema as unknown as Record<string, unknown>,
       keys,

@@ -16,7 +16,7 @@ import type { NexusSchema, SchemaNode } from '@nexus/form-engine';
 import { NexusForm, useForm } from '@nexus/form-engine-react';
 import { registerAntdUI } from '@nexus/form-engine-ui';
 import { Input } from 'antd';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useDesigner } from './DesignerContext';
 import {
   commonPropertyFields,
@@ -40,7 +40,10 @@ import { propertyWidgets } from './widgets';
 interface PropertyFormProps {
   schema: NexusSchema;
   initialValues: Record<string, unknown>;
-  onValuesChange: (allValues: Record<string, unknown>) => void;
+  onValuesChange: (
+    allValues: Record<string, unknown>,
+    changedFields: ReadonlySet<string>,
+  ) => void;
 }
 
 function PropertyForm({
@@ -53,11 +56,21 @@ function PropertyForm({
 
   // 注册 antd 基础 widget（select/input/switch/number/textarea/collapse/collapsePanel）
   registerAntdUI(engine);
-  // '#' 全局 watcher 由 FormController._onFieldValueChange 调用时
-  // 只传入一个参数（globalData，即全部表单值），故直接取首个参数
+  // 记录本表单实例中用户实际改动过的字段（组件随 formKey 重建，节点切换时自动重置）。
+  // 用于区分「未触碰的字符串默认值 ''」与「用户主动清空」——
+  // 后者需要回写 schema（删除属性），前者写回会污染 schema（如 bind:'' 导致数据 key 丢失）。
+  const changedFieldsRef = useRef<Set<string>>(new Set());
+  // '#' 全局 watcher 由 FormController._onFieldValueChange 调用，
+  // 前两个参数为 (globalData, globalData)，第三参为本次实际变更的字段路径
   const handleWatch = useCallback(
-    (value: unknown) => {
-      onValuesChange(value as Record<string, unknown>);
+    (value: unknown, _allValues: unknown, changedPath?: string) => {
+      if (changedPath) {
+        changedFieldsRef.current.add(changedPath);
+      }
+      onValuesChange(
+        value as Record<string, unknown>,
+        changedFieldsRef.current,
+      );
     },
     [onValuesChange],
   );
@@ -334,23 +347,36 @@ export function PropertyPanel() {
   );
 
   const handleValuesChange = useCallback(
-    (allValues: Record<string, unknown>) => {
-      // 只写回「真正变化」的值：空字符串（''/undefined/null）视为未赋值，一律不写回 Schema
-      // （详见 diffPropertyPatch：bind:'' / hidden:'' / required:'' 会导致 key 丢失 / 空联动）
+    (
+      allValues: Record<string, unknown>,
+      changedFields: ReadonlySet<string>,
+    ) => {
+      // 只写回「真正变化」的值：未触碰的空字符串（''/undefined/null）视为未赋值，
+      // 不写回 Schema（否则 bind:'' / hidden:'' / required:'' 会导致 key 丢失 / 空联动）；
+      // 用户主动清空的字段（changedFields 命中）以 undefined 回写，由
+      // updateNodeWithNesting 从节点删除对应属性（详见 diffPropertyPatch）
       const initial = selectedNode
         ? flattenNodeForPropertyEditor(
             selectedNode as unknown as Record<string, any>,
           )
         : formLevelConfig;
 
-      const patch = diffPropertyPatch(initial, allValues);
+      const patch = diffPropertyPatch(initial, allValues, changedFields);
       if (Object.keys(patch).length === 0) {
         return;
       }
 
       if (!selectedPath || selectedPath.length === 0) {
-        // form-level：修改 NexusSchema 顶层属性
-        setSchema({ ...schema, ...patch });
+        // form-level：修改 NexusSchema 顶层属性（undefined 表示清空，删除该键）
+        const next = { ...(schema as unknown as Record<string, unknown>) };
+        for (const [key, value] of Object.entries(patch)) {
+          if (value === undefined) {
+            delete next[key];
+          } else {
+            next[key] = value;
+          }
+        }
+        setSchema(next as unknown as NexusSchema);
         return;
       }
 

@@ -46,8 +46,20 @@ export const tableListWidget = withFormItem(
     dependValues: _dv,
     dataPath,
     path: _p,
+    addText: _addText,
+    hideAddButton: _hideAddButton,
+    hideDeleteButton: _hideDeleteButton,
+    hideMoveButton: _hideMoveButton,
+    hideCopyButton: _hideCopyButton,
+    scrollX: _scrollX,
     ...rest
   }: WidgetProps) => {
+    const addText = _addText as string | undefined;
+    const hideAddButton = _hideAddButton as boolean | undefined;
+    const hideDeleteButton = _hideDeleteButton as boolean | undefined;
+    const hideMoveButton = _hideMoveButton as boolean | undefined;
+    const hideCopyButton = _hideCopyButton as boolean | undefined;
+    const scrollX = _scrollX as boolean | undefined;
     const array = Array.isArray(value) ? value : [];
     const itemSchema = items as DataObjectSchema | undefined;
     const itemProperties = itemSchema?.properties ?? {};
@@ -131,41 +143,49 @@ export const tableListWidget = withFormItem(
         fixed: 'right' as const,
         render: (_val: unknown, _record: TableItemType, index: number) => (
           <Space size='small'>
-            <Button
-              type='text'
-              size='small'
-              disabled={disabled || index === 0}
-              onClick={() => handleMoveUp(index)}
-            >
-              上移
-            </Button>
-            <Button
-              type='text'
-              size='small'
-              disabled={disabled || index === array.length - 1}
-              onClick={() => handleMoveDown(index)}
-            >
-              下移
-            </Button>
-            <Button
-              type='text'
-              size='small'
-              disabled={disabled}
-              onClick={() => handleCopy(index)}
-            >
-              复制
-            </Button>
-            <Popconfirm
-              title='确认删除该行？'
-              onConfirm={() => handleRemove(index)}
-              okText='删除'
-              cancelText='取消'
-              disabled={disabled}
-            >
-              <Button type='text' size='small' danger disabled={disabled}>
-                删除
+            {!hideMoveButton && (
+              <>
+                <Button
+                  type='text'
+                  size='small'
+                  disabled={disabled || index === 0}
+                  onClick={() => handleMoveUp(index)}
+                >
+                  上移
+                </Button>
+                <Button
+                  type='text'
+                  size='small'
+                  disabled={disabled || index === array.length - 1}
+                  onClick={() => handleMoveDown(index)}
+                >
+                  下移
+                </Button>
+              </>
+            )}
+            {!hideCopyButton && (
+              <Button
+                type='text'
+                size='small'
+                disabled={disabled}
+                onClick={() => handleCopy(index)}
+              >
+                复制
               </Button>
-            </Popconfirm>
+            )}
+            {!hideDeleteButton && (
+              <Popconfirm
+                title='确认删除该行？'
+                onConfirm={() => handleRemove(index)}
+                okText='删除'
+                cancelText='取消'
+                disabled={disabled}
+              >
+                <Button type='text' size='small' danger disabled={disabled}>
+                  删除
+                </Button>
+              </Popconfirm>
+            )}
           </Space>
         ),
       });
@@ -185,11 +205,11 @@ export const tableListWidget = withFormItem(
           rowKey='__index'
           size='small'
           pagination={false}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: scrollX === false ? undefined : 'max-content' }}
           bordered
           locale={{ emptyText: '暂无数据' }}
         />
-        {!readOnly && (
+        {!readOnly && !hideAddButton && (
           <Button
             type='dashed'
             onClick={handleAdd}
@@ -197,7 +217,7 @@ export const tableListWidget = withFormItem(
             block
             style={{ marginTop: 8 }}
           >
-            + 添加一行
+            + {addText ?? '添加一行'}
           </Button>
         )}
       </div>

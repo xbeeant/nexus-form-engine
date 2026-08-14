@@ -474,23 +474,30 @@ export function extractFormLevelConfig(
 
 /**
  * 计算属性表单 allValues → 节点 patch 的差异：
- * - 空字符串（undefined / null / ''）一律视为「未赋值」，不写回 Schema——
+ * - 空字符串（undefined / null / ''）默认视为「未赋值」，不写回 Schema——
  *   属性表单会把未触碰的字符串字段初始化为 ''，若写回会污染 Schema
  *   （如 bind:'' 被引擎当作 bind 路径导致数据 key 丢失、hidden:''/required:''
  *   被当作空表达式联动），因此空值统一跳过
+ * - 但当字段被用户实际改动过（changedFields 包含该 key，即用户主动清空）时，
+ *   空值以 undefined 写回，由 updateNodeWithNesting 执行删除（清空属性）
  * - 跳过与初始值深相等的字段（未触碰的字段不重复写回）
  *
  * @param initialValues 节点当前的扁平值（flattenNodeForPropertyEditor 输出）
  * @param allValues 属性表单当前全部值
- * @returns 需要写回节点的 patch（不含任何空字符串）
+ * @param changedFields 本表单实例中用户实际改动过的字段集合（'#' watcher 第三参累计）
+ * @returns 需要写回节点的 patch（未改动字段不含任何空值；主动清空的字段值为 undefined）
  */
 export function diffPropertyPatch(
   initialValues: Record<string, unknown>,
   allValues: Record<string, unknown>,
+  changedFields?: ReadonlySet<string>,
 ): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(allValues)) {
     if (value === undefined || value === null || value === '') {
+      if (changedFields?.has(key)) {
+        patch[key] = undefined;
+      }
       continue;
     }
     if (isDeepEqual(initialValues[key], value)) {
@@ -541,10 +548,14 @@ export function updateNodeWithNesting(
     nodeRec.enumNames = enumLabels;
   }
 
-  // schema 级属性直接覆盖
+  // schema 级属性直接覆盖（undefined 视为清空，删除该 key）
   for (const [key, value] of Object.entries(flatPatch)) {
     if (SCHEMA_LEVEL_KEYS.has(key)) {
-      (nodeRec as Record<string, unknown>)[key] = value;
+      if (value === undefined) {
+        delete (nodeRec as Record<string, unknown>)[key];
+      } else {
+        (nodeRec as Record<string, unknown>)[key] = value;
+      }
     }
   }
 
@@ -560,7 +571,14 @@ export function updateNodeWithNesting(
       nodeRec.props && typeof nodeRec.props === 'object'
         ? (nodeRec.props as Record<string, unknown>)
         : {};
-    nodeRec.props = { ...oldProps, ...uiProps };
+    const mergedProps = { ...oldProps, ...uiProps };
+    // undefined 视为清空：从 props 中删除该属性，而非写入 undefined 残留
+    for (const key of Object.keys(uiProps)) {
+      if (uiProps[key] === undefined) {
+        delete mergedProps[key];
+      }
+    }
+    nodeRec.props = mergedProps;
   }
   return next;
 }

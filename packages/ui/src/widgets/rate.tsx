@@ -8,6 +8,7 @@ export const rateWidget = withFormItem(
     disabled,
     loading,
     readOnly,
+    tooltips,
     form,
     dependValues: _dv,
     dataPath: _dp,
@@ -25,11 +26,20 @@ export const rateWidget = withFormItem(
         </span>
       );
     }
+    // 声明式拆分：tooltips 逗号分隔字符串 → 数组
+    const tooltipsProp =
+      typeof tooltips === 'string' && tooltips.trim()
+        ? tooltips
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : undefined;
     return (
       <Rate
         value={value as number}
         onChange={(v) => onChange(v)}
         disabled={disabled || loading}
+        tooltips={tooltipsProp}
         {...rest}
       />
     );

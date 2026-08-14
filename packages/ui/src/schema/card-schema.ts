@@ -21,4 +21,15 @@ export const cardSchema: Record<string, SchemaNode> = {
       ],
     },
   },
+  size: {
+    widget: 'select',
+    title: '尺寸（size）',
+    props: {
+      options: [
+        { value: 'small', label: '小' },
+        { value: 'middle', label: '中' },
+        { value: 'default', label: '默认' },
+      ],
+    },
+  },
 };

@@ -1,3 +1,5 @@
+import { formControlCommon } from './_common';
+
 export const treeSelectSchema = {
   url: {
     type: 'string',
@@ -83,6 +85,30 @@ export const treeSelectSchema = {
     placeholder: 'JSON 格式，如 {"type": "all"}',
   },
   multiple: { type: 'boolean', widget: 'switch', title: '允许多选' },
+  treeCheckable: {
+    type: 'boolean',
+    widget: 'switch',
+    title: '节点复选框',
+    description: '多选模式下默认开启',
+  },
+  showCheckedStrategy: {
+    type: 'string',
+    widget: 'select',
+    title: '选中回填策略',
+    props: {
+      options: [
+        { value: 'SHOW_CHILD', label: '仅显示子节点' },
+        { value: 'SHOW_PARENT', label: '仅显示父节点' },
+        { value: 'SHOW_ALL', label: '显示全部' },
+      ],
+    },
+  },
+  maxTagCount: { type: 'number', widget: 'number', title: '最大标签数' },
+  treeDefaultExpandAll: {
+    type: 'boolean',
+    widget: 'switch',
+    title: '默认展开全部节点',
+  },
   showSearch: { type: 'boolean', widget: 'switch', title: '可搜索' },
   asyncLoad: { type: 'boolean', widget: 'switch', title: '异步加载子节点' },
   autoExpand: { type: 'boolean', widget: 'switch', title: '自动展开' },
@@ -93,4 +119,5 @@ export const treeSelectSchema = {
     title: '只读回显接口',
     placeholder: '如 /api/tree/detail',
   },
+  ...formControlCommon,
 };

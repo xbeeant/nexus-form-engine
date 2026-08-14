@@ -22,9 +22,13 @@ export interface InputWidgetProps {
   prefix?: string;
   suffix?: string;
   allowClear?: boolean;
+  /** @deprecated antd v6 已废弃，请使用 variant */
   bordered?: boolean;
   addonBefore?: string;
   addonAfter?: string;
+  size?: 'large' | 'middle' | 'small';
+  status?: 'error' | 'warning';
+  variant?: 'outlined' | 'filled' | 'borderless' | 'underlined';
   onPressEnter?: () => void;
 }
 
@@ -32,10 +36,16 @@ export interface InputWidgetProps {
 export interface TextAreaWidgetProps extends InputWidgetProps {
   rows?: number;
   autoSize?: boolean | { minRows?: number; maxRows?: number };
+  /** 声明式拆分：自动合并进 autoSize（antd 原生无此顶层属性） */
+  minRows?: number;
+  /** 声明式拆分：自动合并进 autoSize（antd 原生无此顶层属性） */
+  maxRows?: number;
 }
 
 /** Password widget 的 props（与 Input 相同） */
-export type PasswordWidgetProps = InputWidgetProps;
+export interface PasswordWidgetProps extends InputWidgetProps {
+  visibilityToggle?: boolean | { visibleIcon?: unknown; hiddenIcon?: unknown };
+}
 
 // ── antd InputNumber ────────────────────────────────────────────────────────
 
@@ -50,7 +60,14 @@ export interface InputNumberWidgetProps {
   keyboard?: boolean;
   stringMode?: boolean;
   placeholder?: string;
+  /** @deprecated antd v6 已废弃，请使用 variant */
   bordered?: boolean;
+  prefix?: string;
+  suffix?: string;
+  controls?: boolean;
+  size?: 'large' | 'middle' | 'small';
+  status?: 'error' | 'warning';
+  variant?: 'outlined' | 'filled' | 'borderless' | 'underlined';
 }
 
 // ── antd Select / Radio / Checkbox ──────────────────────────────────────────
@@ -61,14 +78,20 @@ export interface SelectWidgetProps {
   showSearch?: boolean;
   allowClear?: boolean;
   maxTagCount?: number;
-  bordered?: boolean;
+  maxCount?: number;
+  optionFilterProp?: 'value' | 'label' | 'children';
+  /** @deprecated antd v6 已废弃，请使用 popupMatchSelectWidth */
+  dropdownMatchSelectWidth?: boolean | number;
+  popupMatchSelectWidth?: boolean | number;
+  listHeight?: number;
+  tokenSeparators?: string[];
+  size?: 'large' | 'middle' | 'small';
+  status?: 'error' | 'warning';
+  variant?: 'outlined' | 'filled' | 'borderless' | 'underlined';
   loading?: boolean;
   filterOption?:
     | boolean
     | ((input: string, option?: { label: string; value: unknown }) => boolean);
-  dropdownMatchSelectWidth?: boolean | number;
-  listHeight?: number;
-  tokenSeparators?: string[];
   options?: Array<{ label: string; value: unknown } | string | number>;
 }
 
@@ -76,6 +99,7 @@ export interface SelectWidgetProps {
 export interface RadioWidgetProps {
   optionType?: 'default' | 'button';
   buttonStyle?: 'outline' | 'solid';
+  size?: 'large' | 'middle' | 'small';
   options?: Array<{ label: string; value: unknown } | string | number>;
 }
 
@@ -99,6 +123,7 @@ export interface SwitchWidgetProps {
   checkedChildren?: string;
   unCheckedChildren?: string;
   loading?: boolean;
+  size?: 'small' | 'middle' | 'default';
 }
 
 // ── antd DatePicker / TimePicker ────────────────────────────────────────────
@@ -108,15 +133,27 @@ export interface DatePickerWidgetProps {
   format?: string;
   showTime?: boolean | Record<string, unknown>;
   picker?: 'date' | 'week' | 'month' | 'quarter' | 'year';
+  showNow?: boolean;
+  needConfirm?: boolean;
   placeholder?: string;
+  inputReadOnly?: boolean;
   disabledDate?: (current: unknown) => boolean;
+  size?: 'large' | 'middle' | 'small';
+  status?: 'error' | 'warning';
+  variant?: 'outlined' | 'filled' | 'borderless' | 'underlined';
 }
 
 /** DateRange widget 可透传给 antd DatePicker.RangePicker 的 props */
 export interface DateRangeWidgetProps {
   format?: string;
   showTime?: boolean | Record<string, unknown>;
+  showNow?: boolean;
+  needConfirm?: boolean;
   placeholder?: [string, string];
+  inputReadOnly?: boolean;
+  size?: 'large' | 'middle' | 'small';
+  status?: 'error' | 'warning';
+  variant?: 'outlined' | 'filled' | 'borderless' | 'underlined';
 }
 
 /** TimePicker widget 可透传给 antd TimePicker 的 props */
@@ -126,12 +163,27 @@ export interface TimePickerWidgetProps {
   hourStep?: number;
   minuteStep?: number;
   secondStep?: number;
+  use12Hours?: boolean;
+  showNow?: boolean;
+  needConfirm?: boolean;
+  inputReadOnly?: boolean;
+  size?: 'large' | 'middle' | 'small';
+  status?: 'error' | 'warning';
+  variant?: 'outlined' | 'filled' | 'borderless' | 'underlined';
 }
 
 /** TimeRange widget 可透传给 antd TimePicker.RangePicker 的 props */
 export interface TimeRangeWidgetProps {
   format?: string;
   placeholder?: [string, string];
+  hourStep?: number;
+  minuteStep?: number;
+  secondStep?: number;
+  use12Hours?: boolean;
+  inputReadOnly?: boolean;
+  size?: 'large' | 'middle' | 'small';
+  status?: 'error' | 'warning';
+  variant?: 'outlined' | 'filled' | 'borderless' | 'underlined';
 }
 
 // ── antd Slider ─────────────────────────────────────────────────────────────
@@ -145,9 +197,11 @@ export interface SliderWidgetProps {
   marks?: Record<number, string>;
   dots?: boolean;
   vertical?: boolean;
-  tooltipVisible?: boolean;
+  /** 声明式拆分：布尔值 → antd tooltip.open */
+  tooltip?: boolean | { open?: boolean };
   included?: boolean;
   reverse?: boolean;
+  keyboard?: boolean;
 }
 
 // ── antd Rate ───────────────────────────────────────────────────────────────
@@ -156,8 +210,10 @@ export interface SliderWidgetProps {
 export interface RateWidgetProps {
   count?: number;
   allowHalf?: boolean;
+  allowClear?: boolean;
   character?: string;
   tooltips?: string[];
+  size?: 'large' | 'middle' | 'small';
 }
 
 // ── TreeSelect ──────────────────────────────────────────────────────────────
@@ -189,6 +245,10 @@ export interface TreeSelectWidgetProps {
   hasChildrenKey?: string;
   isLeafKey?: string;
   multiple?: boolean;
+  treeCheckable?: boolean;
+  showCheckedStrategy?: 'SHOW_ALL' | 'SHOW_PARENT' | 'SHOW_CHILD';
+  maxTagCount?: number;
+  treeDefaultExpandAll?: boolean;
   showSearch?: boolean;
   autoExpand?: boolean;
   asyncLoad?: boolean;
@@ -198,6 +258,9 @@ export interface TreeSelectWidgetProps {
   readOnlyUrl?: string;
   method?: 'GET' | 'POST';
   allowClear?: boolean;
+  size?: 'large' | 'middle' | 'small';
+  status?: 'error' | 'warning';
+  variant?: 'outlined' | 'filled' | 'borderless' | 'underlined';
 }
 
 // ── Color / ImageInput / Upload ─────────────────────────────────────────────
@@ -206,6 +269,10 @@ export interface TreeSelectWidgetProps {
 export interface ColorWidgetProps {
   format?: 'hex' | 'rgb' | 'hsb';
   allowClear?: boolean;
+  showText?: boolean;
+  trigger?: 'click' | 'hover';
+  disabledAlpha?: boolean;
+  size?: 'large' | 'middle' | 'small';
 }
 
 /** Image input widget props */
@@ -214,14 +281,22 @@ export interface ImageInputWidgetProps {
   accept?: string;
   maxCount?: number;
   listType?: 'picture-card' | 'picture' | 'text';
+  multiple?: boolean;
+  showUploadList?: boolean;
+  directory?: boolean;
+  name?: string;
 }
 
 /** URL input widget props */
 export interface UrlInputWidgetProps {
   maxLength?: number;
   allowClear?: boolean;
+  /** @deprecated antd v6 已废弃，请使用 variant */
   bordered?: boolean;
   placeholder?: string;
+  size?: 'large' | 'middle' | 'small';
+  status?: 'error' | 'warning';
+  variant?: 'outlined' | 'filled' | 'borderless' | 'underlined';
 }
 
 // ── HTML / VoidTitle ────────────────────────────────────────────────────────
@@ -242,8 +317,26 @@ export interface VoidTitleWidgetProps {
 
 // ── List / SimpleList / TableList ──────────────────────────────────────────
 
+/** 数组类 widget 的操作按钮配置 */
+export interface ListActionsProps {
+  /** 添加按钮文案（默认：添加 / 添加一行） */
+  addText?: string;
+  /** 删除按钮文案（默认：删除） */
+  removeText?: string;
+  /** 复制按钮文案（默认：复制） */
+  copyText?: string;
+  /** 隐藏添加按钮 */
+  hideAddButton?: boolean;
+  /** 隐藏删除按钮 */
+  hideDeleteButton?: boolean;
+  /** 隐藏上移/下移按钮 */
+  hideMoveButton?: boolean;
+  /** 隐藏复制按钮 */
+  hideCopyButton?: boolean;
+}
+
 /** List widget props */
-export interface ListWidgetProps {
+export interface ListWidgetProps extends ListActionsProps {
   /** 单条记录的默认模板 */
   template?: Record<string, unknown>;
 }
@@ -252,7 +345,10 @@ export interface ListWidgetProps {
 export type SimpleListWidgetProps = ListWidgetProps;
 
 /** TableList widget props */
-export type TableListWidgetProps = ListWidgetProps;
+export interface TableListWidgetProps extends ListActionsProps {
+  /** 表格横向滚动（默认开启） */
+  scrollX?: boolean;
+}
 
 // ============================================================================
 // Module Augmentation: 将接口注入 core 的 WidgetPropsMap

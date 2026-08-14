@@ -884,6 +884,36 @@ export function treeSelectWidget({
     );
   }
 
+  // 从 rest 中剥离自定义配置键与引擎显式控制的键，其余 props
+  // （size/status/variant/maxTagCount/treeDefaultExpandAll 等 antd 声明式属性）透传给 TreeSelect
+  const {
+    request: _req,
+    url: _url,
+    params: _paramsRest,
+    treeData: _treeDataRest,
+    searchUrl: _searchUrl,
+    searchKey: _searchKey,
+    parentKey: _parentKey,
+    pidKey: _pidKey,
+    dataPath: _dataPath,
+    valueKey: _valueKey,
+    labelKey: _labelKey,
+    childrenKey: _childrenKey,
+    hasChildrenKey: _hasChildrenKey,
+    isLeafKey: _isLeafKey,
+    multiple: _multiple,
+    showSearch: _showSearch,
+    autoExpand: _autoExpand,
+    asyncLoad: _asyncLoad,
+    readOnlyUrl: _readOnlyUrl,
+    readOnlyRequest: _readOnlyRequest,
+    method: _method,
+    allowClear: _allowClear,
+    treeCheckable: userTreeCheckable,
+    showCheckedStrategy: userShowCheckedStrategy,
+    ...treeRest
+  } = rest as Record<string, unknown>;
+
   return (
     <Form.Item
       label={title}
@@ -897,6 +927,7 @@ export function treeSelectWidget({
       colon={formItemProps.colon}
     >
       <TreeSelect
+        {...treeRest}
         value={value}
         onChange={onChange}
         treeData={treeData as unknown as TreeDataNode[]}
@@ -920,8 +951,16 @@ export function treeSelectWidget({
             : undefined
         }
         multiple={cfg.multiple}
-        treeCheckable={cfg.multiple}
-        showCheckedStrategy={cfg.multiple ? TreeSelect.SHOW_CHILD : undefined}
+        treeCheckable={
+          (userTreeCheckable as boolean | undefined) ?? cfg.multiple
+        }
+        showCheckedStrategy={
+          (userShowCheckedStrategy as
+            | 'SHOW_ALL'
+            | 'SHOW_PARENT'
+            | 'SHOW_CHILD'
+            | undefined) ?? (cfg.multiple ? TreeSelect.SHOW_CHILD : undefined)
+        }
         notFoundContent={fetching ? <Spin size='small' /> : undefined}
         suffixIcon={fetching ? <Spin size='small' /> : undefined}
         style={{ width: '100%' }}

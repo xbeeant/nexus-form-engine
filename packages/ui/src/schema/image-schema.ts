@@ -23,4 +23,17 @@ export const imageSchema = {
       ],
     },
   },
+  multiple: { type: 'boolean', widget: 'switch', title: '多选文件' },
+  showUploadList: {
+    type: 'boolean',
+    widget: 'switch',
+    title: '显示上传列表',
+  },
+  directory: { type: 'boolean', widget: 'switch', title: '支持文件夹' },
+  name: {
+    type: 'string',
+    widget: 'input',
+    title: '上传字段名',
+    placeholder: '默认 file',
+  },
 };

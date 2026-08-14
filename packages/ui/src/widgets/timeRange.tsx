@@ -54,6 +54,11 @@ export const timeRangeWidget = withFormItem(
     format,
     placeholder,
     disabledTime,
+    form: _form,
+    dependValues: _dv,
+    dataPath: _dp,
+    path: _p,
+    ...rest
   }: WidgetProps & { disabledTime?: PickerDisabledTime }) => {
     const formatStr = typeof format === 'string' ? format : 'HH:mm:ss';
     const [startTime, endTime] =
@@ -135,6 +140,7 @@ export const timeRangeWidget = withFormItem(
           placeholder={_placeholder?.[0] ?? ''}
           disabled={disabled}
           readOnly={readOnly}
+          {...rest}
         />
         <span className='mx-2 text-black/25 shrink-0'>~</span>
         <TimePicker
@@ -148,6 +154,7 @@ export const timeRangeWidget = withFormItem(
           placeholder={_placeholder?.[1] ?? ''}
           disabled={disabled}
           readOnly={readOnly}
+          {...rest}
         />
       </div>
     );

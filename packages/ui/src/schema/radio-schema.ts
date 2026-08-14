@@ -22,4 +22,16 @@ export const radioSchema = {
       ],
     },
   },
+  size: {
+    type: 'string',
+    widget: 'select',
+    title: '尺寸（size）',
+    props: {
+      options: [
+        { value: 'large', label: '大' },
+        { value: 'middle', label: '中' },
+        { value: 'small', label: '小' },
+      ],
+    },
+  },
 };
