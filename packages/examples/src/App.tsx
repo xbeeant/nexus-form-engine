@@ -11,6 +11,7 @@ import ExtensionsPage from './pages/ExtensionsPage';
 import HomePage from './pages/HomePage';
 import WidgetValidationPage from './pages/WidgetValidationPage';
 import AdvancedWidgetsPage from './pages/AdvancedWidgetsPage';
+import { WidgetDocsPage } from './widget-docs/components/WidgetDocsPage';
 
 const { Header, Content, Footer } = Layout;
 
@@ -18,6 +19,7 @@ type PageKey =
   | 'home'
   | 'extensions'
   | 'examples'
+  | 'widget-docs'
   | 'designer'
   | 'widget-validation'
   | 'advanced-widgets';
@@ -26,6 +28,7 @@ const NAV_ITEMS = [
   { key: 'home', label: '核心机制' },
   { key: 'extensions', label: '扩展介绍' },
   { key: 'examples', label: '使用示例' },
+  { key: 'widget-docs', label: '组件文档' },
   { key: 'widget-validation', label: '组件内校验' },
   { key: 'advanced-widgets', label: '高级组件' },
   { key: 'designer', label: '设计器' },
@@ -97,6 +100,7 @@ function App() {
         {page === 'home' && <HomePage />}
         {page === 'extensions' && <ExtensionsPage />}
         {page === 'examples' && <ExamplesPage />}
+        {page === 'widget-docs' && <WidgetDocsPage />}
         {page === 'widget-validation' && <WidgetValidationPage />}
         {page === 'advanced-widgets' && <AdvancedWidgetsPage />}
         {page === 'designer' && <DesignerPage />}
