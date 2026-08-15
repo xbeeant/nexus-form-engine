@@ -1,5 +1,6 @@
 import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
+import { fumadocsMdx } from 'fumadocs-mdx/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
@@ -8,8 +9,29 @@ import { defineConfig } from 'vite';
 const base = process.env.NEXUS_BASE || '/nexus-form-engine/';
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), fumadocsMdx()],
   base,
+  optimizeDeps: {
+    // fumadocs-mdx 宏产物含 `mdx/types` 类型引用，esbuild 依赖扫描会
+    // 误打包 @types/mdx 导致 dev 启动失败，将其标记为 external
+    esbuildOptions: {
+      plugins: [
+        {
+          name: 'fumadocs-mdx-types-external',
+          setup(build) {
+            build.onResolve({ filter: /^mdx\/types$/ }, () => ({
+              path: 'mdx/types',
+              external: true,
+            }));
+            build.onResolve({ filter: /\.mdx$/ }, () => ({
+              path: '',
+              external: true,
+            }));
+          },
+        },
+      ],
+    },
+  },
   resolve: {
     alias: {
       '@nexus/form-engine': path.resolve(__dirname, '../core/src'),

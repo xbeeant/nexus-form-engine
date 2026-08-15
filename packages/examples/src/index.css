@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
 
 /* 扫描 designer 包源码中的 Tailwind 工具类 */
 @source "../../designer/src";

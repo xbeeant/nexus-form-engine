@@ -1,0 +1,115 @@
+---
+title: 核心机制
+description: 设计原则、节点类型判定、显式依赖图、Reactions 联动、状态管理与精准订阅、插件系统。
+---
+
+## 设计原则
+
+- **🧩 UI 无关性**：core 层为纯 TypeScript，严禁包含任何 DOM / React / Vue 代码，可在 Node.js、浏览器、Worker 中运行。
+- **📋 协议融合**：数据定义与布局定义共存于同一份 JSON Schema，用户无需维护两份 Schema，天然一致。
+- **🪟 布局透明**：布局节点（Card / Tabs / Grid）的 Key 不进入 formData 数据路径，调整布局不会破坏数据与联动规则。
+- **⚡ 显式依赖**：基于 DependencyGraph 静态构建依赖边，杜绝 Proxy / MobX 隐式收集，保证 O(k) 联动更新复杂度。
+
+## 节点类型判定
+
+Schema 中每个节点依据「是否携带 widget / type」被判定为数据节点或布局节点。**判定顺序不可颠倒**：数据数组 → 数据字段 → 数据对象 → 布局容器。
+
+| 节点特征 | 类型 | 数据路径影响 |
+| --- | --- | --- |
+| `type: "array"` 且有 `items` | 数据数组 | ✅ Key 进入路径 |
+| 包含非空 `widget` 字段 | 数据字段 | ✅ Key 进入路径 |
+| `type: "object"` 无 widget 且有 `properties` | 数据对象 | ✅ Key 进入路径 |
+| type 为布局类型（card/tabs/grid…） | 布局容器 | ❌ Key 不进入路径 |
+| type 为面板类型（tabPane/step/…） | 布局面板 | ❌ Key 不进入路径 |
+
+### 布局透明
+
+布局节点的 Key 在路径计算时被丢弃、直接透传父路径，因此 `card.properties` 下的字段路径是 `formData.fieldName`，而不是 `formData.card.fieldName`。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "basicCard": {
+      "type": "card",
+      "title": "基本信息",
+      "properties": {
+        "username": {
+          "type": "string",
+          "widget": "input",
+          "title": "用户名"
+        }
+      }
+    }
+  }
+}
+// 最终数据路径：formData.username
+// 无论布局如何调整（card → tabs → grid），数据路径保持稳定
+```
+
+## 显式依赖图 DependencyGraph
+
+Schema 初始化时，Parser 从 reactions 与 validate 表达式中静态提取依赖边，构建 source → Set\<target\> 的反向索引。`setFieldValue` 只查询该索引（O(1)）触发受影响字段的联动，不做全量 Diff，也无运行时动态扫描。
+
+```ts
+graph.addDependency(target, source);   // target 依赖 source
+graph.addDependencies(target, sources);  // 批量添加依赖边
+
+// source 变化时，需要联动哪些字段？
+const dependents = graph.getDependents('contactMethod');
+// → Set { 'contactPhone', 'contactEmail' }  （O(1) 查询）
+```
+
+## Reactions 联动协议
+
+复杂联动使用结构化 `reactions` 数组声明「依赖 → 条件 → 补丁」：条件满足执行 `fulfill`，否则执行 `otherwise`。表达式仅在受控上下文（`$deps / $self / $form / $index / formData / rootValue`）中求值。
+
+```json
+"contactPhone": {
+  "type": "string",
+  "widget": "input",
+  "title": "手机号",
+  "reactions": [
+    {
+      "dependencies": ["contactMethod"],
+      "when": "{{ $deps[0] === 'phone' }}",
+      "fulfill":   { "state": { "visible": true,  "required": true  } },
+      "otherwise": { "state": { "visible": false, "required": false } }
+    }
+  ]
+}
+```
+
+## 状态管理与精准订阅
+
+每个字段维护独立状态 `{ value, visible, disabled, required, loading, errors, props }`，状态变更通过 `engine.setFieldState(path, patch)` 触发并自动通知依赖图。React 渲染层使用 `useSyncExternalStore` 按字段路径精准订阅版本号，一个字段变化不会导致整个表单重渲染。
+
+```tsx
+export function useFieldState(path: string): FieldState | undefined {
+  const { engine } = useNexusContext();
+  // 只在该字段版本变化时重渲染
+  useSyncExternalStore(
+    (onStoreChange) => engine.subscribeField(path, onStoreChange),
+    () => engine.getFieldVersion(path),
+  );
+  return engine.getFieldState(path);
+}
+```
+
+## 插件系统
+
+Core 主类不硬编码任何业务逻辑，统一通过 `engine.use(plugin)` 注入。插件可注册校验器、组件、布局，并拦截 `init / setFieldValue / validate / arrayOperation` 等生命周期。
+
+```ts
+import {
+  AsyncValidatorPlugin,    // 异步校验：防抖 / 超时 / 并行调度
+  ArrayOperationsPlugin,   // 数组字段：push / pop / remove / update / insert / move
+} from '@nexus/form-engine';
+
+engine.use(new AsyncValidatorPlugin(engine));
+engine.use(new ArrayOperationsPlugin(engine));
+
+// UI 包已封装一键注册：
+import { registerAntdUI } from '@nexus/form-engine-ui';
+registerAntdUI(engine); // widgets + layouts + AsyncValidatorPlugin
+```

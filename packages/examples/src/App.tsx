@@ -1,118 +1,79 @@
 // ============================================================================
-// @nexus/form-engine — 项目介绍站点（GitHub Pages）
-// 结构：核心机制 / 扩展介绍 / 使用示例 / 设计器
+// @nexus/form-engine — 项目介绍站点（Fumadocs + Vite，hash 路由）
+// 结构：MDX 文档（核心机制/扩展介绍）+ 交互演示（示例/组件文档/设计器）
 // ============================================================================
 
-import { Layout, Menu, Typography } from 'antd';
-import { useState } from 'react';
+import type { Root } from 'fumadocs-core/page-tree';
+import { DocsLayout } from 'fumadocs-ui/layouts/docs';
+import { DocsFrameworkProvider, useHashPath } from './lib/router';
+import { source } from './lib/source';
+import AdvancedWidgetsPage from './pages/AdvancedWidgetsPage';
 import DesignerPage from './pages/DesignerPage';
 import ExamplesPage from './pages/ExamplesPage';
 import ExtensionsPage from './pages/ExtensionsPage';
-import HomePage from './pages/HomePage';
+import { MdxDocsPage } from './pages/MdxDocsPage';
 import WidgetValidationPage from './pages/WidgetValidationPage';
-import AdvancedWidgetsPage from './pages/AdvancedWidgetsPage';
 import { WidgetDocsPage } from './widget-docs/components/WidgetDocsPage';
 
-const { Header, Content, Footer } = Layout;
+// ── 侧边栏导航树：MDX 文档 + 交互演示页 ────────────────────────────────────
+function buildTree(): Root {
+  const mdTree = source.getPageTree();
+  return {
+    name: mdTree.name,
+    children: [
+      ...mdTree.children,
+      { type: 'separator', name: '演示' },
+      { type: 'page', name: '使用示例', url: '/examples' },
+      { type: 'page', name: '组件文档', url: '/widget-docs' },
+      { type: 'page', name: '组件内校验', url: '/widget-validation' },
+      { type: 'page', name: '高级组件', url: '/advanced-widgets' },
+      { type: 'page', name: '设计器', url: '/designer' },
+    ],
+  };
+}
 
-type PageKey =
-  | 'home'
-  | 'extensions'
-  | 'examples'
-  | 'widget-docs'
-  | 'designer'
-  | 'widget-validation'
-  | 'advanced-widgets';
-
-const NAV_ITEMS = [
-  { key: 'home', label: '核心机制' },
-  { key: 'extensions', label: '扩展介绍' },
-  { key: 'examples', label: '使用示例' },
-  { key: 'widget-docs', label: '组件文档' },
-  { key: 'widget-validation', label: '组件内校验' },
-  { key: 'advanced-widgets', label: '高级组件' },
-  { key: 'designer', label: '设计器' },
-];
+function PageRouter({ path }: { path: string }) {
+  if (path.startsWith('/docs')) {
+    return <MdxDocsPage path={path.replace(/^\/docs\/?/, '') || 'index'} />;
+  }
+  if (path === '/examples') {
+    return <ExamplesPage />;
+  }
+  if (path === '/widget-docs') {
+    return <WidgetDocsPage />;
+  }
+  if (path === '/widget-validation') {
+    return <WidgetValidationPage />;
+  }
+  if (path === '/advanced-widgets') {
+    return <AdvancedWidgetsPage />;
+  }
+  if (path === '/extensions') {
+    return <ExtensionsPage />;
+  }
+  return <MdxDocsPage path={path.replace(/^\//, '') || 'index'} />;
+}
 
 function App() {
-  const [page, setPage] = useState<PageKey>('home');
+  const path = useHashPath();
+  const isDesigner = path === '/designer';
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 24,
-          background: '#001529',
-          paddingInline: '24px',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <span style={{ fontSize: 22 }}>🧩</span>
-          <span style={{ color: '#fff', fontWeight: 600, fontSize: 16 }}>
-            @nexus/form-engine
-          </span>
+    <DocsFrameworkProvider>
+      {isDesigner ? (
+        <div style={{ height: '100vh' }}>
+          <DesignerPage />
         </div>
-        <Menu
-          theme='dark'
-          mode='horizontal'
-          selectedKeys={[page]}
-          items={NAV_ITEMS}
-          onClick={({ key }) => setPage(key as PageKey)}
-          style={{ flex: 1, minWidth: 0, background: 'transparent' }}
-        />
-        <a
-          href='https://github.com/xbeeant/nexus-form-engine'
-          target='_blank'
-          rel='noreferrer'
-          style={{
-            color: 'rgba(255,255,255,0.65)',
-            fontSize: 13,
-            whiteSpace: 'nowrap',
-          }}
+      ) : (
+        <DocsLayout
+          tree={buildTree()}
+          nav={{ title: '🧩 @nexus/form-engine' }}
+          githubUrl='https://github.com/xbeeant/nexus-form-engine'
         >
-          GitHub ↗
-        </a>
-      </Header>
-
-      <Content
-        style={
-          page === 'designer'
-            ? {
-                height: 'calc(100vh - 64px)',
-                background: '#f5f5f5',
-                overflow: 'hidden',
-              }
-            : { background: '#fff', overflow: 'auto' }
-        }
-      >
-        {page === 'home' && <HomePage />}
-        {page === 'extensions' && <ExtensionsPage />}
-        {page === 'examples' && <ExamplesPage />}
-        {page === 'widget-docs' && <WidgetDocsPage />}
-        {page === 'widget-validation' && <WidgetValidationPage />}
-        {page === 'advanced-widgets' && <AdvancedWidgetsPage />}
-        {page === 'designer' && <DesignerPage />}
-      </Content>
-
-      <Footer style={{ textAlign: 'center', padding: '16px 24px' }}>
-        <Typography.Text type='secondary' style={{ fontSize: 12 }}>
-          @nexus/form-engine — Schema 驱动的表单引擎 · core 纯 TypeScript 零 UI
-          依赖
-        </Typography.Text>
-      </Footer>
-    </Layout>
+          <PageRouter path={path} />
+        </DocsLayout>
+      )}
+    </DocsFrameworkProvider>
   );
 }
 

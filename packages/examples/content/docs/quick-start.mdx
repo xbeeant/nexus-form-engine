@@ -1,0 +1,55 @@
+---
+title: 快速开始
+description: 一分钟接入 @nexus/form-engine：安装、注册 UI、渲染 NexusForm。
+---
+
+## 一分钟接入
+
+```tsx
+import type { NexusSchema } from '@nexus/form-engine';
+import { NexusForm, useForm } from '@nexus/form-engine-react';
+import { registerAntdUI } from '@nexus/form-engine-ui';
+import { useEffect } from 'react';
+
+const schema: NexusSchema = {
+  type: 'object',
+  displayType: 'row',
+  labelWidth: 120,
+  properties: {
+    username: {
+      type: 'string',
+      widget: 'input',
+      title: '用户名',
+      required: true,
+    },
+  },
+};
+
+function App() {
+  const [form] = useForm();
+  useEffect(() => registerAntdUI(form._getEngine()), [form]);
+
+  return (
+    <NexusForm
+      form={form}
+      schema={schema}
+      onFinish={(data) => console.log('提交数据', data)}
+    />
+  );
+}
+```
+
+## Monorepo 包结构
+
+采用 Monorepo（Lerna + npm workspaces）组织，核心与 UI 严格分层：
+
+| 包 | 目录 | 说明 |
+| --- | --- | --- |
+| `@nexus/form-engine` | packages/core | 引擎核心：Schema 解析、依赖图、表达式沙箱、状态管理、插件系统（纯 TS，零 UI 依赖） |
+| `@nexus/form-engine-react` | packages/react | React 渲染层：NexusForm / NexusField / FormController / useWatch |
+| `@nexus/form-engine-ui` | packages/ui | 基于 antd 的 Widget 与 Layout 组件库 |
+| `@nexus/form-engine-designer` | packages/designer | 可视化 Schema 设计器：Canvas / Palette / PropertyPanel |
+
+数据流：`NexusSchema → SchemaParser → (fieldStates + renderTree + DependencyGraph) → Engine → Renderer`
+
+> Schema 解析仅在 init / setSchema 时执行一次；React 渲染层通过 useSyncExternalStore 按字段路径精准订阅，字段变更只重渲染受影响组件。

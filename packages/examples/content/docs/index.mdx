@@ -1,0 +1,13 @@
+---
+title: 简介
+description: "@nexus/form-engine 是一个 UI 无关的表单引擎，将 Schema 解析、联动、校验与渲染彻底分离。"
+---
+
+# Nexus Form Engine
+
+`@nexus/form-engine` 是一个 **UI 无关** 的表单引擎，可在 Node.js / Browser / Worker 中运行。
+
+- **协议融合**：数据定义与布局定义在同一份 JSON Schema 中
+- **布局透明**：布局节点（Card/Tabs/Grid）的 Key 不会进入 `formData`
+- **显式依赖**：基于 DependencyGraph 的 O(k) 联动更新
+- **插件化**：数组操作、异步校验通过 `engine.use(plugin)` 注入
