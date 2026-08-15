@@ -18,10 +18,12 @@ export {
 // ── 导出所有 Widget 组件 ───────────────────────────────────────────────────────
 // 核心输入组件
 export { autoCompleteWidget } from './autoComplete'; // 自动完成
+export { autoCompleteWidgetWithRemote } from './autoComplete'; // 自动完成（远程数据）
 export { checkboxWidget } from './checkbox'; // 单个复选框
 export { checkboxesWidget } from './checkboxes'; // 复选框组
 export { colorWidget } from './color'; // 颜色选择器
 export { cascaderWidget } from './cascader'; // 级联选择
+export { cascaderWidgetWithRemote } from './cascader'; // 级联选择（远程数据）
 export { datePickerWidget } from './datePicker'; // 日期选择器
 export { dateRangeWidget } from './dateRange'; // 日期范围选择器
 // 图片和 HTML 组件
@@ -34,12 +36,15 @@ export { inputNumberWidget } from './inputNumber'; // 数字输入框
 export { listWidget } from './list'; // 列表渲染器
 // 复杂选择组件
 export { mentionsWidget } from './mentions'; // 提及
+export { mentionsWidgetWithRemote } from './mentions'; // 提及（远程数据）
 export { multiSelectWidget } from './multiSelect'; // 多选下拉框
+export { multiSelectWidgetWithRemote } from './multiSelect'; // 多选下拉框（远程数据）
 export { passwordWidget } from './password'; // 密码输入框
 export { radioWidget } from './radio'; // 单选框
 export { rateWidget } from './rate'; // 评分
 export { segmentedWidget } from './segmented'; // 分段控制器
 export { selectWidget } from './select'; // 下拉选择器
+export { selectWidgetWithRemote } from './select'; // 下拉选择器（远程数据）
 export { simpleListWidget } from './simpleList'; // 简单列表渲染器
 export { sliderWidget } from './slider'; // 滑块选择器
 export { switchWidget } from './switch'; // 开关
@@ -53,8 +58,8 @@ export { urlInputWidget } from './urlInput'; // URL 输入框
 export { voidTitleWidget } from './voidTitle'; // 无标题空白组件
 
 import type { WidgetProps } from './_shared';
-import { autoCompleteWidget } from './autoComplete';
-import { cascaderWidget } from './cascader';
+import { autoCompleteWidget, autoCompleteWidgetWithRemote } from './autoComplete';
+import { cascaderWidget, cascaderWidgetWithRemote } from './cascader';
 import { checkboxWidget } from './checkbox';
 import { checkboxesWidget } from './checkboxes';
 import { colorWidget } from './color';
@@ -66,13 +71,13 @@ import { imageInputWidget } from './imageInput';
 import { inputWidget } from './input';
 import { inputNumberWidget } from './inputNumber';
 import { listWidget } from './list';
-import { mentionsWidget } from './mentions';
-import { multiSelectWidget } from './multiSelect';
+import { mentionsWidget, mentionsWidgetWithRemote } from './mentions';
+import { multiSelectWidget, multiSelectWidgetWithRemote } from './multiSelect';
 import { passwordWidget } from './password';
 import { radioWidget } from './radio';
 import { rateWidget } from './rate';
 import { segmentedWidget } from './segmented';
-import { selectWidget } from './select';
+import { selectWidget, selectWidgetWithRemote } from './select';
 import { simpleListWidget } from './simpleList';
 import { sliderWidget } from './slider';
 import { switchWidget } from './switch';
@@ -93,6 +98,7 @@ export const antdWidgets: Record<string, (props: WidgetProps) => ReactNode> = {
   input: inputWidget,
   password: passwordWidget,
   select: selectWidget,
+  selectWithRemote: selectWidgetWithRemote,
   radio: radioWidget,
   rate: rateWidget,
   checkbox: checkboxWidget,
@@ -100,6 +106,7 @@ export const antdWidgets: Record<string, (props: WidgetProps) => ReactNode> = {
   voidTitle: voidTitleWidget, // 无标题空白组件
   number: inputNumberWidget, // 数字输入框
   multiSelect: multiSelectWidget, // 多选下拉框
+  multiSelectWithRemote: multiSelectWidgetWithRemote, // 多选下拉框（远程数据）
   checkboxes: checkboxesWidget, // 复选框组
   textarea: textAreaWidget, // 多行文本输入框
   textArea: textAreaWidget, // 多行文本输入框
@@ -114,8 +121,11 @@ export const antdWidgets: Record<string, (props: WidgetProps) => ReactNode> = {
   urlInput: urlInputWidget, // URL 输入框
   treeSelect: treeSelectWidget, // 树形选择器
   autoComplete: autoCompleteWidget, // 自动完成
+  autoCompleteWithRemote: autoCompleteWidgetWithRemote, // 自动完成（远程数据）
   cascader: cascaderWidget, // 级联选择
+  cascaderWithRemote: cascaderWidgetWithRemote, // 级联选择（远程数据）
   mentions: mentionsWidget, // 提及
+  mentionsWithRemote: mentionsWidgetWithRemote, // 提及（远程数据）
   segmented: segmentedWidget, // 分段控制器
   transfer: transferWidget, // 穿梭框
   file: fileWidget, // 通用文件上传

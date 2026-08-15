@@ -35,11 +35,13 @@ export const checkboxWidget = withFormItem(
     }
     // 配置了选项时，以选中（value=true）项的文案作为复选框标签
     const checkedLabel = mapOptions(options).find(
-      (o) => o.value === true,
+      (o) => String(o.value) === 'true' || o.value === 1,
     )?.label;
     return (
       <Checkbox
-        checked={!!value}
+        checked={
+          value === true || value === 1 || value === 'true' || value === '1'
+        }
         onChange={(e) => onChange(e.target.checked)}
         disabled={disabled || loading}
         {...rest}

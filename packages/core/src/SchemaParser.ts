@@ -614,13 +614,18 @@ function mergeWidgetProps(
  * 顶层 format 写法：`{ type: 'string', widget: 'date', format: 'YYYY-MM-DD' }`。
  * 仅当 props 未显式声明 format 且顶层 format 不是校验语义（email/url）时并入，
  * 供 date/time 系列控件消费；校验语义仍由 meta.format 承载（SchemaParser 直接读取）。
+ * 顶层 remoteData（远程数据配置）同样并入 props 透传给控件（仅透传，不解析语义）。
  */
 function mergeFieldProps(
   widgetProps: Record<string, unknown> | undefined,
   schemaProps: Record<string, unknown> | undefined,
   nodeFormat: unknown,
+  nodeRemoteData?: unknown,
 ): Record<string, unknown> {
   const merged = mergeWidgetProps(widgetProps, schemaProps);
+  if (nodeRemoteData !== undefined) {
+    merged.remoteData = nodeRemoteData;
+  }
   if (
     merged.format === undefined &&
     typeof nodeFormat === 'string' &&
@@ -790,7 +795,12 @@ function processDataField(
     required: typeof node.required === 'boolean' ? node.required : false,
     loading: false,
     errors: [],
-    props: mergeFieldProps(widgetMeta?.props, node.props, node.format),
+    props: mergeFieldProps(
+      widgetMeta?.props,
+      node.props,
+      node.format,
+      (node as unknown as Record<string, unknown>).remoteData,
+    ),
     reactions,
     meta: {
       title: node.title || key,
@@ -1277,7 +1287,12 @@ export function createArrayItemState(
     required: typeof node.required === 'boolean' ? node.required : false,
     loading: false,
     errors: [],
-    props: mergeFieldProps(widgetMeta?.props, node.props, node.format),
+    props: mergeFieldProps(
+      widgetMeta?.props,
+      node.props,
+      node.format,
+      (node as unknown as Record<string, unknown>).remoteData,
+    ),
     reactions,
     meta: {
       title: node.title || key,

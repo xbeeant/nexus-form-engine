@@ -3,9 +3,12 @@
 // Schema 用于定义组件的配置结构、数据验证规则和渲染行为
 // 任何需要自定义或扩展组件行为的开发者都可以在此文件中修改或添加新的 Schema
 
-import { autoCompleteSchema } from './autoComplete-schema.ts';
+import {
+  autoCompleteRemoteSchema,
+  autoCompleteSchema,
+} from './autoComplete-schema.ts';
 import { cardSchema } from './card-schema.ts';
-import { cascaderSchema } from './cascader-schema.ts';
+import { cascaderRemoteSchema, cascaderSchema } from './cascader-schema.ts';
 import { checkboxSchema } from './checkbox-schema.ts';
 import { checkboxesSchema } from './checkboxes-schema.ts';
 import { colorSchema } from './color-schema.ts';
@@ -16,14 +19,17 @@ import { htmlSchema } from './html-schema.ts';
 import { imageSchema } from './image-schema.ts';
 import { inputSchema } from './input-schema.ts';
 import { listSchema } from './list-schema.ts';
-import { mentionsSchema } from './mentions-schema.ts';
-import { multiSelectSchema } from './multiSelect-schema.ts';
+import { mentionsRemoteSchema, mentionsSchema } from './mentions-schema.ts';
+import {
+  multiSelectRemoteSchema,
+  multiSelectSchema,
+} from './multiSelect-schema.ts';
 import { numberSchema } from './number-schema.ts';
 import { passwordSchema } from './password-schema.ts';
 import { radioSchema } from './radio-schema.ts';
 import { rateSchema } from './rate-schema.ts';
 import { segmentedSchema } from './segmented-schema.ts';
-import { selectSchema } from './select-schema.ts';
+import { selectRemoteSchema, selectSchema } from './select-schema.ts';
 import { simpleListSchema } from './simpleList-schema.ts';
 import { sliderSchema } from './slider-schema.ts';
 import { spaceSchema } from './space-schema.ts';
@@ -39,8 +45,10 @@ import { voidTitleSchema } from './voidTitle-schema.ts';
 
 // ── 导出所有 Schema 定义 ─────────────────────────────────────────────────────────
 export {
+  autoCompleteRemoteSchema,
   autoCompleteSchema,
   cardSchema,
+  cascaderRemoteSchema,
   cascaderSchema,
   checkboxesSchema,
   checkboxSchema,
@@ -52,13 +60,16 @@ export {
   imageSchema,
   inputSchema,
   listSchema,
+  mentionsRemoteSchema,
   mentionsSchema,
+  multiSelectRemoteSchema,
   multiSelectSchema,
   numberSchema,
   passwordSchema,
   radioSchema,
   rateSchema,
   segmentedSchema,
+  selectRemoteSchema,
   selectSchema,
   simpleListSchema,
   sliderSchema,
@@ -85,6 +96,7 @@ export const widgetSchemas: PropertySchemaMap = {
   input: inputSchema,
   password: passwordSchema,
   select: selectSchema,
+  selectWithRemote: selectRemoteSchema,
   radio: radioSchema,
   rate: rateSchema,
   checkbox: checkboxSchema,
@@ -93,6 +105,7 @@ export const widgetSchemas: PropertySchemaMap = {
   voidTitle: voidTitleSchema,
   number: numberSchema,
   multiSelect: multiSelectSchema,
+  multiSelectWithRemote: multiSelectRemoteSchema,
   textarea: textareaSchema,
   textArea: textareaSchema,
   date: dateSchema,
@@ -106,8 +119,11 @@ export const widgetSchemas: PropertySchemaMap = {
   urlInput: urlInputSchema,
   treeSelect: treeSelectSchema,
   autoComplete: autoCompleteSchema,
+  autoCompleteWithRemote: autoCompleteRemoteSchema,
   cascader: cascaderSchema,
+  cascaderWithRemote: cascaderRemoteSchema,
   mentions: mentionsSchema,
+  mentionsWithRemote: mentionsRemoteSchema,
   segmented: segmentedSchema,
   transfer: transferSchema,
   file: fileSchema,

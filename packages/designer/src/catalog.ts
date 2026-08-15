@@ -52,6 +52,23 @@ export const widgetCatalog: CatalogItem[] = [
     }),
   },
   {
+    label: '下拉选择（远程）',
+    icon: '📡',
+    category: 'widget',
+    widget: 'selectWithRemote',
+    createNode: () => ({
+      type: 'string',
+      widget: 'selectWithRemote',
+      title: '下拉选择（远程）',
+      remoteData: {
+        url: '/api/options',
+        method: 'GET',
+        responseField: { data: 'data.list', value: 'id', label: 'name' },
+        params: { page: 1, pageSize: 50 },
+      },
+    }),
+  },
+  {
     label: '单选',
     icon: '🔘',
     category: 'widget',
@@ -99,6 +116,23 @@ export const widgetCatalog: CatalogItem[] = [
       title: '多选下拉',
       enum: ['a', 'b'],
       enumNames: ['选项A', '选项B'],
+    }),
+  },
+  {
+    label: '多选下拉（远程）',
+    icon: '📡',
+    category: 'widget',
+    widget: 'multiSelectWithRemote',
+    createNode: () => ({
+      type: 'array',
+      widget: 'multiSelectWithRemote',
+      title: '多选下拉（远程）',
+      remoteData: {
+        url: '/api/multi-options',
+        method: 'GET',
+        responseField: { data: 'data.list', value: 'id', label: 'name' },
+        params: { page: 1, pageSize: 50 },
+      },
     }),
   },
   {
@@ -219,6 +253,23 @@ export const widgetCatalog: CatalogItem[] = [
     }),
   },
   {
+    label: '自动完成（远程）',
+    icon: '📡',
+    category: 'widget',
+    widget: 'autoCompleteWithRemote',
+    createNode: () => ({
+      type: 'string',
+      widget: 'autoCompleteWithRemote',
+      title: '自动完成（远程）',
+      remoteData: {
+        url: '/api/suggestions',
+        method: 'GET',
+        responseField: { data: 'data.suggestions', value: 'id', label: 'name' },
+        params: { keyword: '' },
+      },
+    }),
+  },
+  {
     label: '级联选择',
     icon: '🌳',
     category: 'widget',
@@ -232,6 +283,28 @@ export const widgetCatalog: CatalogItem[] = [
     }),
   },
   {
+    label: '级联选择（远程）',
+    icon: '📡',
+    category: 'widget',
+    widget: 'cascaderWithRemote',
+    createNode: () => ({
+      type: 'array',
+      widget: 'cascaderWithRemote',
+      title: '级联选择（远程）',
+      remoteData: {
+        url: '/api/cascader/nodes',
+        method: 'GET',
+        responseField: {
+          data: 'data.children',
+          value: 'id',
+          label: 'name',
+          parentIdKey: 'parentId',
+        },
+        params: { parentId: null },
+      },
+    }),
+  },
+  {
     label: '提及',
     icon: '💬',
     category: 'widget',
@@ -242,6 +315,23 @@ export const widgetCatalog: CatalogItem[] = [
       title: '提及',
       enum: ['alice', 'bob'],
       enumNames: ['Alice', 'Bob'],
+    }),
+  },
+  {
+    label: '提及（远程）',
+    icon: '📡',
+    category: 'widget',
+    widget: 'mentionsWithRemote',
+    createNode: () => ({
+      type: 'string',
+      widget: 'mentionsWithRemote',
+      title: '提及（远程）',
+      remoteData: {
+        url: '/api/users/suggestions',
+        method: 'GET',
+        responseField: { data: 'data.users', value: 'id', label: 'name' },
+        params: { keyword: '' },
+      },
     }),
   },
   {

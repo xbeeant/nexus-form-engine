@@ -1,8 +1,9 @@
-import { Cascader } from 'antd';
+import { Cascader, Spin } from 'antd';
 import type { DefaultOptionType } from 'antd/es/cascader';
 import {
   mapOptions,
   ReadOnlyDisplay,
+  useRemoteOptions,
   type WidgetProps,
   withFormItem,
 } from './_shared';
@@ -10,7 +11,9 @@ import {
 type CascaderValue = unknown[];
 
 /** 扁平 enum 转级联叶子节点（无 children，一级选择） */
-function leafOptions(options?: WidgetProps['options']): DefaultOptionType[] {
+function leafOptions(
+  options?: Record<string, unknown>[] | WidgetProps['options'],
+): DefaultOptionType[] {
   return mapOptions(options).map((o) => ({
     value: o.value as string | number,
     label: o.label,
@@ -36,6 +39,7 @@ function findPathLabels(
   ];
 }
 
+// 本地数据版本（支持 cascaderData + 嵌套 options + 扁平 enum 叶子）
 export const cascaderWidget = withFormItem(
   ({
     value,
@@ -45,7 +49,6 @@ export const cascaderWidget = withFormItem(
     disabled,
     loading,
     readOnly,
-    form,
     dependValues: _dv,
     dataPath: _dp,
     path: _p,
@@ -54,7 +57,6 @@ export const cascaderWidget = withFormItem(
     multiple,
     showSearch,
     expandTrigger,
-    cascaderData,
     required: _required,
     title: _title,
     description: _desc,
@@ -70,39 +72,42 @@ export const cascaderWidget = withFormItem(
     ...rest
   }: WidgetProps) => {
     // 数据源优先级：cascaderData（嵌套 JSON）> 嵌套 options > 扁平 enum 叶子
-    let nested: DefaultOptionType[] = [];
-    if (typeof cascaderData === 'string' && cascaderData.trim()) {
+    let dataSource: DefaultOptionType[] = [];
+
+    if (typeof options === 'string' && (options as string).trim()) {
       try {
-        const parsed = JSON.parse(cascaderData) as unknown;
+        const parsed = JSON.parse(options as string) as unknown;
         if (Array.isArray(parsed)) {
-          nested = parsed as DefaultOptionType[];
+          dataSource = parsed as DefaultOptionType[];
         }
       } catch {
-        nested = [];
+        // JSON 解析失败，options 可能是选项数组
       }
     }
-    const cascaderOptions = (options ?? []) as DefaultOptionType[];
-    const dataSource =
-      nested.length > 0
-        ? nested
-        : cascaderOptions.length > 0 &&
-            cascaderOptions.some((o) => Array.isArray(o.children))
-          ? cascaderOptions
-          : leafOptions(options);
 
-    const currentValue = (Array.isArray(value)
-      ? value
-      : value !== undefined && value !== null
-        ? [value]
-        : []) as CascaderValue;
+    if (Array.isArray(options) && options.some((o) => Array.isArray((o as DefaultOptionType).children))) {
+      // 嵌套 options
+      dataSource = options as DefaultOptionType[];
+    } else {
+      // 扁平 enum 叶子
+      dataSource = leafOptions(options as Record<string, unknown>[] | undefined);
+    }
+
+    const currentValue = (
+      Array.isArray(value)
+        ? value
+        : value !== undefined && value !== null
+          ? [value]
+          : []
+    ) as CascaderValue;
 
     if (readOnly) {
       const labels = findPathLabels(dataSource, currentValue);
-      return <ReadOnlyDisplay value={labels.length ? labels.join(' / ') : ''} />;
+      return (
+        <ReadOnlyDisplay value={labels.length ? labels.join(' / ') : ''} />
+      );
     }
 
-    // antd v6 Cascader props 为 union 分支（multiple 字面量决定泛型），
-    // 动态 multiple 无法命中任一分支，故属性集合统一收进 Record 后展开
     const cascaderProps: Record<string, unknown> = {
       ...rest,
       value: currentValue,
@@ -110,6 +115,106 @@ export const cascaderWidget = withFormItem(
       options: dataSource,
       placeholder: placeholder ?? '请选择...',
       disabled: disabled || loading,
+      allowClear: allowClear === undefined ? true : allowClear,
+      changeOnSelect,
+      multiple,
+      showSearch,
+      expandTrigger,
+    };
+    return <Cascader {...cascaderProps} />;
+  },
+);
+
+// 远程数据版本
+export const cascaderWidgetWithRemote = withFormItem(
+  ({
+    value,
+    onChange,
+    options,
+    remoteData,
+    placeholder,
+    disabled,
+    loading: _loading,
+    readOnly,
+    form,
+    dependValues: _dv,
+    dataPath: _dp,
+    path: _p,
+    allowClear,
+    changeOnSelect,
+    multiple,
+    showSearch,
+    expandTrigger,
+    required: _required,
+    title: _title,
+    description: _desc,
+    errors: _errors,
+    label: _label,
+    extra: _extra,
+    width: _width,
+    displayType,
+    labelWidth,
+    column: _column,
+    items: _items,
+    props: _props,
+    ...rest
+  }: WidgetProps & { remoteData?: any }) => {
+    const { options: remoteOptions, loading } =
+      useRemoteOptions(_p || 'cascader', remoteData, form!);
+
+    let dataSource: DefaultOptionType[] = [];
+    let isLoading = false;
+
+    if (loading) {
+      return <Spin spinning={true} />;
+    }
+
+    if (remoteData && remoteOptions) {
+      dataSource = remoteOptions;
+    } else {
+      // 本地数据模式
+      if (typeof options === 'string' && (options as string).trim()) {
+        try {
+          const parsed = JSON.parse(options as string) as unknown;
+          if (Array.isArray(parsed)) {
+            dataSource = parsed as DefaultOptionType[];
+          }
+        } catch {
+          // JSON 解析失败，options 可能是选项数组
+        }
+      }
+
+      if (Array.isArray(options) && options.some((o) => Array.isArray((o as DefaultOptionType).children))) {
+        // 嵌套 options
+        dataSource = options as DefaultOptionType[];
+      } else {
+        // 扁平 enum 叶子
+        dataSource = leafOptions(options as Record<string, unknown>[] | undefined);
+      }
+    }
+
+    const currentValue = (
+      Array.isArray(value)
+        ? value
+        : value !== undefined && value !== null
+          ? [value]
+          : []
+    ) as CascaderValue;
+
+    if (readOnly) {
+      const labels = findPathLabels(dataSource, currentValue);
+      return (
+        <ReadOnlyDisplay value={labels.length ? labels.join(' / ') : ''} />
+      );
+    }
+
+    const cascaderProps: Record<string, unknown> = {
+      ...rest,
+      value: currentValue,
+      onChange: (values: CascaderValue) => onChange(values),
+      options: dataSource,
+      placeholder: placeholder ?? '请选择...',
+      disabled: disabled || isLoading,
       allowClear: allowClear === undefined ? true : allowClear,
       changeOnSelect,
       multiple,

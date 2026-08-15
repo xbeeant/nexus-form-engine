@@ -8,7 +8,7 @@ import { useFormConfig } from '@nexus/form-engine-react';
 import { Form } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import type React from 'react';
+import React from 'react';
 
 // 支持按 format 模板解析（如 'YYYY年MM月DD日'），默认解析无法识别此类自定义格式
 dayjs.extend(customParseFormat);
@@ -303,8 +303,8 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
 }
 
 export function mapOptions(
-  options?: WidgetProps['options'],
-): Array<{ value: unknown; label: string }> {
+  options?: Record<string, unknown>[] | WidgetProps['options'],
+): Array<{ value: string | number | null | undefined; label: string }> {
   return (options ?? []).map((opt) => {
     const v =
       typeof opt === 'object' && opt !== null ? (opt as any).value : opt;
@@ -312,6 +312,125 @@ export function mapOptions(
       typeof opt === 'object' && opt !== null
         ? (opt as any).label
         : String(opt);
-    return { value: v, label: l };
+    // 转换为 string | number 类型
+    const numericValue = Number(v);
+    const finalValue = !isNaN(numericValue) ? numericValue : (v as string);
+    return { value: finalValue, label: l };
   });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// RemoteDataConfig — 远程数据源配置（对齐 x-render AsyncData API）
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface RemoteDataConfig {
+  url: string;
+  method?: "GET" | "POST";
+  responseField: {
+    data: string;
+    value: string;
+    label: string;
+  };
+  params?: Record<string, unknown> | ((formData: Record<string, unknown>) => Record<string, unknown>);
+  headers?: Record<string, string>;
+  cacheKey?: string;
+  timeout?: number;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// getNestedValue — 按点号路径从对象中取值
+// ────────────────────────────────────────────────────────────────────────────
+
+export function getNestedValue(obj: unknown, path: string): unknown {
+  const keys = path.split(".");
+  let result = obj;
+
+  for (const key of keys) {
+    if (result === null || result === undefined) {
+      return undefined;
+    }
+    result = (result as Record<string, unknown>)[key];
+  }
+
+  return result;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// useRemoteOptions — 远程数据加载 Hook（支持缓存与动态 params）
+// ────────────────────────────────────────────────────────────────────────────
+
+export function useRemoteOptions(
+  path: string,
+  config: RemoteDataConfig | undefined,
+  engine: NexusFormInstance,
+  getFormData?: () => Record<string, unknown>,
+): { options: ReturnType<typeof mapOptions>; loading: boolean } {
+  const cache = React.useRef<Map<string, { data: unknown[]; timestamp: number }>>(new Map());
+  const [loading, setLoading] = React.useState(false);
+  const [options, setOptions] = React.useState<ReturnType<typeof mapOptions>>([]);
+
+  const fetchOptions = React.useCallback(async () => {
+    if (!config) {
+      setOptions([]);
+      setLoading(false);
+      return;
+    }
+
+    const cacheKey = config.cacheKey || path;
+    const cached = cache.current.get(cacheKey);
+    const now = Date.now();
+    const cacheExpiry = 5 * 60 * 1000; // 缓存 5 分钟
+
+    if (cached && now - cached.timestamp < cacheExpiry) {
+      const arr = Array.isArray(cached.data) ? cached.data : [];
+      const mapped = mapOptions(arr as Record<string, unknown>[]);
+      setOptions(mapped);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formData = getFormData?.() || {};
+      const params =
+        typeof config.params === "function"
+          ? config.params(formData)
+          : config.params;
+
+      const response = await fetch(config.url, {
+        method: config.method || "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(config.headers || {}),
+        },
+        body:
+          config.method === "POST"
+            ? JSON.stringify(params)
+            : undefined,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const json = await response.json();
+      const data = getNestedValue(json, config.responseField.data);
+      const items = Array.isArray(data) ? data : [];
+
+      const mapped = mapOptions(items);
+      cache.current.set(cacheKey, { data: items, timestamp: now });
+      setOptions(mapped);
+    } catch (error) {
+      console.error(`[remoteData] fetch error for ${path}:`, error);
+      setOptions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [config, path, engine]);
+
+  React.useEffect(() => {
+    fetchOptions();
+  }, [fetchOptions]);
+
+  return { options, loading };
 }

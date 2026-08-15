@@ -378,6 +378,8 @@ const SCHEMA_LEVEL_KEYS = new Set([
   'enum',
   'enumNames',
   'placeholder',
+  // 远程数据配置（远程数据组件的顶层扩展属性）
+  'remoteData',
   // 注意：'format' 不在 schema 级列表中——
   // 属性面板编辑的 format 是 antd 控件的「显示格式」（date/time 系列），
   // 必须写入 node.props 才能经 state.props 透传到 widget；
