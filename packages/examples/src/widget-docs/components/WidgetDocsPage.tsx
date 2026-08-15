@@ -42,11 +42,25 @@ export function WidgetDocsPage() {
   }, []);
 
   return (
-    <Layout style={{ minHeight: 'calc(100vh - 64px)' }}>
+    <Layout
+      style={{
+        height: 'calc(100dvh - var(--fd-docs-row-2, 0px))',
+        minHeight: 0,
+        overflow: 'hidden',
+      }}
+    >
       <Sider
         width={200}
         theme='light'
-        style={{ borderRight: '1px solid #f0f0f0', overflow: 'auto' }}
+        style={{
+          borderRight: '1px solid #f0f0f0',
+          height: '100%',
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#d9d9d9 transparent',
+        }}
       >
         <Menu
           mode='inline'
@@ -54,11 +68,22 @@ export function WidgetDocsPage() {
           defaultOpenKeys={GROUP_ORDER}
           items={menuItems}
           onClick={({ key }) => setSelectedId(key)}
-          style={{ height: '100%', borderInlineEnd: 'none' }}
+          style={{ borderInlineEnd: 'none' }}
         />
       </Sider>
 
-      <Content style={{ padding: '32px 48px 64px', overflow: 'auto' }}>
+      <Content
+        style={{
+          padding: '32px 48px 64px',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          height: '100%',
+          minWidth: 0,
+          minHeight: 0,
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#d9d9d9 transparent',
+        }}
+      >
         <Typography.Title level={2} style={{ marginBottom: 4 }}>
           {doc.title}{' '}
           <Typography.Text type='secondary' style={{ fontWeight: 400 }}>
