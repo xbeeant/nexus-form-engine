@@ -366,7 +366,7 @@ function buildTreeFromFlatRecords(
 
 // ── 组件 ──────────────────────────────────────────────────────────────────
 
-export function treeSelectWidget({
+export function TreeSelectWidget({
   value,
   onChange,
   placeholder,
@@ -503,6 +503,7 @@ export function treeSelectWidget({
 
   // params 变化时重新加载
   const _paramsStr = JSON.stringify(cfg.params || {});
+  // biome-ignore lint/correctness/useExhaustiveDependencies: _paramsStr 是 reload 触发条件（loadData 经 cfgRef 闭包读取，biome 无法感知）
   useEffect(() => {
     if (!loadedRef.current) {
       return;
@@ -612,6 +613,13 @@ export function treeSelectWidget({
     // 检查所有 value 是否已在 treeData 中
     const allFound = values.every((v) => findNodeInTree(treeData, v));
     if (allFound) {
+      setReady(true);
+      return;
+    }
+
+    // 所有 value 均已尝试过 hydration（含被 React 重渲染中断 abort 的场景）→ 就绪，
+    // 否则 setReady 永远不被调用，组件卡死在"加载中"状态
+    if (values.every((v) => hydratedRef.current.has(String(v)))) {
       setReady(true);
       return;
     }
@@ -969,3 +977,6 @@ export function treeSelectWidget({
     </Form.Item>
   );
 }
+
+// 小写别名：兼容现有注册表（antdWidgets / engine.registerWidgets）
+export { TreeSelectWidget as treeSelectWidget };

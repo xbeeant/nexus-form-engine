@@ -449,22 +449,5 @@ export const demoSchema: NexusSchema = {
         },
       ],
     },
-
-    profile: {
-      type: 'object',
-      properties: {
-        website: {
-          type: 'string',
-          widget: 'input',
-          title: '个人网站',
-          placeholder: 'https://',
-        },
-        score: {
-          type: 'integer',
-          widget: 'number',
-          title: '积分',
-        },
-      },
-    },
   },
 };

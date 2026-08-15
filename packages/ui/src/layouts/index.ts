@@ -10,6 +10,7 @@ export { collapseLayout } from './collapse';
 export { dividerLayout } from './divider';
 export { flexLayout } from './flex';
 export { gridLayout } from './grid';
+export { spaceLayout } from './space';
 export {
   collapsePanelLayout, // 折叠面板布局
   stepLayout, // 步骤布局
@@ -29,6 +30,7 @@ import { collapseLayout } from './collapse';
 import { dividerLayout } from './divider';
 import { flexLayout } from './flex';
 import { gridLayout } from './grid';
+import { spaceLayout } from './space';
 import {
   collapsePanelLayout,
   stepLayout,
@@ -55,4 +57,5 @@ export const antdLayouts: Record<
   collapsePanel: collapsePanelLayout, // 折叠面板项布局 - 折叠面板中的单项
   steps: stepsLayout, // 步骤条布局 - 分步表单布局
   step: stepLayout, // 步骤布局 - 步骤条中的步骤项
+  space: spaceLayout, // 间距布局 - 横向/纵向排列子元素
 };

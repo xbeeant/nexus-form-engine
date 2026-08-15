@@ -119,7 +119,7 @@ export class ExpressionSandbox {
   private errorCount: number = 0;
   private evaluationTimes: number[] = [];
   /** 编译函数缓存：sanitized expression → Function */
-  private functionCache = new Map<string, Function>();
+  private functionCache = new Map<string, (...args: unknown[]) => unknown>();
 
   constructor(options?: EvaluateOptions) {
     this.errorHandler = options?.errorHandler ?? ErrorHandlerStrategy.DEFAULT;
@@ -166,7 +166,10 @@ export class ExpressionSandbox {
       // 从缓存获取编译函数，若不存在则创建并缓存
       let fn = this.functionCache.get(sanitized);
       if (!fn) {
-        fn = new Function(...CONTEXT_KEYS, `return (${sanitized});`);
+        fn = new Function(
+          ...CONTEXT_KEYS,
+          `return (${sanitized});`,
+        ) as (...args: unknown[]) => unknown;
         this.functionCache.set(sanitized, fn);
       }
       // 2. 构建安全上下文

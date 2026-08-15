@@ -192,7 +192,7 @@ export function NexusForm({
   );
   // 依赖 _version：engine.init() / setSchema() 会 bump version，
   // 需要在此后重新读取 renderTree（首次渲染时 engine 尚未 init，renderTree 为空）
-  // 需要在此后重新读取 renderTree（首次渲染时 engine 尚未 init，renderTree 为空）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: _version 是 renderTree 失效信号（engine 内部状态，静态分析不可见）
   const renderTree = useMemo(() => engine.getRenderTree(), [engine, _version]);
 
   const handleSubmit = useCallback(

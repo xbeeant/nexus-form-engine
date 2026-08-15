@@ -94,6 +94,70 @@ describe('SchemaParser', () => {
       expect(layoutTypes).toContain('grid');
     });
 
+    it('space 布局节点：Key 不进入 formData 路径（白名单扩展）', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          space: {
+            type: 'space',
+            props: { direction: 'vertical', size: 'middle' },
+            properties: {
+              name: { type: 'string', widget: 'input' },
+              email: { type: 'string', widget: 'input' },
+            },
+          },
+        },
+      };
+
+      const { fieldStates, renderTree } = SchemaParser.parse(schema);
+
+      // space 属于布局容器白名单：Key 被丢弃，子字段进入根路径
+      expect(fieldStates.has('space')).toBe(false);
+      expect(fieldStates.has('name')).toBe(true);
+      expect(fieldStates.has('email')).toBe(true);
+
+      const layoutTypes = renderTree
+        .filter((n) => n.type !== 'field' && n.type !== 'object')
+        .map((n) => n.type);
+      expect(layoutTypes).toContain('space');
+    });
+
+    it('空串 widget 的 object 视为数据对象容器（子表单特例仅限非空 widget）', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          profile: {
+            type: 'object',
+            widget: '',
+            properties: {
+              name: { type: 'string', widget: 'input' },
+            },
+          },
+        },
+      };
+
+      const { fieldStates, renderTree } = SchemaParser.parse(schema);
+
+      // widget: '' 视为「未指定」：object 走数据对象容器，容器 Key 进入路径（有值）
+      const rt = renderTree.find((n) => n.dataPath === 'profile');
+      expect(rt?.type).toBe('object');
+      expect(fieldStates.get('profile')?.meta.containerOnly).toBe(true);
+      expect(fieldStates.get('profile')?.meta.widget).toBe('');
+
+      // 非空 widget 的 object 仍为子表单字段（回归保护）
+      const { renderTree: rt2 } = SchemaParser.parse({
+        type: 'object',
+        properties: {
+          subForm: {
+            type: 'object',
+            widget: 'card',
+            properties: { name: { type: 'string', widget: 'input' } },
+          },
+        },
+      } as NexusSchema);
+      expect(rt2.find((n) => n.dataPath === 'subForm')?.type).toBe('field');
+    });
+
     it('嵌套布局结构中路径正确透传', () => {
       const schema: NexusSchema = {
         type: 'object',

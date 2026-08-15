@@ -65,32 +65,41 @@ export {
   useFormItemProps, // 获取 Ant Design FormItem 属性 Hook
   withFormItem, // 包装组件以支持表单验证
 } from './widgets/_shared';
+export { autoCompleteWidget } from './widgets/autoComplete';
+export { cascaderWidget } from './widgets/cascader';
 export { checkboxWidget } from './widgets/checkbox';
 export { checkboxesWidget } from './widgets/checkboxes';
 export { colorWidget } from './widgets/color';
 export { datePickerWidget } from './widgets/datePicker';
 export { dateRangeWidget } from './widgets/dateRange';
+export { fileWidget } from './widgets/file';
 export { htmlWidget } from './widgets/html';
 export { imageInputWidget } from './widgets/imageInput';
 export { inputWidget } from './widgets/input';
 export { inputNumberWidget } from './widgets/inputNumber';
 export { listWidget } from './widgets/list';
+export { mentionsWidget } from './widgets/mentions';
 export { multiSelectWidget } from './widgets/multiSelect';
 export { passwordWidget } from './widgets/password';
 export type {
+  AutoCompleteWidgetProps,
+  CascaderWidgetProps,
   CheckboxesWidgetProps,
   CheckboxWidgetProps,
   ColorWidgetProps,
   DatePickerWidgetProps,
   DateRangeWidgetProps,
+  FileWidgetProps,
   HtmlWidgetProps,
   ImageInputWidgetProps,
   InputNumberWidgetProps,
   InputWidgetProps,
   ListWidgetProps,
+  MentionsWidgetProps,
   MultiSelectWidgetProps,
   PasswordWidgetProps,
   RadioWidgetProps,
+  SegmentedWidgetProps,
   SelectWidgetProps,
   SimpleListWidgetProps,
   SliderWidgetProps,
@@ -99,12 +108,14 @@ export type {
   TextAreaWidgetProps,
   TimePickerWidgetProps,
   TimeRangeWidgetProps,
+  TransferWidgetProps,
   TreeSelectWidgetProps,
   UrlInputWidgetProps,
   VoidTitleWidgetProps,
 } from './widgets/props';
 export { radioWidget } from './widgets/radio';
 export { rateWidget } from './widgets/rate';
+export { segmentedWidget } from './widgets/segmented';
 export { selectWidget } from './widgets/select';
 export { simpleListWidget } from './widgets/simpleList';
 export { sliderWidget } from './widgets/slider';
@@ -113,6 +124,7 @@ export { tableListWidget } from './widgets/tableList';
 export { textAreaWidget } from './widgets/textArea';
 export { timePickerWidget } from './widgets/timePicker';
 export { timeRangeWidget } from './widgets/timeRange';
+export { transferWidget } from './widgets/transfer';
 export type { TreeSelectConfig } from './widgets/treeSelect';
 export { treeSelectWidget } from './widgets/treeSelect';
 export { urlInputWidget } from './widgets/urlInput';

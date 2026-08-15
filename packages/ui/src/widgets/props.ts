@@ -350,6 +350,71 @@ export interface TableListWidgetProps extends ListActionsProps {
   scrollX?: boolean;
 }
 
+// ── 新增 antd 组件（AutoComplete / Cascader / Mentions / Segmented / Transfer / File）──
+
+/** AutoComplete widget 可透传给 antd 的 props */
+export interface AutoCompleteWidgetProps {
+  allowClear?: boolean;
+  backfill?: boolean;
+  defaultActiveFirstOption?: boolean;
+  size?: 'large' | 'middle' | 'small';
+  status?: 'error' | 'warning';
+  variant?: 'outlined' | 'filled' | 'borderless' | 'underlined';
+}
+
+/** Cascader widget 可透传给 antd 的 props */
+export interface CascaderWidgetProps {
+  allowClear?: boolean;
+  changeOnSelect?: boolean;
+  multiple?: boolean;
+  showSearch?: boolean;
+  expandTrigger?: 'click' | 'hover';
+  /** 多级嵌套数据源 JSON 字符串（[{value,label,children}]） */
+  cascaderData?: string;
+  size?: 'large' | 'middle' | 'small';
+  status?: 'error' | 'warning';
+  variant?: 'outlined' | 'filled' | 'borderless' | 'underlined';
+}
+
+/** Mentions widget 可透传给 antd 的 props */
+export interface MentionsWidgetProps {
+  allowClear?: boolean;
+  autoSize?: boolean | { minRows?: number; maxRows?: number };
+  rows?: number;
+  prefix?: string;
+  size?: 'large' | 'middle' | 'small';
+  status?: 'error' | 'warning';
+  variant?: 'outlined' | 'filled' | 'borderless' | 'underlined';
+}
+
+/** Segmented widget 可透传给 antd 的 props */
+export interface SegmentedWidgetProps {
+  block?: boolean;
+  size?: 'large' | 'middle' | 'small';
+}
+
+/** Transfer widget 可透传给 antd 的 props */
+export interface TransferWidgetProps {
+  /** 数据源 JSON 字符串（[{key,title}]）或对象数组 */
+  transferData?: string | Array<{ key: string; title: string }>;
+  showSearch?: boolean;
+  oneWay?: boolean;
+  /** 列标题，逗号分隔字符串或二元组 */
+  titles?: string | [unknown, unknown];
+}
+
+/** File（Upload）widget 可透传给 antd 的 props */
+export interface FileWidgetProps {
+  /** 上传接口地址 */
+  action?: string;
+  accept?: string;
+  multiple?: boolean;
+  listType?: 'text' | 'picture' | 'picture-card';
+  maxCount?: number;
+  drag?: boolean;
+  buttonText?: string;
+}
+
 // ============================================================================
 // Module Augmentation: 将接口注入 core 的 WidgetPropsMap
 // （declare module 自动与 core 的 WidgetPropsMap 合并，无需显式 import 目标类型）
@@ -404,5 +469,17 @@ declare module '@nexus/form-engine' {
     simpleList: SimpleListWidgetProps;
     /** TableList 表格列表 */
     tableList: TableListWidgetProps;
+    /** AutoComplete 自动完成 */
+    autoComplete: AutoCompleteWidgetProps;
+    /** Cascader 级联选择 */
+    cascader: CascaderWidgetProps;
+    /** Mentions 提及 */
+    mentions: MentionsWidgetProps;
+    /** Segmented 分段控制器 */
+    segmented: SegmentedWidgetProps;
+    /** Transfer 穿梭框 */
+    transfer: TransferWidgetProps;
+    /** File 通用文件上传 */
+    file: FileWidgetProps;
   }
 }

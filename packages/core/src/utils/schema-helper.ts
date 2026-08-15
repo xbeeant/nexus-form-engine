@@ -21,7 +21,7 @@ import type {
  * @type {ReadonlySet<LayoutContainerType>}
  */
 export const LAYOUT_CONTAINER_TYPES: ReadonlySet<LayoutContainerType> = new Set(
-  ['card', 'tabs', 'grid', 'flex', 'steps', 'collapse', 'divider', 'void'],
+  ['card', 'tabs', 'grid', 'flex', 'space', 'steps', 'collapse', 'divider', 'void'],
 );
 
 /**
@@ -65,9 +65,16 @@ export function isDataField(node: SchemaNode): node is DataFieldSchema {
   if ('items' in node) {
     return false;
   }
-  // 子表单特例：带 widget 的 object 节点视为数据字段
+  // 子表单特例：带非空 widget 的 object 节点视为数据字段
   // （对齐 x-render：自定义组件为子表单时，其 Key 需进入数据路径）
-  if ('properties' in node && 'widget' in node && node.type === 'object') {
+  // 注意：widget 为空串视为「未指定」，走数据对象容器分支（防止设计器生成的空 widget 误判）
+  if (
+    'properties' in node &&
+    'widget' in node &&
+    typeof node.widget === 'string' &&
+    node.widget.length > 0 &&
+    node.type === 'object'
+  ) {
     return true;
   }
   // DataObjectSchema / LayoutNode 有 properties，需排除
@@ -90,7 +97,11 @@ export function isDataField(node: SchemaNode): node is DataFieldSchema {
  * @return True if the node is a DataObjectSchema, false otherwise.
  */
 export function isDataObject(node: SchemaNode): node is DataObjectSchema {
-  return node.type === 'object' && !('widget' in node) && 'properties' in node;
+  const hasWidget = (n: SchemaNode) =>
+    'widget' in n && typeof n.widget === 'string' && n.widget.length > 0;
+  return (
+    node.type === 'object' && !hasWidget(node) && 'properties' in node
+  );
 }
 
 /**

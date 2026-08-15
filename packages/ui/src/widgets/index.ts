@@ -17,12 +17,15 @@ export {
 } from './_shared';
 // ── 导出所有 Widget 组件 ───────────────────────────────────────────────────────
 // 核心输入组件
+export { autoCompleteWidget } from './autoComplete'; // 自动完成
 export { checkboxWidget } from './checkbox'; // 单个复选框
 export { checkboxesWidget } from './checkboxes'; // 复选框组
 export { colorWidget } from './color'; // 颜色选择器
+export { cascaderWidget } from './cascader'; // 级联选择
 export { datePickerWidget } from './datePicker'; // 日期选择器
 export { dateRangeWidget } from './dateRange'; // 日期范围选择器
 // 图片和 HTML 组件
+export { fileWidget } from './file'; // 通用文件上传
 export { htmlWidget } from './html'; // HTML 内容渲染
 export { imageInputWidget } from './imageInput'; // 图片上传组件
 export { inputWidget } from './input'; // 文本输入框
@@ -30,10 +33,12 @@ export { inputNumberWidget } from './inputNumber'; // 数字输入框
 // 列表组件（x-render 兼容）
 export { listWidget } from './list'; // 列表渲染器
 // 复杂选择组件
+export { mentionsWidget } from './mentions'; // 提及
 export { multiSelectWidget } from './multiSelect'; // 多选下拉框
 export { passwordWidget } from './password'; // 密码输入框
 export { radioWidget } from './radio'; // 单选框
 export { rateWidget } from './rate'; // 评分
+export { segmentedWidget } from './segmented'; // 分段控制器
 export { selectWidget } from './select'; // 下拉选择器
 export { simpleListWidget } from './simpleList'; // 简单列表渲染器
 export { sliderWidget } from './slider'; // 滑块选择器
@@ -42,25 +47,31 @@ export { tableListWidget } from './tableList'; // 表格列表渲染器
 export { textAreaWidget } from './textArea'; // 多行文本输入框
 export { timePickerWidget } from './timePicker'; // 时间选择器
 export { timeRangeWidget } from './timeRange'; // 时间范围选择器
+export { transferWidget } from './transfer'; // 穿梭框
 export { treeSelectWidget } from './treeSelect'; // 树形选择器
 export { urlInputWidget } from './urlInput'; // URL 输入框
 export { voidTitleWidget } from './voidTitle'; // 无标题空白组件
 
 import type { WidgetProps } from './_shared';
+import { autoCompleteWidget } from './autoComplete';
+import { cascaderWidget } from './cascader';
 import { checkboxWidget } from './checkbox';
 import { checkboxesWidget } from './checkboxes';
 import { colorWidget } from './color';
 import { datePickerWidget } from './datePicker';
 import { dateRangeWidget } from './dateRange';
+import { fileWidget } from './file';
 import { htmlWidget } from './html';
 import { imageInputWidget } from './imageInput';
 import { inputWidget } from './input';
 import { inputNumberWidget } from './inputNumber';
 import { listWidget } from './list';
+import { mentionsWidget } from './mentions';
 import { multiSelectWidget } from './multiSelect';
 import { passwordWidget } from './password';
 import { radioWidget } from './radio';
 import { rateWidget } from './rate';
+import { segmentedWidget } from './segmented';
 import { selectWidget } from './select';
 import { simpleListWidget } from './simpleList';
 import { sliderWidget } from './slider';
@@ -69,6 +80,7 @@ import { tableListWidget } from './tableList';
 import { textAreaWidget } from './textArea';
 import { timePickerWidget } from './timePicker';
 import { timeRangeWidget } from './timeRange';
+import { transferWidget } from './transfer';
 import { treeSelectWidget } from './treeSelect';
 import { urlInputWidget } from './urlInput';
 import { voidTitleWidget } from './voidTitle';
@@ -101,6 +113,12 @@ export const antdWidgets: Record<string, (props: WidgetProps) => ReactNode> = {
   color: colorWidget, // 颜色选择器
   urlInput: urlInputWidget, // URL 输入框
   treeSelect: treeSelectWidget, // 树形选择器
+  autoComplete: autoCompleteWidget, // 自动完成
+  cascader: cascaderWidget, // 级联选择
+  mentions: mentionsWidget, // 提及
+  segmented: segmentedWidget, // 分段控制器
+  transfer: transferWidget, // 穿梭框
+  file: fileWidget, // 通用文件上传
   list: listWidget,
   simpleList: simpleListWidget,
   tableList: tableListWidget,

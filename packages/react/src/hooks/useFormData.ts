@@ -15,5 +15,6 @@ export function useFormData(): Record<string, unknown> {
     engine.getSnapshot,
     engine.getSnapshot,
   );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: _version 是 formData 失效信号（engine 内部状态，静态分析不可见）
   return useMemo(() => engine.getFormData(), [engine, _version]);
 }

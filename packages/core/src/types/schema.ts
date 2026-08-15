@@ -28,6 +28,7 @@ export type LayoutContainerType =
   | 'tabs'
   | 'grid'
   | 'flex'
+  | 'space'
   | 'steps'
   | 'collapse'
   | 'divider'
