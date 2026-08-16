@@ -1,7 +1,10 @@
 {
   "name": "@xbeeant/form-engine-designer",
-  "private": true,
   "version": "0.0.1",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "type": "module",
   "main": "./dist/es/index.js",
   "module": "./dist/es/index.js",
@@ -24,6 +27,7 @@
   ],
   "scripts": {
     "build": "tsc -b && vite build",
+    "prepublishOnly": "npm run build",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "test": "vitest run"

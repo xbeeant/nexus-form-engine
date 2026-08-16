@@ -1,7 +1,10 @@
 {
   "name": "@xbeeant/form-engine",
-  "private": true,
   "version": "0.0.1",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "type": "module",
   "main": "./dist/es/index.js",
   "module": "./dist/es/index.js",
@@ -37,6 +40,7 @@
   ],
   "scripts": {
     "build": "npm run build:es && npm run build:cjs && npm run build:umd",
+    "prepublishOnly": "npm run build",
     "build:es": "tsc -b && vite build -f es",
     "build:cjs": "vite build -f cjs",
     "build:umd": "vite build -f umd",

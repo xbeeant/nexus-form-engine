@@ -52,7 +52,7 @@ export default defineConfig({
     rollupOptions: {
       external: [
         /node_modules/,
-        ...Object.keys(packageJson.dependencies || {}),
+        ...Object.keys((packageJson as Record<string, unknown>).dependencies ?? {}),
       ],
       ...(multipleInputsMode.indexOf(format) === -1 && {
         output: [
