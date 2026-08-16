@@ -2,9 +2,9 @@ import { Select } from 'antd';
 import {
   mapOptions,
   ReadOnlyDisplay,
+  useRemoteOptions,
   type WidgetProps,
   withFormItem,
-  useRemoteOptions,
 } from './_shared';
 
 // 本地数据版本
@@ -54,7 +54,7 @@ export const multiSelectWidgetWithRemote = withFormItem(
     disabled,
     loading: externalLoading,
     readOnly,
-    form,
+    form: _form,
     dependValues: _dv,
     dataPath: _dp,
     path,
@@ -64,7 +64,6 @@ export const multiSelectWidgetWithRemote = withFormItem(
     const { options, loading } = useRemoteOptions(
       path || 'multiSelect',
       remoteData,
-      form!,
     );
 
     const finalLoading = externalLoading || loading;

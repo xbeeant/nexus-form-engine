@@ -27,13 +27,14 @@ export default function DesignerPage() {
           Schema 设计器
         </Typography.Title>
         <Paragraph type='secondary' style={{ margin: '4px 0 0', fontSize: 12 }}>
-          从左侧拖拽 Widget / Layout 到画布，右侧编辑属性；「Schema」标签页可直接
-          粘贴 / 编辑 JSON。支持外部字段列表与自定义 widget catalog 扩展。
+          从左侧拖拽 Widget / Layout
+          到画布，右侧编辑属性；「Schema」标签页可直接 粘贴 / 编辑
+          JSON。支持外部字段列表与自定义 widget catalog 扩展。
         </Paragraph>
         <Paragraph type='secondary' style={{ margin: '4px 0 0', fontSize: 12 }}>
-          属性面板与 UI 注册使用 ui 包内置默认值（widgetSchemas / registerAntdUI），
-          无需手动装配；需要自定义时向 Designer 传入 propertySchemaMap / registerUI
-          即可覆盖。
+          属性面板与 UI 注册使用 ui 包内置默认值（widgetSchemas /
+          registerAntdUI）， 无需手动装配；需要自定义时向 Designer 传入
+          propertySchemaMap / registerUI 即可覆盖。
         </Paragraph>
       </div>
       <div style={{ flex: 1, overflow: 'hidden' }}>

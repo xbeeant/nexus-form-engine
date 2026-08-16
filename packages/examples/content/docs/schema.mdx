@@ -1,0 +1,162 @@
+---
+title: Schema 协议
+description: 节点类型判定、路径计算规则、Bind 数据绑定、Reactions 联动与校验协议的完整参考。
+---
+
+## 节点类型判定
+
+每个节点依据「类型 + 是否携带 widget / properties」被判定为数据节点或布局节点。**判定顺序不可颠倒**：数据数组 → 数据字段 → 数据对象 → 布局容器。
+
+| 判定 | 节点特征 | 类型 | 数据路径影响 | 示例 |
+| :--- | :--- | :--- | :--- | :--- |
+| 1st | `type: "array"` 且有 `items` | 数据数组 | ✅ Key 进入路径 | `{ "type": "array", "widget": "list", "items": {...} }` |
+| 2nd | 有 `widget` 且无 `properties`/`items`，或 `type` 为基础类型 | 数据字段 | ✅ Key 进入路径 | `{ "type": "string", "widget": "input" }` |
+| 3rd | `type: "object"` 无 `widget` 且有 `properties` | 数据对象 | ✅ Key 进入路径 | `{ "type": "object", "properties": {...} }` |
+| 4th | 非数据节点且有 `properties` | 布局容器/面板 | ❌ Key **不**进入路径 | `{ "type": "card", "properties": {...} }` |
+
+> 布局容器白名单：`card`、`tabs`、`grid`、`flex`、`steps`、`collapse`、`divider`、`void`、`passThrough`
+> 布局面板白名单：`tabPane`、`step`、`collapsePanel`（未注册的面板类型在父容器内平铺降级渲染）
+
+## 路径计算规则
+
+布局节点的 Key 在路径计算时被**丢弃、直接透传父路径**，因此 `card.properties` 下的字段路径是 `formData.fieldName`，而不是 `formData.card.fieldName`。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "basicCard": {
+      "type": "card",
+      "title": "基本信息",
+      "properties": {
+        "username": { "type": "string", "widget": "input", "title": "用户名" }
+      }
+    }
+  }
+}
+// 最终数据路径：formData.username
+// 无论布局如何调整（card → tabs → grid），数据 Key 与联动规则保持稳定
+```
+
+数组项子字段（如 `items[0].name`）会进入字段状态（带 `itemOf` 标记），可用于校验与订阅，但**不参与 `getFormData` 收集**——数组整体由数组字段序列化。
+
+## 数据绑定 Bind
+
+字段值可与数据路径解耦，`setValues` / `getValues` / 提交数据使用**转换后**的格式：
+
+- `bind: "user.name"` — 字段值映射写入 `user.name`
+- `bind: ["a.b", "c.d"]` — 数组值 `[v1, v2]` 按顺序拆分映射
+- `bind: false` — 纯 UI 字段，不参与数据收集
+
+```json
+"profile": {
+  "type": "object",
+  "properties": {
+    "name": { "type": "string", "widget": "input", "title": "姓名", "bind": "user.name" },
+    "location": { "type": "array", "widget": "simpleList", "title": "坐标", "bind": ["lat", "lng"] }
+  }
+}
+// 提交数据：{ "user": { "name": "..." }, "lat": ..., "lng": ... }
+```
+
+## 联动协议 Reactions
+
+### 简单联动（表达式别名）
+
+`required` / `disabled` / `readOnly` / `hidden` 支持字符串表达式，Parser 自动转换为 `_autoExpr` reaction 并提取依赖进依赖图（静态布尔值不处理，直接作为初始状态）。
+
+```json
+"usePromo": { "type": "boolean", "widget": "switch", "title": "使用优惠码" },
+"promoCode": {
+  "type": "string", "widget": "input", "title": "优惠码",
+  "hidden": "{{ formData.usePromo === false }}",
+  "required": "{{ formData.usePromo === true }}"
+}
+```
+
+### 计算字段（formily 对齐）
+
+`fulfill.state.value` 支持表达式，值变化后自动重校验并沿依赖图继续传播——可声明式实现「总额 = 单价 × 数量」。
+
+```json
+"amount": {
+  "type": "number", "widget": "number", "title": "总额（计算字段）", "readOnly": true,
+  "reactions": [
+    {
+      "dependencies": ["unitPrice", "quantity"],
+      "fulfill": { "state": { "value": "{{ $deps[0] * $deps[1] }}" } }
+    }
+  ]
+}
+```
+
+### 结构化 reactions
+
+`dependencies: string[]` 声明依赖（支持相对路径，见下文）；条件满足执行 `fulfill`，否则执行 `otherwise`：
+
+| 补丁 | 字段 | 说明 |
+| :--- | :--- | :--- |
+| `state` | `value/visible/hidden/disabled/readOnly/required/loading/title/description/props.*` | 运行时状态覆盖 |
+| `schema` | 点路径 → 值/表达式（如 `props.options`） | 仅运行时覆盖，不持久化回 Schema |
+
+```json
+"contactPhone": {
+  "type": "string", "widget": "input", "title": "手机号",
+  "reactions": [
+    {
+      "dependencies": ["contactMethod"],
+      "when": "{{ $deps[0] === 'phone' }}",
+      "fulfill":   { "state": { "visible": true,  "required": true  } },
+      "otherwise": { "state": { "visible": false, "required": false } }
+    }
+  ]
+}
+```
+
+### 上下文变量白名单
+
+表达式仅在受控上下文中求值：`$deps`（依赖值数组）、`$self`（当前字段状态）、`$form`（表单引擎）、`$index`（数组项序号）、`formData`（根级数据快照）、`rootValue`。
+
+### 相对路径依赖解析
+
+`dependencies` 允许相对路径：从目标字段最内层作用域向上逐级解析。`address.city` 内声明 `dependencies: ["province"]` 会解析为 `address.province`（`_autoExpr` 的依赖均为根级绝对路径，不做作用域解析）。
+
+```json
+"address": {
+  "type": "object",
+  "properties": {
+    "province": { "type": "string", "widget": "input", "title": "省份" },
+    "city": {
+      "type": "string", "widget": "input", "title": "城市",
+      "validate": { "depends": "{{ formData.province === '北京' }}" }
+    }
+  }
+}
+```
+
+### validate 表达式依赖
+
+`validate: { key: "{{ ... }}" }` 生成的规则携带 `_validateExpr`，其中 `formData.xxx` 依赖被提取进依赖图——依赖字段变化时**实时重校验**目标字段。典型场景：确认密码。
+
+```json
+"confirm": {
+  "type": "string", "widget": "input", "title": "确认密码",
+  "validate": { "match": "{{ formData.password === $self.value }}" }
+}
+```
+
+## 校验协议 Validation
+
+字段级约束自动转为 `ValidationRule`（已在 `rules` 显式声明的约束不重复生成）：
+
+| 写法 | 等价规则 | 说明 |
+| :--- | :--- | :--- |
+| `min` / `max` | `min` / `max` 规则 | 按值类型自适应：number→数值、string→长度、array→项数 |
+| `pattern` / `whitespace` | `pattern` / `whitespace` 规则 | 正则 / 仅空白视为空 |
+| `minimum` / `maximum` / `minLength` / `maxLength` / `minItems` / `maxItems` | 同上 | JSON Schema 别名 |
+| `format: "email" \| "url"` | `type` 格式规则 | 自动匹配对应格式校验 |
+| `enum` + `enumNames` | `enum` 规则 | 选项声明，同时作为组件选项数据源 |
+
+`trigger` 全语义：`change`（默认，值变更实时校验）/ `blur`（组件失焦触发）/ `submit`（仅 `validate()` 时生效）。`validate()` 提交时全量校验所有规则的 trigger。
+
+`rule.message` 支持 `{title}` / `{min}` / `{max}` / `{len}` 占位符插值；省略时按引擎 `options.messages[key]` > 内置默认消息解析，可通过 `new NexusEngine({ messages })` 全局覆盖。

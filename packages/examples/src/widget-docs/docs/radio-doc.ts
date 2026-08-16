@@ -60,7 +60,11 @@ export const radioDoc: WidgetDoc = {
             title: '订阅计划（实心）',
             enum: ['free', 'pro', 'enterprise'],
             enumNames: ['免费版', '专业版', '企业版'],
-            props: { optionType: 'button', buttonStyle: 'solid', size: 'small' },
+            props: {
+              optionType: 'button',
+              buttonStyle: 'solid',
+              size: 'small',
+            },
           },
         },
       },

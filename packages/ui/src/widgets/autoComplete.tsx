@@ -69,7 +69,7 @@ export const autoCompleteWidgetWithRemote = withFormItem(
     disabled,
     loading: externalLoading,
     readOnly,
-    form,
+    form: _form,
     dependValues: _dv,
     dataPath: _dp,
     path,
@@ -81,7 +81,6 @@ export const autoCompleteWidgetWithRemote = withFormItem(
     const { options, loading } = useRemoteOptions(
       path || 'autocomplete',
       remoteData,
-      form!,
     );
 
     const finalLoading = externalLoading || loading;

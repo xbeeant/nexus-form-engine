@@ -18,7 +18,6 @@ export function renderTreeNode(
         key={node.layoutKey || node.dataPath}
         dataPath={node.dataPath}
         layoutKey={node.layoutKey}
-        node={node}
       />
     );
   }

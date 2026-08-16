@@ -14,7 +14,7 @@ import {
 } from '@nexus/form-engine-react';
 import { Button, Empty, Modal, Space, Tag, Typography } from 'antd';
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useDesigner } from './DesignerContext';
 import {
   generateKey,
@@ -198,6 +198,42 @@ function isDescendantOrSelf(fromPath: string[], targetPath: string[]): boolean {
   return false;
 }
 
+// 判断是否允许拖入（纯函数：不依赖组件作用域）
+function canDrop(fromPath: string[], targetPath: string[]): boolean {
+  if (isDescendantOrSelf(fromPath, targetPath)) {
+    return false;
+  }
+  const fromParent = fromPath.slice(0, -1);
+  return !(
+    fromParent.length === targetPath.length &&
+    fromParent.every((seg, i) => seg === targetPath[i])
+  );
+}
+
+// 计算 insertIndex：将节点移动/新增到目标位置（纯函数：不依赖组件作用域）
+function computeInsertIndex(
+  target: DropTarget,
+  schemaProps: Record<string, SchemaNode>,
+): { toParentPath: string[]; insertIndex: number } | null {
+  if (!target || target.type === 'inside') {
+    return null;
+  }
+
+  const nodeIndex = getIndexInParent(schemaProps, target.path);
+  if (nodeIndex === -1) {
+    return null;
+  }
+
+  const toParentPath = target.path.slice(0, -1);
+
+  if (target.type === 'before') {
+    return { toParentPath, insertIndex: nodeIndex };
+  } else {
+    // after
+    return { toParentPath, insertIndex: nodeIndex + 1 };
+  }
+}
+
 function resolveCatalogItem(
   payload: CatalogItem,
   widgetCatalog: CatalogItem[],
@@ -242,6 +278,314 @@ function getIndexInParent(
     return -1;
   }
   return Object.keys(parentProps).indexOf(key);
+}
+
+// 与 getParentProps 相同，但作用于指定 schema（用于在副本上定位 properties）
+function getPropsAtPath(
+  targetSchema: NexusSchema,
+  parentPath: string[],
+): Record<string, SchemaNode> | undefined {
+  if (parentPath.length === 0) {
+    return targetSchema.properties;
+  }
+  const parent = getNodeAtProperties(targetSchema.properties, parentPath);
+  return parent ? getPropertiesOf(parent) : undefined;
+}
+
+// 从事件中计算 drop 目标（避免状态延迟）
+function computeDropTargetFromEvent(
+  e: React.DragEvent,
+  path: string[],
+): DropTarget {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  const y = e.clientY - rect.top;
+  const type: 'before' | 'after' = y < rect.height / 2 ? 'before' : 'after';
+  return { type, path };
+}
+
+/** 路径数组 → 稳定字符串 key（JSON 序列化，任意 key 内容均安全） */
+function toPathKey(path: string[]): string {
+  return JSON.stringify(path);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CanvasActions — 下发给 CanvasNode 的回调集合
+// 全部 useCallback 稳定化：schema/catalog 未变时引用不变，
+// 配合 React.memo 让拖拽热路径（dragOver → setDropTarget）只重渲染受影响节点
+// ────────────────────────────────────────────────────────────────────────────
+
+interface CanvasActions {
+  onSelect: (path: string[]) => void;
+  onDelete: (path: string[]) => void;
+  onReorder: (path: string[], direction: 'up' | 'down') => void;
+  onDragStart: (e: React.DragEvent, path: string[]) => void;
+  onDragOver: (e: React.DragEvent, path: string[]) => void;
+  onNodeDrop: (e: React.DragEvent, path: string[]) => void;
+  onContainerDragOver: (e: React.DragEvent) => void;
+  onContainerDrop: (e: React.DragEvent, path: string[]) => void;
+}
+
+interface CanvasNodeProps {
+  node: SchemaNode;
+  /** 节点在 schema 中的路径 key（JSON 字符串，跨渲染引用稳定） */
+  pathKey: string;
+  depth: number;
+  /** 祖先数据路径（布局节点 key 不进入，与 SchemaParser 对齐） */
+  parentDataPath: string;
+  /** 父级计算好的派生值：仅本节点相关（boolean/string，参与 memo 比较） */
+  isSelected: boolean;
+  dropTargetType: 'before' | 'after' | null;
+  /** 原始状态透传（供本节点计算其子节点的派生值；不参与 memo 比较） */
+  selectedPathKey: string | null;
+  dropTarget: DropTarget;
+  actions: CanvasActions;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CanvasNode — 单个节点的递归渲染（memo 化，自定义比较器）
+// 比较器只对比派生值（isSelected / dropTargetType）与稳定引用（node / pathKey /
+// depth / parentDataPath / actions）：拖拽过程中只有 drop 目标节点与选中节点
+// 的派生值变化 → 其余子树整体跳过重渲染，热路径从 O(N) 降为 O(1)
+// ────────────────────────────────────────────────────────────────────────────
+
+const CanvasNode = memo(
+  function CanvasNode({
+    node,
+    pathKey,
+    depth,
+    parentDataPath,
+    isSelected,
+    dropTargetType,
+    selectedPathKey,
+    dropTarget,
+    actions,
+  }: CanvasNodeProps) {
+    const path = useMemo(() => JSON.parse(pathKey) as string[], [pathKey]);
+    const childProps = getPropertiesOf(node);
+    const hasChildren = childProps !== undefined;
+    const label = getNodeLabel(node, path[path.length - 1]);
+    const badge = node.widget || node.type;
+    // 计算数据路径：布局节点 key 不进入数据路径（与 SchemaParser 对齐）
+    const isLayout = isLayoutNode(node);
+    const dataPath = isLayout
+      ? parentDataPath
+      : parentDataPath
+        ? `${parentDataPath}.${path[path.length - 1]}`
+        : path[path.length - 1];
+    const childEntries = childProps ? Object.entries(childProps) : [];
+    const isField = isDataField(node);
+
+    return (
+      <div
+        key={pathKey}
+        className='mb-1.5 relative'
+        style={{ marginLeft: depth }}
+      >
+        {/* before 插入指示线 — 显示在容器上方 */}
+        {dropTargetType === 'before' && (
+          <div className='drop-indicator-line relative h-1 pointer-events-none z-10 -mt-0.5' />
+        )}
+
+        {/* 统一包裹容器：header + 预览/子节点 */}
+        <div
+          className={`relative rounded border bg-white transition-all ${
+            isSelected
+              ? 'border-[#1677ff] bg-[#e6f4ff] shadow-[0_0_0_2px_rgba(22,119,255,0.1)]'
+              : 'border-[#e8e8e8] hover:border-[#1677ff]'
+          }`}
+        >
+          {/* header 行：拖拽 + 信息 + 操作 */}
+          <div
+            className='flex items-center gap-1.5 px-2 py-1.5 cursor-grab'
+            draggable
+            onDragStart={(e) => actions.onDragStart(e, path)}
+            onDragOver={(e) => actions.onDragOver(e, path)}
+            onDragLeave={(e) => {
+              e.stopPropagation();
+            }}
+            onDrop={(e) => actions.onNodeDrop(e, path)}
+            onClick={(e) => {
+              e.stopPropagation();
+              actions.onSelect(path);
+            }}
+          >
+            <Tag
+              color={hasChildren || isLayout ? 'blue' : undefined}
+              className='m-0! shrink-0'
+            >
+              {badge}
+            </Tag>
+            <Typography.Text className='flex-1 overflow-hidden text-ellipsis whitespace-nowrap'>
+              {label}
+            </Typography.Text>
+            <Typography.Text className='text-[#bfbfbf] text-[11px] font-mono shrink-0'>
+              {path[path.length - 1]}
+            </Typography.Text>
+            {isSelected && (
+              <span className='inline-flex gap-1'>
+                <Button
+                  size='small'
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    actions.onReorder(path, 'up');
+                  }}
+                >
+                  ↑
+                </Button>
+                <Button
+                  size='small'
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    actions.onReorder(path, 'down');
+                  }}
+                >
+                  ↓
+                </Button>
+                <Button
+                  size='small'
+                  danger
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    actions.onDelete(path);
+                  }}
+                >
+                  ×
+                </Button>
+              </span>
+            )}
+          </div>
+
+          {/* 字段节点：通过 NexusField 渲染，复用引擎 reaction/联动 */}
+          {isField && (
+            <div className='px-2 pb-2'>
+              <NexusField
+                dataPath={dataPath}
+                layoutKey={path[path.length - 1]}
+              />
+            </div>
+          )}
+
+          {/* 有子节点的容器：显示子节点 */}
+          {!isField &&
+            hasChildren &&
+            (() => {
+              const isGridNode = node.type === 'grid';
+              const isFlexNode = node.type === 'flex';
+
+              // 根据布局类型构建容器 CSS 样式
+              let containerStyle: React.CSSProperties | undefined;
+              let gridContextValue: { column: number } | null = null;
+
+              if (isGridNode) {
+                const column = Math.max(1, (node as any).column ?? 2);
+                const gap = (node as any).gap ?? 12;
+                containerStyle = {
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${column}, 1fr)`,
+                  gap: `${gap}px`,
+                };
+                gridContextValue = { column };
+              } else if (isFlexNode) {
+                const gap = (node as any).gap ?? 8;
+                const direction = (node as any).direction ?? 'row';
+                const flexAlign = (node as any).align ?? 'flex-start';
+                const flexJustify = (node as any).justify ?? 'flex-start';
+                const flexWrap = (node as any).wrap ?? false;
+                containerStyle = {
+                  display: 'flex',
+                  flexDirection: direction === 'column' ? 'column' : 'row',
+                  alignItems: flexAlign,
+                  justifyContent: flexJustify,
+                  flexWrap: flexWrap ? 'wrap' : 'nowrap',
+                  gap: `${gap}px`,
+                };
+              }
+
+              const innerContent = (
+                <>
+                  {childEntries.map(([childKey, childNode]) => {
+                    const childPathKey = toPathKey([...path, childKey]);
+                    const childIsSelected = selectedPathKey === childPathKey;
+                    const childDropTargetType =
+                      dropTarget &&
+                      (dropTarget.type === 'before' ||
+                        dropTarget.type === 'after') &&
+                      dropTargetPathKey(dropTarget) === childPathKey
+                        ? dropTarget.type
+                        : null;
+                    return (
+                      <CanvasNode
+                        key={childPathKey}
+                        node={childNode}
+                        pathKey={childPathKey}
+                        depth={depth + 1}
+                        parentDataPath={dataPath}
+                        isSelected={childIsSelected}
+                        dropTargetType={childDropTargetType}
+                        selectedPathKey={selectedPathKey}
+                        dropTarget={dropTarget}
+                        actions={actions}
+                      />
+                    );
+                  })}
+                  {childEntries.length === 0 && (
+                    <div className='text-[#bfbfbf] text-xs text-center py-2'>
+                      拖拽组件到此处
+                    </div>
+                  )}
+                </>
+              );
+
+              const childDiv = (
+                <div
+                  className='mx-2 mb-2 p-2 border border-dashed rounded min-h-8 bg-[rgba(250,250,250,0.6)] border-[#d9d9d9]'
+                  style={containerStyle}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onDragOver={actions.onContainerDragOver}
+                  onDrop={(e) => actions.onContainerDrop(e, path)}
+                >
+                  {innerContent}
+                </div>
+              );
+
+              // grid 需要提供 GridContext 给子项中的 NexusField 解析 colSpan
+              if (gridContextValue) {
+                return (
+                  <GridContext.Provider value={gridContextValue}>
+                    {childDiv}
+                  </GridContext.Provider>
+                );
+              }
+
+              return childDiv;
+            })()}
+        </div>
+
+        {/* after 插入指示线 */}
+        {dropTargetType === 'after' && (
+          <div className='drop-indicator-line relative h-1 pointer-events-none z-10 -mb-0.5' />
+        )}
+      </div>
+    );
+  },
+  (prev, next) =>
+    prev.node === next.node &&
+    prev.pathKey === next.pathKey &&
+    prev.depth === next.depth &&
+    prev.parentDataPath === next.parentDataPath &&
+    prev.isSelected === next.isSelected &&
+    prev.dropTargetType === next.dropTargetType &&
+    prev.actions === next.actions,
+);
+
+/** 取 before/after 类型 drop 目标的路径 key（inside 目标无节点级指示） */
+function dropTargetPathKey(target: DropTarget): string | null {
+  if (target === null || target.type === 'inside') {
+    return null;
+  }
+  return toPathKey(target.path);
 }
 
 export function Canvas() {
@@ -308,206 +652,195 @@ export function Canvas() {
     return () => window.removeEventListener('dragend', handleDragEnd);
   }, []);
 
-  const getParentProps = (parentPath: string[]) => {
-    if (parentPath.length === 0) {
-      return schema.properties;
-    }
-    const parent = getNodeAtProperties(schema.properties, parentPath);
-    return parent ? getPropertiesOf(parent) : undefined;
-  };
+  const getParentProps = useCallback(
+    (parentPath: string[]) => {
+      if (parentPath.length === 0) {
+        return schema.properties;
+      }
+      const parent = getNodeAtProperties(schema.properties, parentPath);
+      return parent ? getPropertiesOf(parent) : undefined;
+    },
+    [schema],
+  );
 
-  // 与 getParentProps 相同，但作用于指定 schema（用于在副本上定位 properties）
-  const getPropsAtPath = (targetSchema: NexusSchema, parentPath: string[]) => {
-    if (parentPath.length === 0) {
-      return targetSchema.properties;
-    }
-    const parent = getNodeAtProperties(targetSchema.properties, parentPath);
-    return parent ? getPropertiesOf(parent) : undefined;
-  };
+  // 统一处理 drop（依赖 schema，schema 变化时重建；拖拽过程中保持稳定）
+  const handleDrop = useCallback(
+    (e: React.DragEvent, target: DropTarget) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDropTarget(null);
+      if (!target) {
+        return;
+      }
 
-  // 判断是否允许拖入
-  const canDrop = (fromPath: string[], targetPath: string[]): boolean => {
-    if (isDescendantOrSelf(fromPath, targetPath)) {
-      return false;
-    }
-    const fromParent = fromPath.slice(0, -1);
-    return !(
-      fromParent.length === targetPath.length &&
-      fromParent.every((seg, i) => seg === targetPath[i])
-    );
-  };
+      const data = e.dataTransfer.getData(DRAG_MIME);
+      if (!data) {
+        return;
+      }
+      let payload: DragPayload;
+      try {
+        payload = JSON.parse(data) as DragPayload;
+      } catch {
+        return;
+      }
 
-  // 计算 insertIndex：将节点移动/新增到目标位置
-  const computeInsertIndex = (
-    target: DropTarget,
-    schemaProps: Record<string, SchemaNode>,
-  ): { toParentPath: string[]; insertIndex: number } | null => {
-    if (!target || target.type === 'inside') {
-      return null;
-    }
+      // ── 情况一：从画布拖动已有节点 ──
+      if (payload.source === 'canvas') {
+        const fromPath = payload.fromPath;
 
-    const nodeIndex = getIndexInParent(schemaProps, target.path);
-    if (nodeIndex === -1) {
-      return null;
-    }
+        if (target.type === 'inside') {
+          // 拖入容器内部
+          if (!canDrop(fromPath, target.path)) {
+            return;
+          }
+          // 面板节点仅入对应容器；普通节点进 tabs/collapse/steps 时自动包裹
+          const resolved = resolveMoveNode(schema, fromPath, target.path);
+          if (!resolved) {
+            return;
+          }
+          if (!resolved.wrapped) {
+            setSchema(moveNodeInSchema(schema, fromPath, target.path));
+          } else {
+            let next = structuredClone(schema) as NexusSchema;
+            const toProps = getPropsAtPath(next, target.path);
+            if (!toProps) {
+              return;
+            }
+            const paneKey = generateKey(toProps, 'panel');
+            toProps[paneKey] = resolved.node;
+            next = removeNodeFromSchema(next, fromPath);
+            setSchema(next);
+          }
+          selectNode(null);
+          return;
+        }
 
-    const toParentPath = target.path.slice(0, -1);
-
-    if (target.type === 'before') {
-      return { toParentPath, insertIndex: nodeIndex };
-    } else {
-      // after
-      return { toParentPath, insertIndex: nodeIndex + 1 };
-    }
-  };
-
-  // 统一处理 drop
-  const handleDrop = (e: React.DragEvent, target: DropTarget) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDropTarget(null);
-    if (!target) {
-      return;
-    }
-
-    const data = e.dataTransfer.getData(DRAG_MIME);
-    if (!data) {
-      return;
-    }
-    let payload: DragPayload;
-    try {
-      payload = JSON.parse(data) as DragPayload;
-    } catch {
-      return;
-    }
-
-    // ── 情况一：从画布拖动已有节点 ──
-    if (payload.source === 'canvas') {
-      const fromPath = payload.fromPath;
-
-      if (target.type === 'inside') {
-        // 拖入容器内部
+        // before / after
         if (!canDrop(fromPath, target.path)) {
           return;
         }
-        // 面板节点仅入对应容器；普通节点进 tabs/collapse/steps 时自动包裹
-        const resolved = resolveMoveNode(schema, fromPath, target.path);
+        const result = computeInsertIndex(target, schema.properties);
+        if (!result) {
+          return;
+        }
+
+        // 同父级移动时调整 insertIndex
+        const fromParent = fromPath.slice(0, -1);
+        const sameParent =
+          fromParent.length === result.toParentPath.length &&
+          fromParent.every((seg, i) => seg === result.toParentPath[i]);
+
+        let insertIndex = result.insertIndex;
+        if (sameParent) {
+          const fromIndex = getIndexInParent(schema.properties, fromPath);
+          if (fromIndex !== -1 && fromIndex < insertIndex) {
+            insertIndex -= 1;
+          }
+        }
+
+        const resolved = resolveMoveNode(schema, fromPath, result.toParentPath);
         if (!resolved) {
           return;
         }
         if (!resolved.wrapped) {
-          setSchema(moveNodeInSchema(schema, fromPath, target.path));
+          setSchema(
+            moveNodeInSchema(
+              schema,
+              fromPath,
+              result.toParentPath,
+              insertIndex,
+            ),
+          );
         } else {
           let next = structuredClone(schema) as NexusSchema;
-          const toProps = getPropsAtPath(next, target.path);
+          const toProps = getPropsAtPath(next, result.toParentPath);
           if (!toProps) {
             return;
           }
           const paneKey = generateKey(toProps, 'panel');
           toProps[paneKey] = resolved.node;
           next = removeNodeFromSchema(next, fromPath);
-          setSchema(next);
+          // 将包裹面板移动到目标插入位置
+          setSchema(
+            moveNodeInSchema(
+              next,
+              [...result.toParentPath, paneKey],
+              result.toParentPath,
+              insertIndex,
+            ),
+          );
         }
         selectNode(null);
         return;
       }
 
-      // before / after
-      if (!canDrop(fromPath, target.path)) {
-        return;
-      }
-      const result = computeInsertIndex(target, schema.properties);
-      if (!result) {
-        return;
-      }
+      // ── 情况二：从 palette 或 fieldDef 拖入新组件 ──
+      let base: string;
+      let createNode: () => SchemaNode;
+      let fixedKey: string | undefined;
 
-      // 同父级移动时调整 insertIndex
-      const fromParent = fromPath.slice(0, -1);
-      const sameParent =
-        fromParent.length === result.toParentPath.length &&
-        fromParent.every((seg, i) => seg === result.toParentPath[i]);
-
-      let insertIndex = result.insertIndex;
-      if (sameParent) {
-        const fromIndex = getIndexInParent(schema.properties, fromPath);
-        if (fromIndex !== -1 && fromIndex < insertIndex) {
-          insertIndex -= 1;
-        }
-      }
-
-      const resolved = resolveMoveNode(schema, fromPath, result.toParentPath);
-      if (!resolved) {
-        return;
-      }
-      if (!resolved.wrapped) {
-        setSchema(
-          moveNodeInSchema(schema, fromPath, result.toParentPath, insertIndex),
-        );
+      if (payload.source === 'fieldDef') {
+        // 外部字段：id 作为 key，name 作为 title，且不允许修改
+        const fd = payload.fieldDef;
+        base = fd.widget;
+        fixedKey = fd.id;
+        createNode = () =>
+          ({
+            type: inferSchemaType(fd.widget),
+            widget: fd.widget,
+            title: fd.name,
+            // 锁定标记：禁止在设计器中修改 key 和 title
+            _lockedKey: true,
+            _lockedTitle: true,
+          }) as unknown as SchemaNode;
       } else {
-        let next = structuredClone(schema) as NexusSchema;
-        const toProps = getPropsAtPath(next, result.toParentPath);
-        if (!toProps) {
+        // palette 组件目录
+        const found = resolveCatalogItem(
+          payload.catalogItem,
+          widgetCatalog,
+          layoutCatalog,
+        );
+        if (!found) {
           return;
         }
-        const paneKey = generateKey(toProps, 'panel');
-        toProps[paneKey] = resolved.node;
-        next = removeNodeFromSchema(next, fromPath);
-        // 将包裹面板移动到目标插入位置
-        setSchema(
-          moveNodeInSchema(
-            next,
-            [...result.toParentPath, paneKey],
-            result.toParentPath,
-            insertIndex,
-          ),
-        );
+        base = found.widget || found.layoutType || 'field';
+        createNode = () => found.createNode() as unknown as SchemaNode;
       }
-      selectNode(null);
-      return;
-    }
 
-    // ── 情况二：从 palette 或 fieldDef 拖入新组件 ──
-    let base: string;
-    let createNode: () => SchemaNode;
-    let fixedKey: string | undefined;
-
-    if (payload.source === 'fieldDef') {
-      // 外部字段：id 作为 key，name 作为 title，且不允许修改
-      const fd = payload.fieldDef;
-      base = fd.widget;
-      fixedKey = fd.id;
-      createNode = () =>
-        ({
-          type: inferSchemaType(fd.widget),
-          widget: fd.widget,
-          title: fd.name,
-          // 锁定标记：禁止在设计器中修改 key 和 title
-          _lockedKey: true,
-          _lockedTitle: true,
-        }) as unknown as SchemaNode;
-    } else {
-      // palette 组件目录
-      const found = resolveCatalogItem(
-        payload.catalogItem,
-        widgetCatalog,
-        layoutCatalog,
-      );
-      if (!found) {
+      if (target.type === 'inside') {
+        const parentProps = getParentProps(target.path);
+        if (!parentProps) {
+          return;
+        }
+        // 面板类型校验 / 普通节点进面板容器时自动包裹
+        const factory = resolveInsertFactory(
+          schema,
+          target.path,
+          createNode,
+          base,
+          fixedKey,
+        );
+        if (!factory) {
+          return;
+        }
+        const key = fixedKey ?? generateKey(parentProps, base);
+        // 若 fixedKey 已存在，则跳过
+        if (fixedKey && key in parentProps) {
+          return;
+        }
+        addNode(target.path, key, factory());
         return;
       }
-      base = found.widget || found.layoutType || 'field';
-      createNode = () => found.createNode() as unknown as SchemaNode;
-    }
 
-    if (target.type === 'inside') {
-      const parentProps = getParentProps(target.path);
-      if (!parentProps) {
+      // before / after
+      const result = computeInsertIndex(target, schema.properties);
+      if (!result) {
         return;
       }
       // 面板类型校验 / 普通节点进面板容器时自动包裹
       const factory = resolveInsertFactory(
         schema,
-        target.path,
+        result.toParentPath,
         createNode,
         base,
         fixedKey,
@@ -515,337 +848,168 @@ export function Canvas() {
       if (!factory) {
         return;
       }
-      const key = fixedKey ?? generateKey(parentProps, base);
-      // 若 fixedKey 已存在，则跳过
-      if (fixedKey && key in parentProps) {
+
+      // 在副本上操作：先 add 再 move
+      const next = structuredClone(schema) as NexusSchema;
+      const nextParentProps = getPropsAtPath(next, result.toParentPath);
+      if (!nextParentProps) {
         return;
       }
-      addNode(target.path, key, factory());
-      return;
-    }
 
-    // before / after
-    const result = computeInsertIndex(target, schema.properties);
-    if (!result) {
-      return;
-    }
-    // 面板类型校验 / 普通节点进面板容器时自动包裹
-    const factory = resolveInsertFactory(
+      const newKey = fixedKey ?? generateKey(nextParentProps, base);
+      if (fixedKey && newKey in nextParentProps) {
+        return;
+      }
+      nextParentProps[newKey] = factory();
+
+      const fullNewPath = [...result.toParentPath, newKey];
+      setSchema(
+        moveNodeInSchema(
+          next,
+          fullNewPath,
+          result.toParentPath,
+          result.insertIndex,
+        ),
+      );
+    },
+    [
       schema,
-      result.toParentPath,
-      createNode,
-      base,
-      fixedKey,
-    );
-    if (!factory) {
-      return;
-    }
+      widgetCatalog,
+      layoutCatalog,
+      addNode,
+      getParentProps,
+      setSchema,
+      selectNode,
+    ],
+  );
 
-    // 在副本上操作：先 add 再 move
-    const next = structuredClone(schema) as NexusSchema;
-    const nextParentProps = getPropsAtPath(next, result.toParentPath);
-    if (!nextParentProps) {
-      return;
-    }
+  // 节点 header 拖拽源 + drop 目标（仅依赖 setDropTarget，拖拽过程中引用稳定）
+  const handleNodeDragStart = useCallback(
+    (e: React.DragEvent, path: string[]) => {
+      e.stopPropagation();
+      const payload: CanvasDragPayload = { source: 'canvas', fromPath: path };
+      e.dataTransfer.setData(DRAG_MIME, JSON.stringify(payload));
+      e.dataTransfer.effectAllowed = 'move';
+    },
+    [],
+  );
 
-    const newKey = fixedKey ?? generateKey(nextParentProps, base);
-    if (fixedKey && newKey in nextParentProps) {
-      return;
-    }
-    nextParentProps[newKey] = factory();
+  // 基于鼠标 Y 坐标判断 before/after（仅依赖 setDropTarget，引用稳定）
+  const handleNodeDragOver = useCallback(
+    (e: React.DragEvent, path: string[]) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const type: 'before' | 'after' = y < rect.height / 2 ? 'before' : 'after';
+      const newTarget: DropTarget = { type, path };
+      // 根据 effectAllowed 设置 dropEffect，避免 palette(copy) 与 canvas(move) 互斥
+      e.dataTransfer.dropEffect =
+        e.dataTransfer.effectAllowed === 'copy' ? 'copy' : 'move';
+      setDropTarget((prev) => {
+        if (dropTargetEquals(prev, newTarget)) {
+          return prev;
+        }
+        return newTarget;
+      });
+    },
+    [],
+  );
 
-    const fullNewPath = [...result.toParentPath, newKey];
-    setSchema(
-      moveNodeInSchema(
-        next,
-        fullNewPath,
-        result.toParentPath,
-        result.insertIndex,
-      ),
-    );
-  };
+  const handleNodeDrop = useCallback(
+    (e: React.DragEvent, path: string[]) => {
+      e.stopPropagation();
+      const target = computeDropTargetFromEvent(e, path);
+      handleDrop(e, target);
+    },
+    [handleDrop],
+  );
 
-  // 节点 header 拖拽源 + drop 目标
-  const handleNodeDragStart = (e: React.DragEvent, path: string[]) => {
-    e.stopPropagation();
-    const payload: CanvasDragPayload = { source: 'canvas', fromPath: path };
-    e.dataTransfer.setData(DRAG_MIME, JSON.stringify(payload));
-    e.dataTransfer.effectAllowed = 'move';
-  };
+  const handleDelete = useCallback(
+    (path: string[]) => {
+      removeNode(path);
+    },
+    [removeNode],
+  );
 
-  // 基于鼠标 Y 坐标判断 before/after
-  const handleNodeDragOver = (e: React.DragEvent, path: string[]) => {
+  const handleSelect = useCallback(
+    (path: string[]) => {
+      selectNode(path);
+    },
+    [selectNode],
+  );
+
+  const handleReorder = useCallback(
+    (path: string[], direction: 'up' | 'down') => {
+      const parentPath = path.slice(0, -1);
+      const key = path[path.length - 1];
+      const parentProps = getParentProps(parentPath);
+      if (!parentProps) {
+        return;
+      }
+      const keys = Object.keys(parentProps);
+      const idx = keys.indexOf(key);
+      if (idx < 0) {
+        return;
+      }
+      if (direction === 'up' && idx === 0) {
+        return;
+      }
+      if (direction === 'down' && idx === keys.length - 1) {
+        return;
+      }
+      const insertIndex = direction === 'up' ? idx - 1 : idx + 1;
+      setSchema(moveNodeInSchema(schema, path, parentPath, insertIndex));
+      selectNode(path);
+    },
+    [getParentProps, schema, setSchema, selectNode],
+  );
+
+  // 容器空白区 dragOver：清除节点上的 drop target 指示
+  const handleContainerDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const type: 'before' | 'after' = y < rect.height / 2 ? 'before' : 'after';
-    const newTarget: DropTarget = { type, path };
-    // 根据 effectAllowed 设置 dropEffect，避免 palette(copy) 与 canvas(move) 互斥
     e.dataTransfer.dropEffect =
       e.dataTransfer.effectAllowed === 'copy' ? 'copy' : 'move';
     setDropTarget((prev) => {
-      if (dropTargetEquals(prev, newTarget)) {
+      if (prev === null) {
         return prev;
       }
-      return newTarget;
+      return null;
     });
-  };
+  }, []);
 
-  // 从事件中计算 drop 目标（避免状态延迟）
-  const computeDropTargetFromEvent = (
-    e: React.DragEvent,
-    path: string[],
-  ): DropTarget => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const type: 'before' | 'after' = y < rect.height / 2 ? 'before' : 'after';
-    return { type, path };
-  };
+  const handleContainerDrop = useCallback(
+    (e: React.DragEvent, path: string[]) => {
+      e.stopPropagation();
+      handleDrop(e, { type: 'inside', path });
+    },
+    [handleDrop],
+  );
 
-  const handleDelete = (e: React.MouseEvent, path: string[]) => {
-    e.stopPropagation();
-    removeNode(path);
-  };
-
-  const handleReorder = (
-    e: React.MouseEvent,
-    path: string[],
-    direction: 'up' | 'down',
-  ) => {
-    e.stopPropagation();
-    const parentPath = path.slice(0, -1);
-    const key = path[path.length - 1];
-    const parentProps = getParentProps(parentPath);
-    if (!parentProps) {
-      return;
-    }
-    const keys = Object.keys(parentProps);
-    const idx = keys.indexOf(key);
-    if (idx < 0) {
-      return;
-    }
-    if (direction === 'up' && idx === 0) {
-      return;
-    }
-    if (direction === 'down' && idx === keys.length - 1) {
-      return;
-    }
-    const insertIndex = direction === 'up' ? idx - 1 : idx + 1;
-    setSchema(moveNodeInSchema(schema, path, parentPath, insertIndex));
-    selectNode(path);
-  };
-
-  const renderNode = (
-    node: SchemaNode,
-    key: string,
-    path: string[],
-    depth: number,
-    parentDataPath: string,
-  ): React.ReactElement => {
-    const isSelected = pathEquals(selectedPath, path);
-    const childProps = getPropertiesOf(node);
-    const hasChildren = childProps !== undefined;
-    const label = getNodeLabel(node, key);
-    const badge = node.widget || node.type;
-    // 计算数据路径：布局节点 key 不进入数据路径（与 SchemaParser 对齐）
-    const isLayout = isLayoutNode(node);
-    const dataPath = isLayout
-      ? parentDataPath
-      : parentDataPath
-        ? `${parentDataPath}.${key}`
-        : key;
-    const childEntries = childProps ? Object.entries(childProps) : [];
-    const isField = isDataField(node);
-
-    // 判断当前节点是否是 drop target
-    const isDropTargetForThis =
-      dropTarget !== null &&
-      (dropTarget.type === 'before' || dropTarget.type === 'after') &&
-      pathEquals(dropTarget.path, path);
-    const dropTargetType = isDropTargetForThis ? dropTarget?.type : null;
-
-    return (
-      <div key={key} className='mb-1.5 relative' style={{ marginLeft: depth }}>
-        {/* before 插入指示线 — 显示在容器上方 */}
-        {dropTargetType === 'before' && (
-          <div className='drop-indicator-line relative h-1 pointer-events-none z-10 -mt-0.5' />
-        )}
-
-        {/* 统一包裹容器：header + 预览/子节点 */}
-        <div
-          className={`relative rounded border bg-white transition-all ${
-            isSelected
-              ? 'border-[#1677ff] bg-[#e6f4ff] shadow-[0_0_0_2px_rgba(22,119,255,0.1)]'
-              : 'border-[#e8e8e8] hover:border-[#1677ff]'
-          }`}
-        >
-          {/* header 行：拖拽 + 信息 + 操作 */}
-          <div
-            className='flex items-center gap-1.5 px-2 py-1.5 cursor-grab'
-            draggable
-            onDragStart={(e) => handleNodeDragStart(e, path)}
-            onDragOver={(e) => handleNodeDragOver(e, path)}
-            onDragLeave={(e) => {
-              e.stopPropagation();
-            }}
-            onDrop={(e) => {
-              e.stopPropagation();
-              const target = computeDropTargetFromEvent(e, path);
-              handleDrop(e, target);
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              selectNode(path);
-            }}
-          >
-            <Tag
-              color={hasChildren || isLayout ? 'blue' : undefined}
-              className='m-0! shrink-0'
-            >
-              {badge}
-            </Tag>
-            <Typography.Text className='flex-1 overflow-hidden text-ellipsis whitespace-nowrap'>
-              {label}
-            </Typography.Text>
-            <Typography.Text className='text-[#bfbfbf] text-[11px] font-mono shrink-0'>
-              {key}
-            </Typography.Text>
-            {isSelected && (
-              <span className='inline-flex gap-1'>
-                <Button
-                  size='small'
-                  onClick={(e) => handleReorder(e, path, 'up')}
-                >
-                  ↑
-                </Button>
-                <Button
-                  size='small'
-                  onClick={(e) => handleReorder(e, path, 'down')}
-                >
-                  ↓
-                </Button>
-                <Button
-                  size='small'
-                  danger
-                  onClick={(e) => handleDelete(e, path)}
-                >
-                  ×
-                </Button>
-              </span>
-            )}
-          </div>
-
-          {/* 字段节点：通过 NexusField 渲染，复用引擎 reaction/联动 */}
-          {isField && (
-            <div className='px-2 pb-2'>
-              <NexusField dataPath={dataPath} layoutKey={key} />
-            </div>
-          )}
-
-          {/* 有子节点的容器：显示子节点 */}
-          {!isField &&
-            hasChildren &&
-            (() => {
-              const isGridNode = node.type === 'grid';
-              const isFlexNode = node.type === 'flex';
-
-              // 根据布局类型构建容器 CSS 样式
-              let containerStyle: React.CSSProperties | undefined;
-              let gridContextValue: { column: number } | null = null;
-
-              if (isGridNode) {
-                const column = Math.max(1, (node as any).column ?? 2);
-                const gap = (node as any).gap ?? 12;
-                containerStyle = {
-                  display: 'grid',
-                  gridTemplateColumns: `repeat(${column}, 1fr)`,
-                  gap: `${gap}px`,
-                };
-                gridContextValue = { column };
-              } else if (isFlexNode) {
-                const gap = (node as any).gap ?? 8;
-                const direction = (node as any).direction ?? 'row';
-                const flexAlign = (node as any).align ?? 'flex-start';
-                const flexJustify = (node as any).justify ?? 'flex-start';
-                const flexWrap = (node as any).wrap ?? false;
-                containerStyle = {
-                  display: 'flex',
-                  flexDirection: direction === 'column' ? 'column' : 'row',
-                  alignItems: flexAlign,
-                  justifyContent: flexJustify,
-                  flexWrap: flexWrap ? 'wrap' : 'nowrap',
-                  gap: `${gap}px`,
-                };
-              }
-
-              const innerContent = (
-                <>
-                  {childEntries.map(([childKey, childNode]) =>
-                    renderNode(
-                      childNode,
-                      childKey,
-                      [...path, childKey],
-                      depth + 1,
-                      dataPath,
-                    ),
-                  )}
-                  {childEntries.length === 0 && (
-                    <div className='text-[#bfbfbf] text-xs text-center py-2'>
-                      拖拽组件到此处
-                    </div>
-                  )}
-                </>
-              );
-
-              const childDiv = (
-                <div
-                  className='mx-2 mb-2 p-2 border border-dashed rounded min-h-8 bg-[rgba(250,250,250,0.6)] border-[#d9d9d9]'
-                  style={containerStyle}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                  onDragOver={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect =
-                      e.dataTransfer.effectAllowed === 'copy' ? 'copy' : 'move';
-                    setDropTarget((prev) => {
-                      if (prev === null) {
-                        return prev;
-                      }
-                      return null;
-                    });
-                  }}
-                  onDrop={(e) => {
-                    e.stopPropagation();
-                    handleDrop(e, { type: 'inside', path });
-                  }}
-                >
-                  {innerContent}
-                </div>
-              );
-
-              // grid 需要提供 GridContext 给子项中的 NexusField 解析 colSpan
-              if (gridContextValue) {
-                return (
-                  <GridContext.Provider value={gridContextValue}>
-                    {childDiv}
-                  </GridContext.Provider>
-                );
-              }
-
-              return childDiv;
-            })()}
-        </div>
-
-        {/* after 插入指示线 */}
-        {dropTargetType === 'after' && (
-          <div className='drop-indicator-line relative h-1 pointer-events-none z-10 -mb-0.5' />
-        )}
-      </div>
-    );
-  };
+  // 下发给 CanvasNode 的稳定回调集合：
+  // 拖拽过程（dropTarget 变化）中所有回调引用不变 → 子节点 memo 生效
+  const actions = useMemo<CanvasActions>(
+    () => ({
+      onSelect: handleSelect,
+      onDelete: handleDelete,
+      onReorder: handleReorder,
+      onDragStart: handleNodeDragStart,
+      onDragOver: handleNodeDragOver,
+      onNodeDrop: handleNodeDrop,
+      onContainerDragOver: handleContainerDragOver,
+      onContainerDrop: handleContainerDrop,
+    }),
+    [
+      handleSelect,
+      handleDelete,
+      handleReorder,
+      handleNodeDragStart,
+      handleNodeDragOver,
+      handleNodeDrop,
+      handleContainerDragOver,
+      handleContainerDrop,
+    ],
+  );
 
   if (mode === 'preview') {
     return (
@@ -913,23 +1077,30 @@ export function Canvas() {
       <div
         className='flex-1 overflow-y-auto p-4 bg-[#f5f5f5] min-h-full border border-transparent box-border'
         onClick={() => selectNode(null)}
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect =
-            e.dataTransfer.effectAllowed === 'copy' ? 'copy' : 'move';
-          setDropTarget((prev) => {
-            if (prev === null) {
-              return prev;
-            }
-            return null;
-          });
-        }}
-        onDrop={(e) => handleDrop(e, { type: 'inside', path: [] })}
+        onDragOver={handleContainerDragOver}
+        onDrop={(e) => handleContainerDrop(e, [])}
       >
         <div>
-          {rootEntries.map(([key, node]) =>
-            renderNode(node, key, [key], 0, ''),
-          )}
+          {rootEntries.map(([key, node]) => (
+            <CanvasNode
+              key={toPathKey([key])}
+              node={node}
+              pathKey={toPathKey([key])}
+              depth={0}
+              parentDataPath=''
+              isSelected={pathEquals(selectedPath, [key])}
+              dropTargetType={
+                dropTarget &&
+                (dropTarget.type === 'before' || dropTarget.type === 'after') &&
+                pathEquals(dropTarget.path, [key])
+                  ? dropTarget.type
+                  : null
+              }
+              selectedPathKey={selectedPath ? toPathKey(selectedPath) : null}
+              dropTarget={dropTarget}
+              actions={actions}
+            />
+          ))}
           {rootEntries.length === 0 && (
             <Empty description='拖拽组件到此处开始设计' />
           )}

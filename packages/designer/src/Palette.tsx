@@ -251,7 +251,7 @@ export function Palette() {
       <div className='flex-1 overflow-y-auto px-2 pb-3'>
         <Collapse
           className='nexus-palette-collapse'
-          expandIconPosition='end'
+          expandIconPlacement='end'
           defaultActiveKey={['widgets', 'layouts']}
           items={collapseItems}
         />

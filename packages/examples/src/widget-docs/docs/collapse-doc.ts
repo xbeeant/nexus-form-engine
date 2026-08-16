@@ -63,6 +63,11 @@ export const collapseDoc: WidgetDoc = {
     },
   ],
   fallbackProps: [
-    { name: 'title', description: '面板标题（写在 collapsePanel 子节点上）', type: 'string', defaultValue: '-' },
+    {
+      name: 'title',
+      description: '面板标题（写在 collapsePanel 子节点上）',
+      type: 'string',
+      defaultValue: '-',
+    },
   ],
 };

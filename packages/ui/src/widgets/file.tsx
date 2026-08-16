@@ -1,11 +1,7 @@
-import { Button, message, Upload } from 'antd';
 import type { UploadFile } from 'antd';
+import { Button, message, Upload } from 'antd';
 import { useEffect, useState } from 'react';
-import {
-  ReadOnlyDisplay,
-  type WidgetProps,
-  withFormItem,
-} from './_shared';
+import { ReadOnlyDisplay, type WidgetProps, withFormItem } from './_shared';
 
 export interface FileWidgetConfig {
   /** 上传接口地址 */
@@ -86,13 +82,17 @@ export const fileWidget = withFormItem(
       return <ReadOnlyDisplay value={display} />;
     }
 
-    const handleChange = ({ fileList: newList }: { fileList: UploadFile[] }) => {
+    const handleChange = ({
+      fileList: newList,
+    }: {
+      fileList: UploadFile[];
+    }) => {
       const next = newList
         .filter((f) => f.status === 'done' || f.url)
         .map((f) => f.url || f.response?.url)
         .filter((u): u is string => typeof u === 'string' && u.length > 0);
       setFileList(newList);
-      onChange(multiple || maxCount !== 1 ? next : next[0] ?? '');
+      onChange(multiple || maxCount !== 1 ? next : (next[0] ?? ''));
     };
 
     const mergedBeforeUpload = (file: File) => {
@@ -131,7 +131,7 @@ export const fileWidget = withFormItem(
           .filter((x) => x.uid !== f.uid)
           .map((x) => x.url || x.response?.url)
           .filter((u): u is string => typeof u === 'string' && u.length > 0);
-        onChange(multiple || maxCount !== 1 ? remain : remain[0] ?? '');
+        onChange(multiple || maxCount !== 1 ? remain : (remain[0] ?? ''));
       },
       ...(action ? { action } : {}),
       accept,

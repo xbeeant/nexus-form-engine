@@ -84,9 +84,7 @@ export function PropsTable({ doc }: PropsTableProps) {
             dataIndex: 'name',
             key: 'name',
             width: 200,
-            render: (v: string) => (
-              <Typography.Text code>{v}</Typography.Text>
-            ),
+            render: (v: string) => <Typography.Text code>{v}</Typography.Text>,
           },
           { title: '说明', dataIndex: 'desc', key: 'desc' },
           {

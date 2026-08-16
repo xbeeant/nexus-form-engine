@@ -23,6 +23,7 @@ export const dividerDoc: WidgetDoc = {
           section1: {
             type: 'divider',
             title: '账号信息',
+            properties: {},
           },
           username: {
             type: 'string',
@@ -32,10 +33,12 @@ export const dividerDoc: WidgetDoc = {
           },
           plainDivider: {
             type: 'divider',
+            properties: {},
           },
           section2: {
             type: 'divider',
             title: '安全设置',
+            properties: {},
           },
           password: {
             type: 'string',
@@ -48,6 +51,11 @@ export const dividerDoc: WidgetDoc = {
     },
   ],
   fallbackProps: [
-    { name: 'title', description: '分隔线文字（显示在左侧）', type: 'string', defaultValue: '-' },
+    {
+      name: 'title',
+      description: '分隔线文字（显示在左侧）',
+      type: 'string',
+      defaultValue: '-',
+    },
   ],
 };

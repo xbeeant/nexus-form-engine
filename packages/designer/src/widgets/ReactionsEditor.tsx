@@ -50,7 +50,10 @@ function InsertVariableSelect({
   depsCount: number;
   onInsert: (text: string) => void;
 }) {
-  const base = fieldOptions && fieldOptions.length > 0 ? fieldOptions : fields.map((f) => ({ value: f, label: f }));
+  const base =
+    fieldOptions && fieldOptions.length > 0
+      ? fieldOptions
+      : fields.map((f) => ({ value: f, label: f }));
   const options = [
     ...base.map((o) => ({ value: `formData.${o.value}`, label: o.label })),
     { value: '$self.value', label: '$self.value' },

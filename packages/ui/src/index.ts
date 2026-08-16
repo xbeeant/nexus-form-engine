@@ -21,7 +21,7 @@ export {
 } from './layouts/passThrough';
 export { stepsLayout } from './layouts/steps';
 export { tabsLayout } from './layouts/tabs';
-
+export type { PropertySchemaMap } from './schema';
 // ── Schema 定义导出 ─────────────────────────────────────────────────────────────
 // 每个组件的 Schema 定义，用于定义组件的配置结构、验证规则和渲染行为
 export {
@@ -53,7 +53,6 @@ export {
   voidTitleSchema, // 无标题 Schema
   widgetSchemas, // 聚合映射：widget 名 → 属性描述符（设计器默认属性面板）
 } from './schema';
-export type { PropertySchemaMap } from './schema';
 
 // ── Widget 组件导出 ─────────────────────────────────────────────────────────────
 // 所有可用的表单组件，支持双向绑定、表单验证和自定义渲染

@@ -34,10 +34,11 @@ export function arrayCopy<T>(arr: T[], index: number): T[] {
   if (item === undefined) {
     return arr;
   }
-  // 深拷贝对象类型，避免引用共享导致编辑互相影响
+  // 深拷贝对象类型，避免引用共享导致编辑互相影响（structuredClone 优于 JSON 序列化：
+  // 保留 undefined/Date/Map 等类型，且速度更快）
   const copy =
     item !== null && typeof item === 'object' && !Array.isArray(item)
-      ? (JSON.parse(JSON.stringify(item)) as T)
+      ? (structuredClone(item) as T)
       : item;
   return [...arr.slice(0, index + 1), copy, ...arr.slice(index + 1)];
 }

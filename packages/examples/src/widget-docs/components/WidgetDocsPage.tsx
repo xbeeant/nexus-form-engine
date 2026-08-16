@@ -19,6 +19,7 @@ const GROUP_ORDER: DocGroup[] = [
   '日期时间',
   '文件图片',
   '列表',
+  '联动',
   '布局',
 ];
 

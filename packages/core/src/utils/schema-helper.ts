@@ -21,7 +21,17 @@ import type {
  * @type {ReadonlySet<LayoutContainerType>}
  */
 export const LAYOUT_CONTAINER_TYPES: ReadonlySet<LayoutContainerType> = new Set(
-  ['card', 'tabs', 'grid', 'flex', 'space', 'steps', 'collapse', 'divider', 'void'],
+  [
+    'card',
+    'tabs',
+    'grid',
+    'flex',
+    'space',
+    'steps',
+    'collapse',
+    'divider',
+    'void',
+  ],
 );
 
 /**
@@ -99,9 +109,7 @@ export function isDataField(node: SchemaNode): node is DataFieldSchema {
 export function isDataObject(node: SchemaNode): node is DataObjectSchema {
   const hasWidget = (n: SchemaNode) =>
     'widget' in n && typeof n.widget === 'string' && n.widget.length > 0;
-  return (
-    node.type === 'object' && !hasWidget(node) && 'properties' in node
-  );
+  return node.type === 'object' && !hasWidget(node) && 'properties' in node;
 }
 
 /**

@@ -30,7 +30,8 @@ export const autoCompleteRemoteSchema = {
     type: 'object',
     widget: 'propertyRemoteData',
     title: '远程数据',
-    description: '配置联想数据源，支持 GET/POST 请求与动态参数。用户输入时会自动请求此接口',
+    description:
+      '配置联想数据源，支持 GET/POST 请求与动态参数。用户输入时会自动请求此接口',
     default: undefined,
   },
   // ────────────────────────────────────────────────────────────────────────

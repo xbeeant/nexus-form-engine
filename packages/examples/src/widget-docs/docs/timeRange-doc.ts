@@ -37,8 +37,7 @@ export const timeRangeDoc: WidgetDoc = {
     },
     {
       title: '步长与 12 小时制',
-      description:
-        'minuteStep 控制分钟步长；use12Hours 切换 12 小时制。',
+      description: 'minuteStep 控制分钟步长；use12Hours 切换 12 小时制。',
       schema: {
         type: 'object',
         displayType: 'row',

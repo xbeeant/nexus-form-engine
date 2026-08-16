@@ -88,7 +88,6 @@ export const mentionsWidgetWithRemote = withFormItem(
     const { options, loading } = useRemoteOptions(
       path || 'mentions',
       remoteData,
-      _form!,
     );
 
     const finalLoading = externalLoading || loading;

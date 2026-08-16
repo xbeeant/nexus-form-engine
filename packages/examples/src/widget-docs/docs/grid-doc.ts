@@ -14,8 +14,7 @@ export const gridDoc: WidgetDoc = {
   demos: [
     {
       title: '两列栅格',
-      description:
-        'column: 2 将子字段等宽分为两列；gap 控制列间距。',
+      description: 'column: 2 将子字段等宽分为两列；gap 控制列间距。',
       schema: {
         type: 'object',
         displayType: 'row',
@@ -88,8 +87,23 @@ export const gridDoc: WidgetDoc = {
     },
   ],
   fallbackProps: [
-    { name: 'column', description: '栅格列数（等宽分列）', type: 'number', defaultValue: '2' },
-    { name: 'gap', description: '列间距（px）', type: 'number', defaultValue: '12' },
-    { name: 'colSpan', description: '子字段跨列数（写在子字段节点上）', type: 'number', defaultValue: '-' },
+    {
+      name: 'column',
+      description: '栅格列数（等宽分列）',
+      type: 'number',
+      defaultValue: '2',
+    },
+    {
+      name: 'gap',
+      description: '列间距（px）',
+      type: 'number',
+      defaultValue: '12',
+    },
+    {
+      name: 'colSpan',
+      description: '子字段跨列数（写在子字段节点上）',
+      type: 'number',
+      defaultValue: '-',
+    },
   ],
 };

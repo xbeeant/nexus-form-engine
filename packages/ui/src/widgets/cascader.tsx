@@ -85,12 +85,17 @@ export const cascaderWidget = withFormItem(
       }
     }
 
-    if (Array.isArray(options) && options.some((o) => Array.isArray((o as DefaultOptionType).children))) {
+    if (
+      Array.isArray(options) &&
+      options.some((o) => Array.isArray((o as DefaultOptionType).children))
+    ) {
       // 嵌套 options
       dataSource = options as DefaultOptionType[];
     } else {
       // 扁平 enum 叶子
-      dataSource = leafOptions(options as Record<string, unknown>[] | undefined);
+      dataSource = leafOptions(
+        options as Record<string, unknown>[] | undefined,
+      );
     }
 
     const currentValue = (
@@ -136,7 +141,7 @@ export const cascaderWidgetWithRemote = withFormItem(
     disabled,
     loading: _loading,
     readOnly,
-    form,
+    form: _form,
     dependValues: _dv,
     dataPath: _dp,
     path: _p,
@@ -159,11 +164,13 @@ export const cascaderWidgetWithRemote = withFormItem(
     props: _props,
     ...rest
   }: WidgetProps & { remoteData?: any }) => {
-    const { options: remoteOptions, loading } =
-      useRemoteOptions(_p || 'cascader', remoteData, form!);
+    const { options: remoteOptions, loading } = useRemoteOptions(
+      _p || 'cascader',
+      remoteData,
+    );
 
     let dataSource: DefaultOptionType[] = [];
-    let isLoading = false;
+    const isLoading = false;
 
     if (loading) {
       return <Spin spinning={true} />;
@@ -184,12 +191,17 @@ export const cascaderWidgetWithRemote = withFormItem(
         }
       }
 
-      if (Array.isArray(options) && options.some((o) => Array.isArray((o as DefaultOptionType).children))) {
+      if (
+        Array.isArray(options) &&
+        options.some((o) => Array.isArray((o as DefaultOptionType).children))
+      ) {
         // 嵌套 options
         dataSource = options as DefaultOptionType[];
       } else {
         // 扁平 enum 叶子
-        dataSource = leafOptions(options as Record<string, unknown>[] | undefined);
+        dataSource = leafOptions(
+          options as Record<string, unknown>[] | undefined,
+        );
       }
     }
 

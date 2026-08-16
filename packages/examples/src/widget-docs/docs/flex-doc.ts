@@ -80,11 +80,41 @@ export const flexDoc: WidgetDoc = {
     },
   ],
   fallbackProps: [
-    { name: 'direction', description: '主轴方向（row 水平 / column 垂直）', type: 'row | column', defaultValue: 'row' },
-    { name: 'gap', description: '子项间距（px）', type: 'number', defaultValue: '8' },
-    { name: 'align', description: '交叉轴对齐（start/center/end/baseline）', type: 'string', defaultValue: 'start' },
-    { name: 'justify', description: '主轴对齐（flex-start/center/flex-end/space-between...）', type: 'string', defaultValue: 'flex-start' },
-    { name: 'wrap', description: '是否自动换行', type: 'boolean', defaultValue: 'false' },
-    { name: 'width', description: '子字段自身宽度（写在子字段节点上，如 60%）', type: 'string', defaultValue: '-' },
+    {
+      name: 'direction',
+      description: '主轴方向（row 水平 / column 垂直）',
+      type: 'row | column',
+      defaultValue: 'row',
+    },
+    {
+      name: 'gap',
+      description: '子项间距（px）',
+      type: 'number',
+      defaultValue: '8',
+    },
+    {
+      name: 'align',
+      description: '交叉轴对齐（start/center/end/baseline）',
+      type: 'string',
+      defaultValue: 'start',
+    },
+    {
+      name: 'justify',
+      description: '主轴对齐（flex-start/center/flex-end/space-between...）',
+      type: 'string',
+      defaultValue: 'flex-start',
+    },
+    {
+      name: 'wrap',
+      description: '是否自动换行',
+      type: 'boolean',
+      defaultValue: 'false',
+    },
+    {
+      name: 'width',
+      description: '子字段自身宽度（写在子字段节点上，如 60%）',
+      type: 'string',
+      defaultValue: '-',
+    },
   ],
 };

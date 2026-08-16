@@ -29,53 +29,58 @@ export function useWatchMultiple(
   const lastValuesRef = useRef<Record<string, unknown>>({});
   const valuesRef = useRef<Record<string, unknown>>({});
 
+  // callback / paths 通过 ref 持有最新引用：
+  // - inline 回调不会导致每次渲染重新订阅
+  // - 数组字面量（每次渲染新建引用）不会导致重复订阅
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+  const pathsRef = useRef(paths);
+  pathsRef.current = paths;
+  // 仅当路径列表内容变化时才重新订阅（顺序无关，排序后比较）
+  const pathsKey = [...paths].sort().join(',');
+
+  // pathsKey：路径列表内容变化的稳定信号（数组引用本身不稳定，不参与依赖比较）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: paths 引用不稳定，以内容键 pathsKey 为准
   useEffect(() => {
     if (!engine) {
       return;
     }
 
     // 初始化
+    const watchedPaths = pathsRef.current;
     const initialValues: Record<string, unknown> = {};
-    paths.forEach((path) => {
+    for (const path of watchedPaths) {
       initialValues[path] = engine.getFieldValue(path);
-    });
+    }
     lastValuesRef.current = initialValues;
     valuesRef.current = initialValues;
 
-    callback(initialValues);
+    callbackRef.current(initialValues);
 
-    // 监听所有字段变化
-    const unsubscribe = engine.subscribeAll((formData) => {
-      const changedPaths = paths.filter((path) => {
-        const value = formData[path];
+    // 按路径精准订阅（依赖图 O(k) 通知），避免 subscribeAll 全表单扫描
+    const unsubscribe = watchedPaths.map((path) =>
+      engine.subscribe(path, (state) => {
+        const newValue = state.value;
         const lastValue = lastValuesRef.current[path];
 
-        return deep
-          ? JSON.stringify(value) !== JSON.stringify(lastValue)
-          : value !== lastValue;
-      });
+        const changed = deep
+          ? JSON.stringify(newValue) !== JSON.stringify(lastValue)
+          : newValue !== lastValue;
 
-      if (changedPaths.length > 0) {
-        // 更新lastValues
-        paths.forEach((path) => {
-          lastValuesRef.current[path] = formData[path];
-        });
-
-        // 构建变化的值对象
-        const changedValues: Record<string, unknown> = {};
-        changedPaths.forEach((path) => {
-          changedValues[path] = formData[path];
-        });
-
-        valuesRef.current = changedValues;
-        callback(changedValues);
-      }
-    });
+        if (changed) {
+          lastValuesRef.current[path] = newValue;
+          valuesRef.current = { [path]: newValue };
+          callbackRef.current(valuesRef.current);
+        }
+      }),
+    );
 
     return () => {
-      unsubscribe();
+      for (const unsub of unsubscribe) {
+        unsub();
+      }
     };
-  }, [engine, paths, deep, callback]);
+  }, [engine, deep, pathsKey]);
 
   return valuesRef.current;
 }

@@ -92,12 +92,18 @@ export const cascaderDoc: WidgetDoc = {
       description:
         'multiple 开启多选，值保存为多条路径数组；同样可配合 showSearch 使用。',
       schema: {
-        type: 'array',
-        widget: 'cascader',
-        title: '常驻地区（多选）',
-        props: {
-          cascaderData: cascaderTree,
-          multiple: true,
+        type: 'object',
+        displayType: 'row',
+        properties: {
+          region: {
+            type: 'array',
+            widget: 'cascader',
+            title: '常驻地区（多选）',
+            props: {
+              cascaderData: cascaderTree,
+              multiple: true,
+            },
+          },
         },
       },
     },

@@ -38,8 +38,7 @@ export const dateDoc: WidgetDoc = {
     },
     {
       title: '周/月/季度/年选择',
-      description:
-        'picker 切换选择粒度；不同粒度下 format 需与之匹配。',
+      description: 'picker 切换选择粒度；不同粒度下 format 需与之匹配。',
       schema: {
         type: 'object',
         displayType: 'row',

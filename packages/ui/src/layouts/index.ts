@@ -10,13 +10,13 @@ export { collapseLayout } from './collapse';
 export { dividerLayout } from './divider';
 export { flexLayout } from './flex';
 export { gridLayout } from './grid';
-export { spaceLayout } from './space';
 export {
   collapsePanelLayout, // 折叠面板布局
   stepLayout, // 步骤布局
   tabPaneLayout, // 标签页布局
   voidLayout, // 空白布局
 } from './passThrough';
+export { spaceLayout } from './space';
 export { stepsLayout } from './steps';
 export { tabsLayout } from './tabs';
 
@@ -30,13 +30,13 @@ import { collapseLayout } from './collapse';
 import { dividerLayout } from './divider';
 import { flexLayout } from './flex';
 import { gridLayout } from './grid';
-import { spaceLayout } from './space';
 import {
   collapsePanelLayout,
   stepLayout,
   tabPaneLayout,
   voidLayout,
 } from './passThrough';
+import { spaceLayout } from './space';
 import { stepsLayout } from './steps';
 import { tabsLayout } from './tabs';
 

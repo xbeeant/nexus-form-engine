@@ -37,6 +37,7 @@ import { passThroughDoc } from './docs/passThrough-doc';
 import { passwordDoc } from './docs/password-doc';
 import { radioDoc } from './docs/radio-doc';
 import { rateDoc } from './docs/rate-doc';
+import { reactionsDoc } from './docs/reactions-doc';
 import { segmentedDoc } from './docs/segmented-doc';
 // ── 选择类 ──────────────────────────────────────────────────────────────────
 import { selectDoc } from './docs/select-doc';
@@ -103,4 +104,5 @@ export const widgetDocs: WidgetDoc[] = [
   spaceDoc,
   dividerDoc,
   passThroughDoc,
+  reactionsDoc,
 ];

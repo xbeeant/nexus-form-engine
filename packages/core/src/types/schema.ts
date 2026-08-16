@@ -32,7 +32,8 @@ export type LayoutContainerType =
   | 'steps'
   | 'collapse'
   | 'divider'
-  | 'void';
+  | 'void'
+  | 'passThrough';
 
 /**
  * 支持的布局面板类型
@@ -361,8 +362,12 @@ export interface BaseSchemaNode {
  * 叶子节点，表示表单中的一个输入字段
  */
 export interface DataFieldSchema extends BaseSchemaNode {
-  /** 数据类型 */
-  type?: DataPrimitiveType;
+  /**
+   * 数据类型
+   * 'array' 表示数组值字段（单控件多值，如 checkboxes/multiSelect/dateRange/file 等），
+   * 与 DataArraySchema（list 类，需 items）区分：无 items 的 array 按数据字段处理
+   */
+  type?: DataPrimitiveType | 'array';
   /**
    * 枚举值列表（x-render / JSON Schema 对齐）
    * 与 enumNames 配合使用：enum 为值数组，enumNames 为文案数组

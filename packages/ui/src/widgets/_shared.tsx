@@ -314,7 +314,9 @@ export function mapOptions(
         : String(opt);
     // 转换为 string | number 类型
     const numericValue = Number(v);
-    const finalValue = !isNaN(numericValue) ? numericValue : (v as string);
+    const finalValue = !Number.isNaN(numericValue)
+      ? numericValue
+      : (v as string);
     return { value: finalValue, label: l };
   });
 }
@@ -325,13 +327,15 @@ export function mapOptions(
 
 export interface RemoteDataConfig {
   url: string;
-  method?: "GET" | "POST";
+  method?: 'GET' | 'POST';
   responseField: {
     data: string;
     value: string;
     label: string;
   };
-  params?: Record<string, unknown> | ((formData: Record<string, unknown>) => Record<string, unknown>);
+  params?:
+    | Record<string, unknown>
+    | ((formData: Record<string, unknown>) => Record<string, unknown>);
   headers?: Record<string, string>;
   cacheKey?: string;
   timeout?: number;
@@ -342,7 +346,7 @@ export interface RemoteDataConfig {
 // ────────────────────────────────────────────────────────────────────────────
 
 export function getNestedValue(obj: unknown, path: string): unknown {
-  const keys = path.split(".");
+  const keys = path.split('.');
   let result = obj;
 
   for (const key of keys) {
@@ -362,12 +366,15 @@ export function getNestedValue(obj: unknown, path: string): unknown {
 export function useRemoteOptions(
   path: string,
   config: RemoteDataConfig | undefined,
-  engine: NexusFormInstance,
   getFormData?: () => Record<string, unknown>,
 ): { options: ReturnType<typeof mapOptions>; loading: boolean } {
-  const cache = React.useRef<Map<string, { data: unknown[]; timestamp: number }>>(new Map());
+  const cache = React.useRef<
+    Map<string, { data: unknown[]; timestamp: number }>
+  >(new Map());
   const [loading, setLoading] = React.useState(false);
-  const [options, setOptions] = React.useState<ReturnType<typeof mapOptions>>([]);
+  const [options, setOptions] = React.useState<ReturnType<typeof mapOptions>>(
+    [],
+  );
 
   const fetchOptions = React.useCallback(async () => {
     if (!config) {
@@ -393,20 +400,17 @@ export function useRemoteOptions(
     try {
       const formData = getFormData?.() || {};
       const params =
-        typeof config.params === "function"
+        typeof config.params === 'function'
           ? config.params(formData)
           : config.params;
 
       const response = await fetch(config.url, {
-        method: config.method || "GET",
+        method: config.method || 'GET',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           ...(config.headers || {}),
         },
-        body:
-          config.method === "POST"
-            ? JSON.stringify(params)
-            : undefined,
+        body: config.method === 'POST' ? JSON.stringify(params) : undefined,
       });
 
       if (!response.ok) {
@@ -426,7 +430,7 @@ export function useRemoteOptions(
     } finally {
       setLoading(false);
     }
-  }, [config, path, engine]);
+  }, [config, path, getFormData]);
 
   React.useEffect(() => {
     fetchOptions();

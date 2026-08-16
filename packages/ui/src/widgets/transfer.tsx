@@ -1,20 +1,14 @@
 import { Transfer } from 'antd';
 import type { TransferItem, TransferProps } from 'antd/es/transfer';
 import type { ReactNode } from 'react';
-import {
-  ReadOnlyDisplay,
-  type WidgetProps,
-  withFormItem,
-} from './_shared';
+import { ReadOnlyDisplay, type WidgetProps, withFormItem } from './_shared';
 
 export interface TransferDataSourceItem extends TransferItem {
   title?: string;
 }
 
 /** 解析 JSON 字符串 / 对象数组 → Transfer 数据源 */
-function parseDataSource(
-  raw: unknown,
-): TransferDataSourceItem[] {
+function parseDataSource(raw: unknown): TransferDataSourceItem[] {
   if (Array.isArray(raw)) {
     return raw as TransferDataSourceItem[];
   }
@@ -48,9 +42,9 @@ export const transferWidget = withFormItem(
     oneWay,
     ...rest
   }: WidgetProps & {
-  transferData?: unknown;
-  titles?: string | string[];
-}) => {
+    transferData?: unknown;
+    titles?: string | string[];
+  }) => {
     const dataSource = parseDataSource(transferData);
     const targetKeys = (Array.isArray(value) ? value : []) as string[];
 
@@ -81,7 +75,9 @@ export const transferWidget = withFormItem(
         dataSource={dataSource}
         targetKeys={targetKeys}
         onChange={(keys) => onChange(keys as string[])}
-        render={render as unknown as TransferProps<TransferDataSourceItem>['render']}
+        render={
+          render as unknown as TransferProps<TransferDataSourceItem>['render']
+        }
         titles={renderTitles}
         showSearch={showSearch as boolean}
         oneWay={oneWay as boolean}

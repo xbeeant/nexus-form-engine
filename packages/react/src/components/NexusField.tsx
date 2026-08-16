@@ -1,6 +1,5 @@
-import type { RenderTreeNode } from '@nexus/form-engine';
 import type { CSSProperties, FocusEvent } from 'react';
-import { useCallback, useContext, useSyncExternalStore } from 'react';
+import { useCallback, useContext, useMemo, useSyncExternalStore } from 'react';
 import { FieldInheritContext } from '../contexts/FieldInheritContext';
 import { GridContext } from '../contexts/GridContext';
 import { LayoutConfigContext } from '../contexts/LayoutConfigContext';
@@ -15,10 +14,7 @@ interface NexusFieldProps {
 /**
  * NexusField — 单个字段渲染器
  */
-export function NexusField({
-  dataPath,
-  layoutKey,
-}: NexusFieldProps & { node?: RenderTreeNode }) {
+export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
   const { engine, config, form } = useNexusContext();
   // 按路径精准订阅：仅该字段版本变化时重渲染（reaction 影响其他字段不会触发本组件）
   // 第三个参数 getServerSnapshot 与 getSnapshot 一致（引擎状态同步，SSR 必需）
@@ -54,6 +50,38 @@ export function NexusField({
     [engine, dataPath],
   );
 
+  // 从 enum + enumNames 构建选项（x-render 对齐）。
+  // meta/props 引用在状态更新时保持稳定，useMemo 避免每次渲染重建数组（破坏子组件 memo）。
+  // 必须在所有 early return 之前调用（Hooks 顺序规则），state 未定义时安全降级
+  const options = useMemo(
+    () =>
+      state?.meta.enum
+        ? state.meta.enum.map((value: any, index: number) => ({
+            value,
+            label: state.meta.enumNames?.[index] ?? String(value),
+          }))
+        : (state?.props.options as
+            | Array<{ label: string; value: unknown } | string | number>
+            | undefined),
+    [state?.meta.enum, state?.meta.enumNames, state?.props.options],
+  );
+
+  // 从 reactions 依赖构建 dependValues，供 widget 获取关联字段值。
+  // reactions 引用稳定，值在 memo 执行时读取；避免每次渲染新建对象
+  const dependValues = useMemo(() => {
+    const values: Record<string, unknown> = {};
+    if (state?.reactions) {
+      for (const reaction of state.reactions) {
+        if (reaction.dependencies) {
+          for (const dep of reaction.dependencies) {
+            values[dep] = engine.getFieldValue(dep);
+          }
+        }
+      }
+    }
+    return values;
+  }, [state?.reactions, engine]);
+
   if (!state) {
     // 仅当引擎已初始化（version > 0）但字段仍未找到时才发出警告
     // 初始化过程中的短暂空状态不应报警
@@ -74,16 +102,6 @@ export function NexusField({
   }
 
   // 从 enum + enumNames 构建选项（x-render 对齐）
-  const options = state.meta.enum
-    ? state.meta.enum.map((value: any, index: number) => ({
-        value,
-        label: state.meta.enumNames?.[index] ?? String(value),
-      }))
-    : (state.props.options as
-        | Array<{ label: string; value: unknown } | string | number>
-        | undefined);
-
-  // 表单级 readOnly 与对象容器继承 readOnly 与字段级 readOnly 合并（父级激活时优先）
   const readOnly =
     config.readOnly || inherit.readOnly === true || state.readOnly;
   // 对象容器继承 disabled（父级激活时优先），与字段级 disabled 合并
@@ -127,18 +145,6 @@ export function NexusField({
     ...(state.meta.width ? { width: state.meta.width, flexShrink: 0 } : {}),
     ...(effectiveColSpan ? { gridColumn: `span ${effectiveColSpan}` } : {}),
   };
-
-  // 从 reactions 依赖构建 dependValues，供 widget 获取关联字段值
-  const dependValues: Record<string, unknown> = {};
-  if (state.reactions) {
-    for (const reaction of state.reactions) {
-      if (reaction.dependencies) {
-        for (const dep of reaction.dependencies) {
-          dependValues[dep] = engine.getFieldValue(dep);
-        }
-      }
-    }
-  }
 
   return (
     <div

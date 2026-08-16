@@ -50,7 +50,10 @@ function VariableSelect({
   placeholder,
 }: VariableSelectProps) {
   const groups = useMemo(() => {
-    const base = fieldOptions && fieldOptions.length > 0 ? fieldOptions : fields.map((f) => ({ value: f, label: f }));
+    const base =
+      fieldOptions && fieldOptions.length > 0
+        ? fieldOptions
+        : fields.map((f) => ({ value: f, label: f }));
     const fieldOptions2 = base.map((o) => ({
       value: `formData.${o.value}`,
       label: o.label,

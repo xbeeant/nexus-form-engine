@@ -14,6 +14,7 @@ export function useFieldState(path: string): FieldState | undefined {
   useSyncExternalStore(
     (onStoreChange) => engine.subscribeField(path, onStoreChange),
     () => engine.getFieldVersion(path),
+    () => engine.getFieldVersion(path),
   );
 
   return engine.getFieldState(path);

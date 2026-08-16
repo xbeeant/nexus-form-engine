@@ -37,7 +37,14 @@ export const multiSelectDoc: WidgetDoc = {
             widget: 'multiSelect',
             title: '限定选 3 项',
             enum: ['n1', 'n2', 'n3', 'n4', 'n5', 'n6'],
-            enumNames: ['选项 1', '选项 2', '选项 3', '选项 4', '选项 5', '选项 6'],
+            enumNames: [
+              '选项 1',
+              '选项 2',
+              '选项 3',
+              '选项 4',
+              '选项 5',
+              '选项 6',
+            ],
             props: { mode: 'multiple', maxCount: 3 },
           },
         },
@@ -74,8 +81,7 @@ export const multiSelectDoc: WidgetDoc = {
     },
     {
       title: '可搜索多选',
-      description:
-        'showSearch 开启后可从长列表中快速过滤选择。',
+      description: 'showSearch 开启后可从长列表中快速过滤选择。',
       schema: {
         type: 'object',
         displayType: 'row',
@@ -84,13 +90,12 @@ export const multiSelectDoc: WidgetDoc = {
             type: 'array',
             widget: 'multiSelect',
             title: '常用框架',
-            showSearch: true,
+            props: { showSearch: true, mode: 'multiple', listHeight: 160 },
             enum: Array.from({ length: 16 }, (_, i) => `fw-${i + 1}`),
             enumNames: Array.from(
               { length: 16 },
               (_, i) => `框架/库选项 ${i + 1}`,
             ),
-            props: { mode: 'multiple', listHeight: 160 },
           },
         },
       },

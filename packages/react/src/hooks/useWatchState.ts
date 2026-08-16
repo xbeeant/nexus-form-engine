@@ -24,6 +24,10 @@ export function useWatchState(
 ): FieldState {
   const stateRef = useRef<FieldState | undefined>(undefined);
 
+  // callback 通过 ref 持有最新引用：外部 inline 回调不会导致每次渲染重新订阅
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+
   useEffect(() => {
     if (!engine) {
       return;
@@ -33,18 +37,18 @@ export function useWatchState(
     stateRef.current = state;
 
     if (state) {
-      callback(state);
+      callbackRef.current(state);
     }
 
     const unsubscribe = engine.subscribe(path, (newState) => {
       stateRef.current = newState;
-      callback(newState);
+      callbackRef.current(newState);
     });
 
     return () => {
       unsubscribe();
     };
-  }, [engine, path, callback]);
+  }, [engine, path]);
 
   return stateRef.current || ({} as FieldState);
 }

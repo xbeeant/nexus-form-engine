@@ -4,10 +4,7 @@
 
 import { useMemo } from 'react';
 import { useDesigner } from '../DesignerContext';
-import {
-  collectDataFieldOptions,
-  collectDataFieldPaths,
-} from '../schemaUtils';
+import { collectDataFieldOptions, collectDataFieldPaths } from '../schemaUtils';
 
 export function useFormDataFields(): string[] {
   const { schema } = useDesigner();

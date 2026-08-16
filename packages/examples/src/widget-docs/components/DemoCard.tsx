@@ -30,10 +30,12 @@ export function DemoCard({ demo }: DemoCardProps) {
   }, [form]);
 
   const handleSubmit = async () => {
-    const ok = await form.submit();
-    if (ok) {
-      setSubmitted(form.getAllValues());
+    const errors = await form.validateFields();
+    if (errors.size > 0) {
+      return;
     }
+    await form.submit();
+    setSubmitted(form.getAllValues());
   };
 
   const handleReset = () => {

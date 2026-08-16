@@ -17,13 +17,14 @@ export {
 } from './_shared';
 // ── 导出所有 Widget 组件 ───────────────────────────────────────────────────────
 // 核心输入组件
-export { autoCompleteWidget } from './autoComplete'; // 自动完成
-export { autoCompleteWidgetWithRemote } from './autoComplete'; // 自动完成（远程数据）
+export {
+  autoCompleteWidget,
+  autoCompleteWidgetWithRemote,
+} from './autoComplete'; // 自动完成
+export { cascaderWidget, cascaderWidgetWithRemote } from './cascader'; // 级联选择
 export { checkboxWidget } from './checkbox'; // 单个复选框
 export { checkboxesWidget } from './checkboxes'; // 复选框组
 export { colorWidget } from './color'; // 颜色选择器
-export { cascaderWidget } from './cascader'; // 级联选择
-export { cascaderWidgetWithRemote } from './cascader'; // 级联选择（远程数据）
 export { datePickerWidget } from './datePicker'; // 日期选择器
 export { dateRangeWidget } from './dateRange'; // 日期范围选择器
 // 图片和 HTML 组件
@@ -35,16 +36,13 @@ export { inputNumberWidget } from './inputNumber'; // 数字输入框
 // 列表组件（x-render 兼容）
 export { listWidget } from './list'; // 列表渲染器
 // 复杂选择组件
-export { mentionsWidget } from './mentions'; // 提及
-export { mentionsWidgetWithRemote } from './mentions'; // 提及（远程数据）
-export { multiSelectWidget } from './multiSelect'; // 多选下拉框
-export { multiSelectWidgetWithRemote } from './multiSelect'; // 多选下拉框（远程数据）
+export { mentionsWidget, mentionsWidgetWithRemote } from './mentions'; // 提及
+export { multiSelectWidget, multiSelectWidgetWithRemote } from './multiSelect'; // 多选下拉框
 export { passwordWidget } from './password'; // 密码输入框
 export { radioWidget } from './radio'; // 单选框
 export { rateWidget } from './rate'; // 评分
 export { segmentedWidget } from './segmented'; // 分段控制器
-export { selectWidget } from './select'; // 下拉选择器
-export { selectWidgetWithRemote } from './select'; // 下拉选择器（远程数据）
+export { selectWidget, selectWidgetWithRemote } from './select'; // 下拉选择器
 export { simpleListWidget } from './simpleList'; // 简单列表渲染器
 export { sliderWidget } from './slider'; // 滑块选择器
 export { switchWidget } from './switch'; // 开关
@@ -58,7 +56,10 @@ export { urlInputWidget } from './urlInput'; // URL 输入框
 export { voidTitleWidget } from './voidTitle'; // 无标题空白组件
 
 import type { WidgetProps } from './_shared';
-import { autoCompleteWidget, autoCompleteWidgetWithRemote } from './autoComplete';
+import {
+  autoCompleteWidget,
+  autoCompleteWidgetWithRemote,
+} from './autoComplete';
 import { cascaderWidget, cascaderWidgetWithRemote } from './cascader';
 import { checkboxWidget } from './checkbox';
 import { checkboxesWidget } from './checkboxes';

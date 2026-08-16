@@ -13,6 +13,7 @@ export function useFieldValue<T = unknown>(path: string): T | undefined {
   useSyncExternalStore(
     (onStoreChange) => engine.subscribeField(path, onStoreChange),
     () => engine.getFieldVersion(path),
+    () => engine.getFieldVersion(path),
   );
 
   return engine.getFieldValue(path) as T | undefined;

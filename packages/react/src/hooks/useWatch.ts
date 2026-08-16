@@ -33,6 +33,10 @@ export function useWatch(
   const { deep = false } = options || {};
   const lastValueRef = useRef<unknown>(undefined);
 
+  // callback 通过 ref 持有最新引用：外部 inline 回调不会导致每次渲染重新订阅
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+
   useEffect(() => {
     if (!engine) {
       return;
@@ -52,7 +56,7 @@ export function useWatch(
 
     if (shouldCall) {
       lastValueRef.current = value;
-      callback(value);
+      callbackRef.current(value);
     }
 
     // 订阅字段变化
@@ -66,14 +70,14 @@ export function useWatch(
 
       if (shouldUpdate) {
         lastValueRef.current = newValue;
-        callback(newValue);
+        callbackRef.current(newValue);
       }
     });
 
     return () => {
       unsubscribe();
     };
-  }, [engine, path, deep, callback]);
+  }, [engine, path, deep]);
 
   return lastValueRef.current;
 }

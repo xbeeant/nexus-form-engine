@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
-import { createRoot } from 'react-dom/client';
 import { RootProvider } from 'fumadocs-ui/provider/base';
+import { createRoot } from 'react-dom/client';
 import 'dayjs/locale/zh-cn';
 import './index.css';
 

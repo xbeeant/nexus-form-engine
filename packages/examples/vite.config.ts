@@ -1,7 +1,7 @@
 import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
-import { fumadocsMdx } from 'fumadocs-mdx/vite';
 import react from '@vitejs/plugin-react';
+import { fumadocsMdx } from 'fumadocs-mdx/vite';
 import { defineConfig } from 'vite';
 
 // GitHub Pages 部署在仓库子路径：https://<user>.github.io/nexus-form-engine/

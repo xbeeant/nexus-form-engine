@@ -41,7 +41,12 @@ export const segmentedWidget = withFormItem(
       <Segmented
         value={value as string | number}
         onChange={(v) => onChange(v)}
-        options={mapOptions(options) as Array<{ label: string; value: string | number }>}
+        options={
+          mapOptions(options) as Array<{
+            label: string;
+            value: string | number;
+          }>
+        }
         disabled={disabled || loading}
         block={block as boolean}
         size={size as 'large' | 'middle' | 'small' | undefined}

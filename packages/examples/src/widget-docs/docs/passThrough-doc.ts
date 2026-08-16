@@ -50,6 +50,5 @@ export const passThroughDoc: WidgetDoc = {
       },
     },
   ],
-  fallbackProps: [
-  ],
+  fallbackProps: [],
 };

@@ -27,6 +27,7 @@ export function NexusObject({ node }: NexusObjectProps) {
   useSyncExternalStore(
     (onStoreChange) => engine.subscribeField(node.dataPath, onStoreChange),
     () => engine.getFieldVersion(node.dataPath),
+    () => engine.getFieldVersion(node.dataPath),
   );
   const state = engine.getFieldState(node.dataPath);
   const [collapsed, setCollapsed] = useState(false);

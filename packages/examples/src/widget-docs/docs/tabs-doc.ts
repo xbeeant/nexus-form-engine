@@ -63,8 +63,7 @@ export const tabsDoc: WidgetDoc = {
     },
     {
       title: '多面板分组',
-      description:
-        '三个及以上面板分组展示复杂表单，每面板聚焦一类信息。',
+      description: '三个及以上面板分组展示复杂表单，每面板聚焦一类信息。',
       schema: {
         type: 'object',
         displayType: 'row',
@@ -122,6 +121,11 @@ export const tabsDoc: WidgetDoc = {
     },
   ],
   fallbackProps: [
-    { name: 'title', description: '面板标题（写在 tabPane 子节点上）', type: 'string', defaultValue: '-' },
+    {
+      name: 'title',
+      description: '面板标题（写在 tabPane 子节点上）',
+      type: 'string',
+      defaultValue: '-',
+    },
   ],
 };

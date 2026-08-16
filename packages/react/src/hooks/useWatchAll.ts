@@ -27,6 +27,10 @@ export function useWatchAll(
   const lastFormDataRef = useRef<Record<string, unknown>>({});
   const formDataRef = useRef<Record<string, unknown>>({});
 
+  // callback 通过 ref 持有最新引用：外部 inline 回调不会导致每次渲染重新订阅
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+
   useEffect(() => {
     if (!engine) {
       return;
@@ -35,7 +39,7 @@ export function useWatchAll(
     const formData = engine.getFormData();
     lastFormDataRef.current = formData;
     formDataRef.current = formData;
-    callback(formData);
+    callbackRef.current(formData);
 
     const unsubscribe = engine.subscribeAll((newFormData) => {
       if (deep) {
@@ -45,7 +49,7 @@ export function useWatchAll(
         if (changed) {
           lastFormDataRef.current = newFormData;
           formDataRef.current = newFormData;
-          callback(newFormData);
+          callbackRef.current(newFormData);
         }
       } else {
         // 简单浅比较
@@ -59,7 +63,7 @@ export function useWatchAll(
         if (changed) {
           lastFormDataRef.current = newFormData;
           formDataRef.current = newFormData;
-          callback(newFormData);
+          callbackRef.current(newFormData);
         }
       }
     });
@@ -67,7 +71,7 @@ export function useWatchAll(
     return () => {
       unsubscribe();
     };
-  }, [engine, deep, callback]);
+  }, [engine, deep]);
 
   return formDataRef.current;
 }

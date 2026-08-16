@@ -76,6 +76,11 @@ export const stepsDoc: WidgetDoc = {
     },
   ],
   fallbackProps: [
-    { name: 'title', description: '步骤名（写在 step 子节点上）', type: 'string', defaultValue: '-' },
+    {
+      name: 'title',
+      description: '步骤名（写在 step 子节点上）',
+      type: 'string',
+      defaultValue: '-',
+    },
   ],
 };
