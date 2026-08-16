@@ -1,7 +1,7 @@
 {
   "name": "@xbeeant/form-engine-react",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "main": "./dist/es/index.js",
   "module": "./dist/es/index.js",
@@ -36,8 +36,15 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "src", "README.md", "!**/*.map"],
-  "sideEffects": ["**/*.css"],
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "!**/*.map"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "scripts": {
     "build": "npm run build:es && npm run build:cjs && npm run build:umd",
     "build:es": "tsc -b && vite build -f es",
@@ -51,11 +58,14 @@
     "react-dom": ">=18.0.0"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": false },
-    "react-dom": { "optional": false }
+    "react": {
+      "optional": false
+    },
+    "react-dom": {
+      "optional": false
+    }
   },
   "dependencies": {
-    "@xbeeant/form-engine": "^0.0.0"
-  },
-  "devDependencies": {}
+    "@xbeeant/form-engine": "^0.0.1"
+  }
 }

@@ -1,7 +1,7 @@
 {
   "name": "@xbeeant/form-engine",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "main": "./dist/es/index.js",
   "module": "./dist/es/index.js",
@@ -26,8 +26,15 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "src", "README.md", "!**/*.map"],
-  "sideEffects": ["**/*.css"],
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "!**/*.map"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "scripts": {
     "build": "npm run build:es && npm run build:cjs && npm run build:umd",
     "build:es": "tsc -b && vite build -f es",
@@ -37,7 +44,6 @@
     "lint:fix": "biome check --write .",
     "test": "vitest run"
   },
-  "dependencies": {},
   "devDependencies": {
     "vitest": "^4.1.10"
   }
