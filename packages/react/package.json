@@ -1,6 +1,6 @@
 {
   "name": "@xbeeant/form-engine-react",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -70,6 +70,6 @@
     }
   },
   "dependencies": {
-    "@xbeeant/form-engine": "^0.0.1"
+    "@xbeeant/form-engine": "^0.0.2"
   }
 }
