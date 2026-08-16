@@ -3,7 +3,7 @@
 // 支持静态布尔值（Switch）与表达式（可视化构建器 / 高级手写）之间的切换
 // ============================================================================
 
-import type { WidgetProps } from '@nexus/form-engine-ui';
+import type { WidgetProps } from '@xbeeant/form-engine-ui';
 import { Form, Switch } from 'antd';
 import { ExpressionBuilder } from './ExpressionBuilder';
 import { useFormDataFields } from './useFormDataFields';

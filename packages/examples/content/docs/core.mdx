@@ -104,12 +104,12 @@ Core 主类不硬编码任何业务逻辑，统一通过 `engine.use(plugin)` �
 import {
   AsyncValidatorPlugin,    // 异步校验：防抖 / 超时 / 并行调度
   ArrayOperationsPlugin,   // 数组字段：push / pop / remove / update / insert / move
-} from '@nexus/form-engine';
+} from '@xbeeant/form-engine';
 
 engine.use(new AsyncValidatorPlugin(engine));
 engine.use(new ArrayOperationsPlugin(engine));
 
 // UI 包已封装一键注册：
-import { registerAntdUI } from '@nexus/form-engine-ui';
+import { registerAntdUI } from '@xbeeant/form-engine-ui';
 registerAntdUI(engine); // widgets + layouts + AsyncValidatorPlugin
 ```

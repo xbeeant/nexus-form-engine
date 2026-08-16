@@ -34,10 +34,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@nexus/form-engine': path.resolve(__dirname, '../core/src'),
-      '@nexus/form-engine-ui': path.resolve(__dirname, '../ui/src'),
-      '@nexus/form-engine-designer': path.resolve(__dirname, '../designer/src'),
-      '@nexus/form-engine-react': path.resolve(__dirname, '../react/src'),
+      '@xbeeant/form-engine': path.resolve(__dirname, '../core/src'),
+      '@xbeeant/form-engine-ui': path.resolve(__dirname, '../ui/src'),
+      '@xbeeant/form-engine-designer': path.resolve(__dirname, '../designer/src'),
+      '@xbeeant/form-engine-react': path.resolve(__dirname, '../react/src'),
     },
   },
   server: {

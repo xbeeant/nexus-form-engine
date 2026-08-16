@@ -3,8 +3,8 @@
 // 对齐 x-render 子表单校验思路：校验逻辑写在 UI 组件内部，而非全部下沉到 Schema
 // ============================================================================
 
-import { useFieldValidator } from '@nexus/form-engine-react';
-import { type WidgetProps, withFormItem } from '@nexus/form-engine-ui';
+import { useFieldValidator } from '@xbeeant/form-engine-react';
+import { type WidgetProps, withFormItem } from '@xbeeant/form-engine-ui';
 import { Input } from 'antd';
 import { useState } from 'react';
 

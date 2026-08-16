@@ -22,7 +22,7 @@
 // ```
 // ────────────────────────────────────────────────────────────────────────────
 
-import type { NexusEngine, NexusFormInstance } from '@nexus/form-engine';
+import type { NexusEngine, NexusFormInstance } from '@xbeeant/form-engine';
 import { useEffect, useRef } from 'react';
 import { useNexusContext } from '../contexts/NexusContext';
 

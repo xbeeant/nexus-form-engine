@@ -1,5 +1,5 @@
 {
-  "name": "@nexus/form-engine-react",
+  "name": "@xbeeant/form-engine-react",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -55,7 +55,7 @@
     "react-dom": { "optional": false }
   },
   "dependencies": {
-    "@nexus/form-engine": "^0.0.0"
+    "@xbeeant/form-engine": "^0.0.0"
   },
   "devDependencies": {}
 }

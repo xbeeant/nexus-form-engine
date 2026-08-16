@@ -2,7 +2,7 @@
 // Context
 // ────────────────────────────────────────────────────────────────────────────
 
-import type { NexusEngine } from '@nexus/form-engine';
+import type { NexusEngine } from '@xbeeant/form-engine';
 import { createContext, useContext } from 'react';
 import type { FormController } from '../components/FormController';
 import type { NexusFormConfig } from '../components/NexusForm';

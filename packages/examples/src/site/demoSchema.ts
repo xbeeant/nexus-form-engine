@@ -2,11 +2,11 @@
 // 站点共享的演示数据：Schema、外部字段、自定义 catalog
 // 供「使用示例」与「设计器」两个页面复用
 // 属性描述符（propertySchemaMap）与 UI 注册由 Designer 内置默认提供
-// （@nexus/form-engine-ui 的 widgetSchemas / registerAntdUI），无需此处组装
+// （@xbeeant/form-engine-ui 的 widgetSchemas / registerAntdUI），无需此处组装
 // ============================================================================
 
-import type { NexusSchema } from '@nexus/form-engine';
-import type { CatalogItem, FieldDef } from '@nexus/form-engine-designer';
+import type { NexusSchema } from '@xbeeant/form-engine';
+import type { CatalogItem, FieldDef } from '@xbeeant/form-engine-designer';
 
 // ============================================================================
 // 外部字段列表示例：传入 Designer 后左侧 palette 多一个「字段列表」分组

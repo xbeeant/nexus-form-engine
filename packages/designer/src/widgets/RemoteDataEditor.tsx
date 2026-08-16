@@ -6,10 +6,10 @@
 //   - 请求参数（key-value 行编辑）
 //   - 请求头（key-value 行编辑，可选）
 //   - 缓存键 / 超时（可选）
-// 值格式：RemoteDataConfig（见 @nexus/form-engine-ui 的 _shared.tsx）
+// 值格式：RemoteDataConfig（见 @xbeeant/form-engine-ui 的 _shared.tsx）
 // ============================================================================
 
-import type { WidgetProps } from '@nexus/form-engine-ui';
+import type { WidgetProps } from '@xbeeant/form-engine-ui';
 import {
   Button,
   Collapse,

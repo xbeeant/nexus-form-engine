@@ -1,6 +1,6 @@
 # 工程功能完善计划
 
-> 基于 AGENTS.MD 的约束规范，系统性地完善 @nexus/form-engine 表单引擎
+> 基于 AGENTS.MD 的约束规范，系统性地完善 @xbeeant/form-engine 表单引擎
 
 ---
 

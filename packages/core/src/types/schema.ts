@@ -1,5 +1,5 @@
 // ============================================================================
-// @nexus/form-engine — 完整类型定义
+// @xbeeant/form-engine — 完整类型定义
 // 包含所有表单引擎相关的类型、接口和联合类型
 // ============================================================================
 
@@ -389,7 +389,7 @@ export interface DataFieldSchema extends BaseSchemaNode {
   whitespace?: boolean;
   /**
    * 远程数据源配置（远程数据组件扩展属性，如 selectWithRemote）
-   * 由组件库（@nexus/form-engine-ui）消费，Core 仅透传到 props 供控件读取
+   * 由组件库（@xbeeant/form-engine-ui）消费，Core 仅透传到 props 供控件读取
    */
   remoteData?: Record<string, unknown>;
 }
@@ -533,10 +533,10 @@ export type SchemaNode = DataNode | LayoutNode;
  * Widget Props 注册表接口
  *
  * 该接口默认为空，UI 包通过 `declare module` 进行扩充。
- * 例如 @nexus/form-engine-ui 会声明：
+ * 例如 @xbeeant/form-engine-ui 会声明：
  *
  * ```ts
- * declare module '@nexus/form-engine' {
+ * declare module '@xbeeant/form-engine' {
  *   interface WidgetPropsMap {
  *     input: InputWidgetProps;
  *     select: SelectWidgetProps;

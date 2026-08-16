@@ -26,7 +26,7 @@ export const htmlDoc: WidgetDoc = {
             title: '服务条款',
             bind: false,
             default:
-              '<h4 style="margin:0 0 8px">📌 服务说明</h4><p>本表单由 <b>@nexus/form-engine</b> 驱动，<span style="color:#1677ff">Schema 即表单</span>。</p><ul><li>字段校验实时反馈</li><li>联动规则声明式配置</li><li>布局与数据路径解耦</li></ul>',
+              '<h4 style="margin:0 0 8px">📌 服务说明</h4><p>本表单由 <b>@xbeeant/form-engine</b> 驱动，<span style="color:#1677ff">Schema 即表单</span>。</p><ul><li>字段校验实时反馈</li><li>联动规则声明式配置</li><li>布局与数据路径解耦</li></ul>',
           },
         },
       },

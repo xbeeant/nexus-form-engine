@@ -1,9 +1,9 @@
 {
-  "name": "@nexus/form-engine-examples",
+  "name": "@xbeeant/form-engine-examples",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "@nexus/form-engine 项目介绍站点（GitHub Pages）",
+  "description": "@xbeeant/form-engine 项目介绍站点（GitHub Pages）",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -11,9 +11,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@nexus/form-engine": "^0.0.0",
-    "@nexus/form-engine-designer": "^0.0.0",
-    "@nexus/form-engine-ui": "^0.0.0",
+    "@xbeeant/form-engine": "^0.0.0",
+    "@xbeeant/form-engine-designer": "^0.0.0",
+    "@xbeeant/form-engine-ui": "^0.0.0",
     "@types/mdx": "^2.0.14",
     "antd": "^6.5.3",
     "dayjs": "^1.11.11",

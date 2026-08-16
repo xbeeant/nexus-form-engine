@@ -1,4 +1,4 @@
-import type { NexusEngine } from '@nexus/form-engine';
+import type { NexusEngine } from '@xbeeant/form-engine';
 import { useRef } from 'react';
 
 import { FormController } from '../components/FormController';

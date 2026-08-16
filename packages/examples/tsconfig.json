@@ -6,7 +6,7 @@
   ],
   "compilerOptions": {
     "paths": {
-      "@nexus/form-engine": ["../core/src"]
+      "@xbeeant/form-engine": ["../core/src"]
     }
   }
 }

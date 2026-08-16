@@ -4,8 +4,8 @@
 //             + 校验 + 只读模式 + watch + removeHiddenData + registerValidator
 // ============================================================================
 
-import { NexusForm, useForm } from '@nexus/form-engine-react';
-import { registerAntdUI } from '@nexus/form-engine-ui';
+import { NexusForm, useForm } from '@xbeeant/form-engine-react';
+import { registerAntdUI } from '@xbeeant/form-engine-ui';
 import {
   Alert,
   Button,

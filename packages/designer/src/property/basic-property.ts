@@ -1,4 +1,4 @@
-import type { SchemaNode } from '@nexus/form-engine';
+import type { SchemaNode } from '@xbeeant/form-engine';
 
 // ============================================================================
 // 属性面板各分组的字段定义（扁平结构，由 PropertyPanel 包裹进 collapse 分组）

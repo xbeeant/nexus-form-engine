@@ -1,5 +1,5 @@
 {
-  "name": "@nexus/form-engine-monorepo",
+  "name": "@xbeeant/form-engine-monorepo",
   "version": "1.0.0",
   "description": "a schema form engine",
   "private": true,

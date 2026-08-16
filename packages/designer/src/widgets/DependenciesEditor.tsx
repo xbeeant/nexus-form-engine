@@ -3,7 +3,7 @@
 // 通过标签选择器从表单字段中选择依赖路径，也支持手动输入自定义路径
 // ============================================================================
 
-import type { WidgetProps } from '@nexus/form-engine-ui';
+import type { WidgetProps } from '@xbeeant/form-engine-ui';
 import { Form, Select } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { useFormDataFieldOptions } from './useFormDataFields';

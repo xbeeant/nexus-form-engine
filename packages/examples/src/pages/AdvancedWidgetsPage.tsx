@@ -4,8 +4,8 @@
 // Transfer / File（Upload）+ Space 间距布局，以及设计器属性定义（widgetSchemas）
 // ============================================================================
 
-import { NexusForm, useForm } from '@nexus/form-engine-react';
-import { registerAntdUI } from '@nexus/form-engine-ui';
+import { NexusForm, useForm } from '@xbeeant/form-engine-react';
+import { registerAntdUI } from '@xbeeant/form-engine-ui';
 import { Alert, Button, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { CodeBlock } from '../site/CodeBlock';

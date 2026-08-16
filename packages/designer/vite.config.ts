@@ -16,9 +16,9 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
     // 工作区包解析：node_modules 无 @nexus 符号链接，直接映射到源码
     alias: {
-      '@nexus/form-engine': resolve(__dirname, '../core/src'),
-      '@nexus/form-engine-react': resolve(__dirname, '../react/src'),
-      '@nexus/form-engine-ui': resolve(__dirname, '../ui/src'),
+      '@xbeeant/form-engine': resolve(__dirname, '../core/src'),
+      '@xbeeant/form-engine-react': resolve(__dirname, '../react/src'),
+      '@xbeeant/form-engine-ui': resolve(__dirname, '../ui/src'),
     },
   },
   build: {

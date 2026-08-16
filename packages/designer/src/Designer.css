@@ -1,5 +1,5 @@
 /* ============================================================================
- * @nexus/form-engine-designer — Tailwind 无法表达的样式
+ * @xbeeant/form-engine-designer — Tailwind 无法表达的样式
  *
  * 注意：本包使用 Tailwind 工具类，但不在此导入 Tailwind CSS。
  * 消费方需在自己的 CSS 中引入 Tailwind 并通过 @source 扫描本包源码，例如：

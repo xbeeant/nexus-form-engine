@@ -79,11 +79,11 @@ cd packages/ui && bunx vite build -c bench/vite.bench.config.ts && bun bench/dis
    - `react/NexusField.tsx:24` 只传 2 参，React 19 SSR 直接抛错「Missing getServerSnapshot」，会退回客户端渲染，影响 Next.js 等 SSR 场景。
    - 修复：补第三参 `() => engine.getFieldVersion(dataPath)`。`NexusForm.tsx` 原本已带，无需改。
 
-4. **UI 包未声明 `@nexus/form-engine-react` 依赖**
+4. **UI 包未声明 `@xbeeant/form-engine-react` 依赖**
    - `ui/src/widgets/_shared.tsx` import 了 react 包，但 `packages/ui/package.json` 未声明，已补 `devDependencies`。
 
 5. **构建把 workspace 依赖内联进 dist（打包架构问题）**
-   - vite 配置把 `@nexus/form-engine*` alias 到 src，`external` 对已 alias 的 id 失效，导致每个包的 dist 内联一份 core/react 源码。跨包共享 React Context 时会出现「双实例」→ `[NexusField] Must be used within <NexusFormProvider>`。
+   - vite 配置把 `@xbeeant/form-engine*` alias 到 src，`external` 对已 alias 的 id 失效，导致每个包的 dist 内联一份 core/react 源码。跨包共享 React Context 时会出现「双实例」→ `[NexusField] Must be used within <NexusFormProvider>`。
    - 本次基准通过「三包全部 alias 到 src」规避；建议单独处理（外部化 workspace 依赖），否则直接消费构建产物时存在 context 分裂风险。
 
 6. **withFormItem 把 `dataPath`/`dependValues` 透传到 DOM（小问题）**

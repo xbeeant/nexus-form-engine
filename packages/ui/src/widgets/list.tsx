@@ -4,7 +4,7 @@
 // items 为 DataObjectSchema，每项是一个对象，按 properties 渲染字段
 // ============================================================================
 
-import type { DataFieldSchema, DataObjectSchema } from '@nexus/form-engine';
+import type { DataFieldSchema, DataObjectSchema } from '@xbeeant/form-engine';
 import { Button, Card, Form, Space, Typography } from 'antd';
 import {
   arrayAdd,

@@ -3,7 +3,7 @@
 // 可视化拖拽设计 + JSON 编辑，实时预览 Schema
 // ============================================================================
 
-import { Designer } from '@nexus/form-engine-designer';
+import { Designer } from '@xbeeant/form-engine-designer';
 import { Typography } from 'antd';
 import {
   customWidgetCatalog,

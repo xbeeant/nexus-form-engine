@@ -374,7 +374,7 @@ export const myWidget = withFormItem(({ disabled, loading, ...props }: WidgetPro
 ### 场景 3：使用表单实例
 
 ```typescript
-import { type NexusFormInstance } from '@nexus/form-engine';
+import { type NexusFormInstance } from '@xbeeant/form-engine';
 
 export const myWidget = withFormItem(({ form, value, onChange, ...props }: WidgetProps) => {
   // 获取表单其他字段的值

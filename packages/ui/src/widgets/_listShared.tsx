@@ -3,8 +3,8 @@
 // 提供数组操作、空值生成、单项字段渲染（按引擎 widget 注册表解析，与 NexusField 一致）
 // ============================================================================
 
-import type { DataFieldSchema, DataObjectSchema } from '@nexus/form-engine';
-import { useNexusContext } from '@nexus/form-engine-react/contexts/NexusContext';
+import type { DataFieldSchema, DataObjectSchema } from '@xbeeant/form-engine';
+import { useNexusContext } from '@xbeeant/form-engine-react/contexts/NexusContext';
 import { useSyncExternalStore } from 'react';
 
 // ────────────────────────────────────────────────────────────────────────────

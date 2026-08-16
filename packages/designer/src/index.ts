@@ -1,5 +1,5 @@
 // ============================================================================
-// @nexus/form-engine-designer — 公共 API
+// @xbeeant/form-engine-designer — 公共 API
 // ============================================================================
 
 export { layoutCatalog, widgetCatalog } from './catalog';

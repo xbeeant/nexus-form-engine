@@ -3,7 +3,7 @@
 // Widget 组件库 + 布局组件库 + 插件系统 + 自定义 Widget 指南
 // ============================================================================
 
-import { layoutCatalog, widgetCatalog } from '@nexus/form-engine-designer';
+import { layoutCatalog, widgetCatalog } from '@xbeeant/form-engine-designer';
 import { Card, Col, Collapse, Row, Space, Tag, Typography } from 'antd';
 import { CodeBlock } from '../site/CodeBlock';
 
@@ -67,7 +67,7 @@ export default function ExtensionsPage() {
       <Paragraph type='secondary'>
         引擎不内置任何 UI 组件，全部通过 <code>registerWidgets</code> /{' '}
         <code>registerLayouts</code> 注入。下方是{' '}
-        <code>@nexus/form-engine-ui</code> 基于 Ant Design
+        <code>@xbeeant/form-engine-ui</code> 基于 Ant Design
         提供的开箱即用组件库。
       </Paragraph>
 

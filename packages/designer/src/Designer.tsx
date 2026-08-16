@@ -1,10 +1,10 @@
 // ============================================================================
-// @nexus/form-engine-designer — 主组件
+// @xbeeant/form-engine-designer — 主组件
 // ============================================================================
 
-import type { NexusEngine, NexusSchema } from '@nexus/form-engine';
-import type { PropertySchemaMap } from '@nexus/form-engine-ui';
-import { registerAntdUI, widgetSchemas } from '@nexus/form-engine-ui';
+import type { NexusEngine, NexusSchema } from '@xbeeant/form-engine';
+import type { PropertySchemaMap } from '@xbeeant/form-engine-ui';
+import { registerAntdUI, widgetSchemas } from '@xbeeant/form-engine-ui';
 import {
   Button,
   Input,
@@ -34,7 +34,7 @@ export interface DesignerProps {
   schema?: NexusSchema;
   /**
    * widget 名 → 属性描述符映射，决定属性面板「组件属性」分区展示哪些配置项。
-   * 默认使用 @nexus/form-engine-ui 的 widgetSchemas（antd 组件全覆盖）；
+   * 默认使用 @xbeeant/form-engine-ui 的 widgetSchemas（antd 组件全覆盖）；
    * 传入自定义映射可整体替换，也可在默认基础上按 widget 名覆盖（如
    * `{ ...widgetSchemas, input: myInputSchema }`）。
    */
@@ -42,7 +42,7 @@ export interface DesignerProps {
   onSchemaChange?: (schema: NexusSchema) => void;
   /**
    * UI 注册函数，向引擎注册 widgets 和 layouts。
-   * 默认使用 @nexus/form-engine-ui 的 registerAntdUI；接入其它 UI 库时传入自定义注册函数。
+   * 默认使用 @xbeeant/form-engine-ui 的 registerAntdUI；接入其它 UI 库时传入自定义注册函数。
    */
   registerUI?: (engine: NexusEngine) => void;
   /** 外部字段列表，传入后左侧 palette 多一个「字段列表」分组 */

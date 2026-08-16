@@ -1,4 +1,4 @@
-# @nexus/form-engine
+# @xbeeant/form-engine
 
 一个 由AI生成的，**Schema 驱动的表单引擎**，通过一份 JSON Schema 同时描述表单的**数据结构**与**布局结构**，提供字段状态管理、数据绑定、联动（reactions）、校验、插件系统等能力。
 
@@ -24,20 +24,20 @@
 
 ```
 packages/
-├── core/         @nexus/form-engine          表单引擎核心（纯 TS，UI 无关）
-├── react/        @nexus/form-engine-react    React 渲染层（NexusForm / Hooks）
-├── ui/           @nexus/form-engine-ui       Ant Design Widget / Layout 组件库
-├── designer/     @nexus/form-engine-designer 可视化 Schema 设计器
-└── examples/     @nexus/form-engine-examples 演示应用
+├── core/         @xbeeant/form-engine          表单引擎核心（纯 TS，UI 无关）
+├── react/        @xbeeant/form-engine-react    React 渲染层（NexusForm / Hooks）
+├── ui/           @xbeeant/form-engine-ui       Ant Design Widget / Layout 组件库
+├── designer/     @xbeeant/form-engine-designer 可视化 Schema 设计器
+└── examples/     @xbeeant/form-engine-examples 演示应用
 ```
 
 | 包 | 职责 | 依赖 |
 | :--- | :--- | :--- |
-| `@nexus/form-engine` | 引擎、Schema 解析、依赖图、表达式沙箱、插件 | 无（纯 TS） |
-| `@nexus/form-engine-react` | `NexusForm` / `NexusField` / `FormController` / `useForm` / `useWatch` 等 | react ≥ 18 |
-| `@nexus/form-engine-ui` | 基于 antd 的 Widget 与 Layout 实现 | antd ≥ 6、dayjs |
-| `@nexus/form-engine-designer` | 可视化 Schema 设计器 | antd ≥ 6、dayjs |
-| `@nexus/form-engine-examples` | 综合示例应用 | 上述全部 |
+| `@xbeeant/form-engine` | 引擎、Schema 解析、依赖图、表达式沙箱、插件 | 无（纯 TS） |
+| `@xbeeant/form-engine-react` | `NexusForm` / `NexusField` / `FormController` / `useForm` / `useWatch` 等 | react ≥ 18 |
+| `@xbeeant/form-engine-ui` | 基于 antd 的 Widget 与 Layout 实现 | antd ≥ 6、dayjs |
+| `@xbeeant/form-engine-designer` | 可视化 Schema 设计器 | antd ≥ 6、dayjs |
+| `@xbeeant/form-engine-examples` | 综合示例应用 | 上述全部 |
 
 ## 快速开始
 
@@ -58,9 +58,9 @@ npm test
 ### 最小示例
 
 ```tsx
-import type { NexusSchema } from '@nexus/form-engine';
-import { NexusForm, useForm } from '@nexus/form-engine-react';
-import { registerAntdUI } from '@nexus/form-engine-ui';
+import type { NexusSchema } from '@xbeeant/form-engine';
+import { NexusForm, useForm } from '@xbeeant/form-engine-react';
+import { registerAntdUI } from '@xbeeant/form-engine-ui';
 import { useEffect } from 'react';
 
 const schema: NexusSchema = {
@@ -163,10 +163,10 @@ AI / 开发者解析 Schema 时，依据以下规则判定节点类型：
 
 ### 组件注册
 
-`@nexus/form-engine` 核心不内置任何 UI 组件，组件由渲染层注入：
+`@xbeeant/form-engine` 核心不内置任何 UI 组件，组件由渲染层注入：
 
 ```tsx
-import { registerAntdUI } from '@nexus/form-engine-ui';
+import { registerAntdUI } from '@xbeeant/form-engine-ui';
 
 const engine = new NexusEngine();
 registerAntdUI(engine); // 注册 antdWidgets + antdLayouts + AsyncValidatorPlugin
@@ -210,7 +210,7 @@ Core 层通过 `engine.use(plugin)` 扩展能力，禁止在主类中硬编码�
 - **ArrayOperationsPlugin**：数组字段的 `push` / `pop` / `remove` / `update` / `insert` / `move` 操作（`packages/core/src/array-list.ts`）。
 
 ```ts
-import { AsyncValidatorPlugin, ArrayOperationsPlugin } from '@nexus/form-engine';
+import { AsyncValidatorPlugin, ArrayOperationsPlugin } from '@xbeeant/form-engine';
 
 engine.use(new AsyncValidatorPlugin(engine));
 engine.use(new ArrayOperationsPlugin(engine));

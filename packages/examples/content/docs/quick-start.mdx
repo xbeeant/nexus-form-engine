@@ -1,14 +1,14 @@
 ---
 title: 快速开始
-description: 一分钟接入 @nexus/form-engine：安装、注册 UI、渲染 NexusForm。
+description: 一分钟接入 @xbeeant/form-engine：安装、注册 UI、渲染 NexusForm。
 ---
 
 ## 一分钟接入
 
 ```tsx
-import type { NexusSchema } from '@nexus/form-engine';
-import { NexusForm, useForm } from '@nexus/form-engine-react';
-import { registerAntdUI } from '@nexus/form-engine-ui';
+import type { NexusSchema } from '@xbeeant/form-engine';
+import { NexusForm, useForm } from '@xbeeant/form-engine-react';
+import { registerAntdUI } from '@xbeeant/form-engine-ui';
 import { useEffect } from 'react';
 
 const schema: NexusSchema = {
@@ -45,10 +45,10 @@ function App() {
 
 | 包 | 目录 | 说明 |
 | --- | --- | --- |
-| `@nexus/form-engine` | packages/core | 引擎核心：Schema 解析、依赖图、表达式沙箱、状态管理、插件系统（纯 TS，零 UI 依赖） |
-| `@nexus/form-engine-react` | packages/react | React 渲染层：NexusForm / NexusField / FormController / useWatch |
-| `@nexus/form-engine-ui` | packages/ui | 基于 antd 的 Widget 与 Layout 组件库 |
-| `@nexus/form-engine-designer` | packages/designer | 可视化 Schema 设计器：Canvas / Palette / PropertyPanel |
+| `@xbeeant/form-engine` | packages/core | 引擎核心：Schema 解析、依赖图、表达式沙箱、状态管理、插件系统（纯 TS，零 UI 依赖） |
+| `@xbeeant/form-engine-react` | packages/react | React 渲染层：NexusForm / NexusField / FormController / useWatch |
+| `@xbeeant/form-engine-ui` | packages/ui | 基于 antd 的 Widget 与 Layout 组件库 |
+| `@xbeeant/form-engine-designer` | packages/designer | 可视化 Schema 设计器：Canvas / Palette / PropertyPanel |
 
 数据流：`NexusSchema → SchemaParser → (fieldStates + renderTree + DependencyGraph) → Engine → Renderer`
 

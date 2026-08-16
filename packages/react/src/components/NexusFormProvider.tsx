@@ -1,4 +1,4 @@
-import type { NexusEngine } from '@nexus/form-engine';
+import type { NexusEngine } from '@xbeeant/form-engine';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { NexusContext } from '../contexts/NexusContext';

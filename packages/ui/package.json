@@ -1,5 +1,5 @@
 {
-  "name": "@nexus/form-engine-ui",
+  "name": "@xbeeant/form-engine-ui",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -39,8 +39,8 @@
     "dayjs": { "optional": false }
   },
   "dependencies": {
-    "@nexus/form-engine": "^0.0.0",
-    "@nexus/form-engine-react": "^0.0.0"
+    "@xbeeant/form-engine": "^0.0.0",
+    "@xbeeant/form-engine-react": "^0.0.0"
   },
   "devDependencies": {}
 }

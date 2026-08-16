@@ -35,8 +35,8 @@ export default defineConfig({
             outDirs: 'dist/es',
             // vite resolve.alias 指向源码目录，d.ts 产物中必须保留包名导入
             aliasesExclude: [
-              '@nexus/form-engine',
-              '@nexus/form-engine-react',
+              '@xbeeant/form-engine',
+              '@xbeeant/form-engine-react',
             ],
           }),
         ]
@@ -46,8 +46,8 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
     // 工作区包解析：node_modules 无 @nexus 符号链接，直接映射到源码
     alias: {
-      '@nexus/form-engine': resolve(__dirname, '../core/src'),
-      '@nexus/form-engine-react': resolve(__dirname, '../react/src'),
+      '@xbeeant/form-engine': resolve(__dirname, '../core/src'),
+      '@xbeeant/form-engine-react': resolve(__dirname, '../react/src'),
     },
   },
   build: {

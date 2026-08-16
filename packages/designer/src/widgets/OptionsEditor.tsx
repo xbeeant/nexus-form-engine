@@ -7,7 +7,7 @@
 // 值格式：Array<{ value: unknown; label: string }>
 // ============================================================================
 
-import type { WidgetProps } from '@nexus/form-engine-ui';
+import type { WidgetProps } from '@xbeeant/form-engine-ui';
 import { Button, Input, Space } from 'antd';
 import { useMemo } from 'react';
 

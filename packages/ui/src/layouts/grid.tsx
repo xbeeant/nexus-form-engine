@@ -1,4 +1,4 @@
-import { GridContext } from '@nexus/form-engine-react';
+import { GridContext } from '@xbeeant/form-engine-react';
 import type { CSSProperties } from 'react';
 
 export const gridLayout = ({

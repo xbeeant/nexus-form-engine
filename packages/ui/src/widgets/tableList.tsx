@@ -4,7 +4,7 @@
 // items 为 DataObjectSchema，每项是一个对象
 // ============================================================================
 
-import type { DataFieldSchema, DataObjectSchema } from '@nexus/form-engine';
+import type { DataFieldSchema, DataObjectSchema } from '@xbeeant/form-engine';
 import { Button, Popconfirm, Space, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {

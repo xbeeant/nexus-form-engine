@@ -7,7 +7,7 @@
 // - 纯数据转换在 ./reactionsModel 中（可单测）
 // ============================================================================
 
-import type { WidgetProps } from '@nexus/form-engine-ui';
+import type { WidgetProps } from '@xbeeant/form-engine-ui';
 import { Button, Form, Input, Select, Switch } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { ExpressionBuilder } from './ExpressionBuilder';

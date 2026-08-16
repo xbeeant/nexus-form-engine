@@ -1,5 +1,5 @@
 // ============================================================================
-// @nexus/form-engine-ui — Widget Props 类型注册表
+// @xbeeant/form-engine-ui — Widget Props 类型注册表
 //
 // 每个 widget 的 `props` 字段在此定义强类型接口，并通过 module augmentation
 // 注入到 core 的 WidgetPropsMap 中，使得编写 Schema 时获得自动补全和类型检查。
@@ -420,7 +420,7 @@ export interface FileWidgetProps {
 // （declare module 自动与 core 的 WidgetPropsMap 合并，无需显式 import 目标类型）
 // ============================================================================
 
-declare module '@nexus/form-engine' {
+declare module '@xbeeant/form-engine' {
   interface WidgetPropsMap {
     /** Input 输入框 */
     input: InputWidgetProps;

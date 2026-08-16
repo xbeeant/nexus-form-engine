@@ -1,8 +1,8 @@
 // ============================================================================
-// @nexus/form-engine-designer — 左侧组件目录面板
+// @xbeeant/form-engine-designer — 左侧组件目录面板
 // ============================================================================
 
-import type { SchemaNode } from '@nexus/form-engine';
+import type { SchemaNode } from '@xbeeant/form-engine';
 import { Collapse, Input } from 'antd';
 import type { DragEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';

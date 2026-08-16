@@ -1,9 +1,13 @@
 // ============================================================================
-// @nexus/form-engine-designer — 设计器状态上下文
+// @xbeeant/form-engine-designer — 设计器状态上下文
 // ============================================================================
 
-import type { NexusEngine, NexusSchema, SchemaNode } from '@nexus/form-engine';
-import type { PropertySchemaMap } from '@nexus/form-engine-ui';
+import type {
+  NexusEngine,
+  NexusSchema,
+  SchemaNode,
+} from '@xbeeant/form-engine';
+import type { PropertySchemaMap } from '@xbeeant/form-engine-ui';
 import type { ReactNode } from 'react';
 import {
   createContext,

@@ -1,9 +1,9 @@
-# AGENTS.md: @nexus/form-engine 工程约束规范
+# AGENTS.md: @xbeeant/form-engine 工程约束规范
 
 ## 1. 核心架构原则 (Core Philosophy)
 
 - **Monorepo 分层**: 本项目为 Lerna + Bun workspaces monorepo，共 5 个包：`packages/core`（纯逻辑）、`packages/react`（React 渲染适配）、`packages/ui`（内置控件/布局库）、`packages/designer`（Schema 可视化设计器）、`packages/examples`（示例应用）。
-- **UI 无关性 (UI Agnostic)**: `packages/core`（`@nexus/form-engine`）**严禁**包含任何 DOM、React、Vue 或 CSS 相关代码。Core 层必须是纯 TypeScript，可在 Node.js/Browser/Worker 中运行。
+- **UI 无关性 (UI Agnostic)**: `packages/core`（`@xbeeant/form-engine`）**严禁**包含任何 DOM、React、Vue 或 CSS 相关代码。Core 层必须是纯 TypeScript，可在 Node.js/Browser/Worker 中运行。
 - **协议融合 (Unified Schema)**: 数据定义与布局定义**必须**在同一份 JSON Schema 中，**严禁**要求用户维护两份 Schema。
 - **布局透明 (Layout Transparency)**: 布局节点（Card/Tabs/Grid 等）的 Key **严禁**进入 `formData` 数据路径。调整布局结构**严禁**导致数据 Key 变化或联动规则失效。
 - **显式依赖 (Explicit Dependencies)**: **严禁**使用 Proxy/MobX 进行隐式依赖收集。**必须**使用 `DependencyGraph` 显式构建依赖边，保证 O(k) 的联动更新复杂度。
@@ -101,7 +101,7 @@ AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/u
 ### 4.1 组件注册
 
 - `packages/core` 与 `packages/react` **严禁内置任何 UI 控件实现**（连 `<input>` 都不允许）；`registerWidgets/registerLayouts` 注册的是 UI 无关的 `NexusComponent`（`(props) => any` 签名）。
-- 内置控件/布局库集中放在 **`packages/ui`**（`@nexus/form-engine-ui`）：widgets（input/select/number/checkbox/radio/switch/slider/date/time/treeSelect/color/list/simpleList/tableList 等）+ layouts（card/tabs/grid/flex/steps/collapse/divider/passThrough），由上层通过 `engine.registerWidgets()` / `registerLayouts()` 注入。
+- 内置控件/布局库集中放在 **`packages/ui`**（`@xbeeant/form-engine-ui`）：widgets（input/select/number/checkbox/radio/switch/slider/date/time/treeSelect/color/list/simpleList/tableList 等）+ layouts（card/tabs/grid/flex/steps/collapse/divider/passThrough），由上层通过 `engine.registerWidgets()` / `registerLayouts()` 注入。
 - Schema 未指定 `widget` 时，Parser 按 `type/format` 推断（`SchemaParser.inferWidgetFromSchema`，自动对齐 x-render）。
 
 ### 4.2 渲染逻辑
@@ -139,7 +139,7 @@ AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/u
 ```
 nexus-form-engine/
 ├── packages/
-│   ├── core/                 # 🚫 严禁 UI 代码（@nexus/form-engine）
+│   ├── core/                 # 🚫 严禁 UI 代码（@xbeeant/form-engine）
 │   │   ├── src/
 │   │   │   ├── Engine.ts             # 引擎主类（状态/联动/校验/订阅/插件分发）
 │   │   │   ├── SchemaParser.ts       # 分离 DataFields + RenderTree + 依赖图
@@ -150,11 +150,11 @@ nexus-form-engine/
 │   │   │   ├── types/schema.ts       # 📜 全部协议类型定义
 │   │   │   └── utils/                # schema-helper / data-converters / schema-serializer
 │   │   └── tests/                    # Vitest 单元测试
-│   ├── react/                # 🎨 React 适配（@nexus/form-engine-react）
+│   ├── react/                # 🎨 React 适配（@xbeeant/form-engine-react）
 │   │   └── src/react/        # NexusField.tsx（含 NexusForm/NexusLayout/useForm 等）+ useWatch.ts
-│   ├── ui/                   # 🧩 内置控件/布局库（@nexus/form-engine-ui）
+│   ├── ui/                   # 🧩 内置控件/布局库（@xbeeant/form-engine-ui）
 │   │   └── src/              # widgets/ + layouts/ + schema/
-│   ├── designer/             # 🛠️ Schema 可视化设计器（@nexus/form-engine-designer）
+│   ├── designer/             # 🛠️ Schema 可视化设计器（@xbeeant/form-engine-designer）
 │   └── examples/             # 示例应用
 ├── lerna.json / biome.json / bun.lock
 ```

@@ -1,4 +1,4 @@
-import type { NexusEngine } from '@nexus/form-engine';
+import type { NexusEngine } from '@xbeeant/form-engine';
 import { useEffect, useRef } from 'react';
 
 /**

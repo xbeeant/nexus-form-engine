@@ -3,8 +3,8 @@
 // 对比 Schema 内定义校验 与 组件内注册校验（对齐 x-render 子表单校验）
 // ============================================================================
 
-import { NexusForm, useForm } from '@nexus/form-engine-react';
-import { registerAntdUI } from '@nexus/form-engine-ui';
+import { NexusForm, useForm } from '@xbeeant/form-engine-react';
+import { registerAntdUI } from '@xbeeant/form-engine-ui';
 import { Alert, Button, Card, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { CodeBlock } from '../site/CodeBlock';
@@ -40,7 +40,7 @@ const demoWidgetSchema = {
 } as const;
 
 const exampleCode = `// 1) 组件内部注册校验规则（widgets/confirmPassword.tsx）
-import { useFieldValidator } from '@nexus/form-engine-react';
+import { useFieldValidator } from '@xbeeant/form-engine-react';
 
 export const confirmPasswordWidget = withFormItem((props: WidgetProps) => {
   const { dataPath, form, value, dependValues: _dv, path: _p, ...rest } = props;

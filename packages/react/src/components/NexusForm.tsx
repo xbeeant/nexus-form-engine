@@ -1,4 +1,4 @@
-import type { NexusSchema } from '@nexus/form-engine';
+import type { NexusSchema } from '@xbeeant/form-engine';
 import type { CSSProperties, ReactNode, SubmitEvent } from 'react';
 import {
   useCallback,

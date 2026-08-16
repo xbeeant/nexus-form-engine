@@ -4,7 +4,7 @@
 // 与 schema 的 ValidateSchema（{ key: Expression }）互相转换
 // ============================================================================
 
-import type { WidgetProps } from '@nexus/form-engine-ui';
+import type { WidgetProps } from '@xbeeant/form-engine-ui';
 import { Button, Form, Input } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { ExpressionBuilder } from './ExpressionBuilder';

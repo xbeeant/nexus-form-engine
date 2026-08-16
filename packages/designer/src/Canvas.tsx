@@ -1,9 +1,9 @@
 // ============================================================================
-// @nexus/form-engine-designer — 中间画布面板
+// @xbeeant/form-engine-designer — 中间画布面板
 // ============================================================================
 
-import type { NexusSchema, SchemaNode } from '@nexus/form-engine';
-import { isDataField, isLayoutNode } from '@nexus/form-engine';
+import type { NexusSchema, SchemaNode } from '@xbeeant/form-engine';
+import { isDataField, isLayoutNode } from '@xbeeant/form-engine';
 import {
   GridContext,
   NexusField,
@@ -11,7 +11,7 @@ import {
   type NexusFormConfig,
   NexusFormProvider,
   useForm,
-} from '@nexus/form-engine-react';
+} from '@xbeeant/form-engine-react';
 import { Button, Empty, Modal, Space, Tag, Typography } from 'antd';
 import type React from 'react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';

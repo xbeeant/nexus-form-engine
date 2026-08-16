@@ -1,5 +1,5 @@
-import type { NexusSchema, SchemaNode } from '@nexus/form-engine';
-import { NexusEngine } from '@nexus/form-engine';
+import type { NexusSchema, SchemaNode } from '@xbeeant/form-engine';
+import { NexusEngine } from '@xbeeant/form-engine';
 import { describe, expect, it } from 'vitest';
 import {
   addChildToSchema,

@@ -1,4 +1,4 @@
-import type { FieldState } from '@nexus/form-engine';
+import type { FieldState } from '@xbeeant/form-engine';
 import { useSyncExternalStore } from 'react';
 
 import { useNexusContext } from '../contexts/NexusContext';

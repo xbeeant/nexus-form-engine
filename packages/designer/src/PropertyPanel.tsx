@@ -1,8 +1,8 @@
 // ============================================================================
-// @nexus/form-engine-designer — 右侧属性配置面板
+// @xbeeant/form-engine-designer — 右侧属性配置面板
 // 属性定义采用「描述符驱动」：
 //   - 组件（widget）属性来自外部传入的 propertySchemaMap（key 为 widget 名，
-//     值为该组件的属性字段定义，示例见 @nexus/form-engine-ui/src/schema/*-schema.ts）
+//     值为该组件的属性字段定义，示例见 @xbeeant/form-engine-ui/src/schema/*-schema.ts）
 //   - 通用 / 校验 / 依赖分区在 ./property/basic-property.ts 中定义
 //   - 布局节点与表单级属性在下方 formLevelProps / layoutBasicProps 内联定义
 //
@@ -12,9 +12,9 @@
 //   PropertyForm 通过 NexusForm 渲染 propertySchema 描述符驱动的表单
 // ============================================================================
 
-import type { NexusSchema, SchemaNode } from '@nexus/form-engine';
-import { NexusForm, useForm } from '@nexus/form-engine-react';
-import { registerAntdUI } from '@nexus/form-engine-ui';
+import type { NexusSchema, SchemaNode } from '@xbeeant/form-engine';
+import { NexusForm, useForm } from '@xbeeant/form-engine-react';
+import { registerAntdUI } from '@xbeeant/form-engine-ui';
 import { Input } from 'antd';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useDesigner } from './DesignerContext';

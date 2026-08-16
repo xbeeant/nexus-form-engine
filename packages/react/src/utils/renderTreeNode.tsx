@@ -1,4 +1,4 @@
-import type { RenderTreeNode } from '@nexus/form-engine';
+import type { RenderTreeNode } from '@xbeeant/form-engine';
 import type { ReactElement } from 'react';
 
 import { NexusField } from '../components/NexusField';

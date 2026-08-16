@@ -1,4 +1,4 @@
-import type { RenderObjectNode } from '@nexus/form-engine';
+import type { RenderObjectNode } from '@xbeeant/form-engine';
 import type { CSSProperties } from 'react';
 import { useContext, useState, useSyncExternalStore } from 'react';
 

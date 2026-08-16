@@ -8,12 +8,12 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@nexus/form-engine": ["../core/src/index.ts"],
-      "@nexus/form-engine/*": ["../core/src/*"],
-      "@nexus/form-engine-ui": ["../ui/src/index.ts"],
-      "@nexus/form-engine-ui/*": ["../ui/src/*"],
-      "@nexus/form-engine-react": ["../react/src/index.ts"],
-      "@nexus/form-engine-react/*": ["../react/src/*"]
+      "@xbeeant/form-engine": ["../core/src/index.ts"],
+      "@xbeeant/form-engine/*": ["../core/src/*"],
+      "@xbeeant/form-engine-ui": ["../ui/src/index.ts"],
+      "@xbeeant/form-engine-ui/*": ["../ui/src/*"],
+      "@xbeeant/form-engine-react": ["../react/src/index.ts"],
+      "@xbeeant/form-engine-react/*": ["../react/src/*"]
     },
 
     /* Bundler mode */

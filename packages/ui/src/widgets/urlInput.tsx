@@ -1,4 +1,4 @@
-import { toBoolean } from '@nexus/form-engine/utils/schema-helper';
+import { toBoolean } from '@xbeeant/form-engine/utils/schema-helper';
 import { Input } from 'antd';
 import { type WidgetProps, withFormItem } from './_shared';
 

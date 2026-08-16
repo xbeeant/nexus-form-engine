@@ -1,4 +1,4 @@
-import type { SchemaNode } from '@nexus/form-engine';
+import type { SchemaNode } from '@xbeeant/form-engine';
 
 export const cardSchema: Record<string, SchemaNode> = {
   variant: {

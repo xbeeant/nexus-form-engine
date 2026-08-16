@@ -3,7 +3,7 @@
 // Reaction ↔ 可编辑卡片（Card）之间的双向转换，以及补丁值解析
 // ============================================================================
 
-import type { Reaction } from '@nexus/form-engine';
+import type { Reaction } from '@xbeeant/form-engine';
 
 export const BOOLEAN_STATE_KEYS = new Set([
   'visible',

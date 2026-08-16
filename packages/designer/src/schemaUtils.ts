@@ -1,5 +1,5 @@
 // ============================================================================
-// @nexus/form-engine-designer — Schema 树操作工具（不可变）
+// @xbeeant/form-engine-designer — Schema 树操作工具（不可变）
 // ============================================================================
 // 路径 path 为 property key 的数组，例如 ['card1', 'username']
 // 表示 schema.properties.card1.properties.username
@@ -12,7 +12,7 @@ import {
   isLayoutNode,
   type NexusSchema,
   type SchemaNode,
-} from '@nexus/form-engine';
+} from '@xbeeant/form-engine';
 
 // ────────────────────────────────────────────────────────────────────────────
 // 深拷贝

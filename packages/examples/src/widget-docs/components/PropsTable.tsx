@@ -1,10 +1,10 @@
 // ============================================================================
 // PropsTable — 属性介绍表
-// 从 @nexus/form-engine-ui 的 widgetSchemas 描述符自动生成（antd API 表格风格）：
+// 从 @xbeeant/form-engine-ui 的 widgetSchemas 描述符自动生成（antd API 表格风格）：
 // 属性名 | 说明 | 类型 | 默认值
 // ============================================================================
 
-import { widgetSchemas } from '@nexus/form-engine-ui';
+import { widgetSchemas } from '@xbeeant/form-engine-ui';
 import { Alert, Table, Typography } from 'antd';
 import type { WidgetDoc } from '../types';
 

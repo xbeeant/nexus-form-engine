@@ -4,7 +4,7 @@
 // 值格式：object | array（非法 JSON 不写回，光标处自动提示）
 // ============================================================================
 
-import type { WidgetProps } from '@nexus/form-engine-ui';
+import type { WidgetProps } from '@xbeeant/form-engine-ui';
 import { Button, Form, Input, Space, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 

@@ -4,8 +4,8 @@
 // 布局：左右分栏，组件预览区与文档区（描述 + Schema）各自独立溢出滚动
 // ============================================================================
 
-import { NexusForm, useForm } from '@nexus/form-engine-react';
-import { registerAntdUI } from '@nexus/form-engine-ui';
+import { NexusForm, useForm } from '@xbeeant/form-engine-react';
+import { registerAntdUI } from '@xbeeant/form-engine-ui';
 import { Alert, Button, Card, Flex, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { CodeBlock } from '../../site/CodeBlock';

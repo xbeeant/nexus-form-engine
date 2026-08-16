@@ -6,7 +6,7 @@
 // 支持新增 / 删除 / 上移 / 下移 / 复制
 // ============================================================================
 
-import type { DataFieldSchema, DataObjectSchema } from '@nexus/form-engine';
+import type { DataFieldSchema, DataObjectSchema } from '@xbeeant/form-engine';
 import { Button, Space, Typography } from 'antd';
 import {
   arrayAdd,

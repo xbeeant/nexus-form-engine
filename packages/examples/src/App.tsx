@@ -1,5 +1,5 @@
 // ============================================================================
-// @nexus/form-engine — 项目介绍站点（Fumadocs + Vite，hash 路由）
+// @xbeeant/form-engine — 项目介绍站点（Fumadocs + Vite，hash 路由）
 // 结构：MDX 文档（核心机制/扩展介绍）+ 交互演示（示例/组件文档/设计器）
 // ============================================================================
 
@@ -67,7 +67,7 @@ function App() {
       ) : (
         <DocsLayout
           tree={buildTree()}
-          nav={{ title: '🧩 @nexus/form-engine' }}
+          nav={{ title: '🧩 @xbeeant/form-engine' }}
           githubUrl='https://github.com/xbeeant/nexus-form-engine'
         >
           <PageRouter path={path} />

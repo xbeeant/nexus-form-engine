@@ -3,7 +3,7 @@
 // 支持四种模式：无/字符串/数组/false，不同模式显示不同的子控件
 // ============================================================================
 
-import type { WidgetProps } from '@nexus/form-engine-ui';
+import type { WidgetProps } from '@xbeeant/form-engine-ui';
 import { Form, Input, Select } from 'antd';
 import { useState } from 'react';
 

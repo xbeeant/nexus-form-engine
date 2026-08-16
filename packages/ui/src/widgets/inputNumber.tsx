@@ -1,4 +1,4 @@
-import { toBoolean } from '@nexus/form-engine';
+import { toBoolean } from '@xbeeant/form-engine';
 import { InputNumber } from 'antd';
 import { type WidgetProps, withFormItem } from './_shared';
 

@@ -3,7 +3,7 @@
 // 使用两个 TextArea，值按行分隔
 // ============================================================================
 
-import type { WidgetProps } from '@nexus/form-engine-ui';
+import type { WidgetProps } from '@xbeeant/form-engine-ui';
 import { Form, Input } from 'antd';
 
 export function EnumEditor({ value, onChange }: WidgetProps) {

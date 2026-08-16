@@ -3,7 +3,7 @@
 // string → Input, number/integer → InputNumber, boolean → Switch, object/array → JSON TextArea
 // ============================================================================
 
-import type { WidgetProps } from '@nexus/form-engine-ui';
+import type { WidgetProps } from '@xbeeant/form-engine-ui';
 import { Form, Input, InputNumber, Switch } from 'antd';
 
 export function DefaultEditor({

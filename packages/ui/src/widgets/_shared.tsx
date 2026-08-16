@@ -2,9 +2,9 @@ import type {
   DataFieldSchema,
   DataObjectSchema,
   NexusFormInstance,
-} from '@nexus/form-engine';
-import { toBoolean } from '@nexus/form-engine/utils/schema-helper';
-import { useFormConfig } from '@nexus/form-engine-react';
+} from '@xbeeant/form-engine';
+import { toBoolean } from '@xbeeant/form-engine/utils/schema-helper';
+import { useFormConfig } from '@xbeeant/form-engine-react';
 import { Form } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';

@@ -1,5 +1,5 @@
 // ============================================================================
-// @nexus/form-engine-designer — 组件目录
+// @xbeeant/form-engine-designer — 组件目录
 // ============================================================================
 
 import type { CatalogItem } from './types';
@@ -7,7 +7,7 @@ import type { CatalogItem } from './types';
 /**
  * 表单组件目录
  * 每个项创建一个 DataFieldSchema 节点
- * widget 名对齐 @nexus/form-engine-ui 中 antdWidgets 实际注册的 key
+ * widget 名对齐 @xbeeant/form-engine-ui 中 antdWidgets 实际注册的 key
  */
 export const widgetCatalog: CatalogItem[] = [
   {

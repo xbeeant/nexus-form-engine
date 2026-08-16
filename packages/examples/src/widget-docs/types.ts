@@ -3,7 +3,7 @@
 // antd 风格：每个 widget 一页，页内多个示例实例（Demo）+ 属性介绍表（PropsTable）
 // ============================================================================
 
-import type { NexusSchema } from '@nexus/form-engine';
+import type { NexusSchema } from '@xbeeant/form-engine';
 
 /** 文档分组 */
 export type DocGroup =
