@@ -4,7 +4,7 @@
 // ============================================================================
 
 import type { DataFieldSchema, DataObjectSchema } from '@nexus/form-engine';
-import { useNexusContext } from '@nexus/form-engine-react/contexts/NexusContext.ts';
+import { useNexusContext } from '@nexus/form-engine-react/contexts/NexusContext';
 import { useSyncExternalStore } from 'react';
 
 // ────────────────────────────────────────────────────────────────────────────

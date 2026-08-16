@@ -3,7 +3,7 @@ import type {
   DataObjectSchema,
   NexusFormInstance,
 } from '@nexus/form-engine';
-import { toBoolean } from '@nexus/form-engine/utils/schema-helper.ts';
+import { toBoolean } from '@nexus/form-engine/utils/schema-helper';
 import { useFormConfig } from '@nexus/form-engine-react';
 import { Form } from 'antd';
 import dayjs from 'dayjs';

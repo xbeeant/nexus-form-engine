@@ -6,11 +6,6 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "@nexus/form-engine": ["../core/src/index.ts"],
-      "@nexus/form-engine/*": ["../core/src/*"]
-    },
 
     /* Bundler mode */
     "moduleResolution": "bundler",

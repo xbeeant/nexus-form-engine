@@ -3,6 +3,7 @@ import { extname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import dts from 'vite-plugin-dts';
 
 import packageJson from './package.json';
 
@@ -24,7 +25,23 @@ const format = getFormatFromArgs() || 'es';
 const multipleInputsMode = ['es', 'cjs'];
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    ...(format === 'es'
+      ? [
+          dts({
+            tsconfigPath: './tsconfig.app.json',
+            entryRoot: 'src',
+            outDirs: 'dist/es',
+            // vite resolve.alias 指向源码目录，d.ts 产物中必须保留包名导入
+            aliasesExclude: [
+              '@nexus/form-engine',
+              '@nexus/form-engine-react',
+            ],
+          }),
+        ]
+      : []),
+  ],
   resolve: {
     dedupe: ['react', 'react-dom'],
     // 工作区包解析：node_modules 无 @nexus 符号链接，直接映射到源码
@@ -34,11 +51,13 @@ export default defineConfig({
     },
   },
   build: {
-    sourcemap: true,
+    // 默认不生成 sourcemap（publish 产物不含 map），本地调试用 BUILD_SOURCEMAP=true 开启
+    sourcemap: process.env.BUILD_SOURCEMAP === 'true',
     copyPublicDir: false,
     emptyOutDir: false,
     lib: {
       entry: './src/index.ts',
+      fileName: 'index',
     },
     // @ts-expect-error
     rollupOptions: {
@@ -54,7 +73,7 @@ export default defineConfig({
         output: [
           {
             format: format,
-            name: 'form-engine-ui.js',
+            name: 'NexusFormEngineUI',
             dir: resolve(__dirname, `dist/${format}`),
           },
         ],
@@ -72,8 +91,11 @@ export default defineConfig({
         output: [
           {
             format: format,
-            entryFileNames: '[name].js',
-            chunkFileNames: 'chunks/[name]-[hash].js',
+            entryFileNames: format === 'cjs' ? '[name].cjs' : '[name].js',
+            chunkFileNames:
+              format === 'cjs'
+                ? 'chunks/[name]-[hash].cjs'
+                : 'chunks/[name]-[hash].js',
             assetFileNames: (assetInfo) => {
               const name = assetInfo.name || '';
               return name.split('/').pop() || 'index[extname]';

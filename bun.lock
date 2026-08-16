@@ -71,6 +71,9 @@
     "packages/react": {
       "name": "@nexus/form-engine-react",
       "version": "0.0.0",
+      "dependencies": {
+        "@nexus/form-engine": "^0.0.0",
+      },
       "peerDependencies": {
         "react": ">=18.0.0",
         "react-dom": ">=18.0.0",
@@ -81,6 +84,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@nexus/form-engine": "^0.0.0",
+        "@nexus/form-engine-react": "^0.0.0",
       },
       "peerDependencies": {
         "antd": ">=5.0.0",

@@ -6,18 +6,23 @@
   "main": "./dist/es/index.js",
   "module": "./dist/es/index.js",
   "types": "./dist/es/index.d.ts",
+  "unpkg": "./dist/umd/index.umd.cjs",
+  "jsdelivr": "./dist/umd/index.umd.cjs",
   "exports": {
     ".": {
       "types": "./dist/es/index.d.ts",
       "import": "./dist/es/index.js",
-      "require": "./dist/cjs/index.js"
+      "require": "./dist/cjs/index.cjs"
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "src", "README.md"],
+  "files": ["dist", "src", "README.md", "!**/*.map"],
   "sideEffects": ["**/*.css"],
   "scripts": {
-    "build": "tsc -b && vite build",
+    "build": "npm run build:es && npm run build:cjs && npm run build:umd",
+    "build:es": "tsc -b && vite build -f es",
+    "build:cjs": "vite build -f cjs",
+    "build:umd": "vite build -f umd",
     "lint": "biome check .",
     "lint:fix": "biome check --write ."
   },
@@ -34,7 +39,8 @@
     "dayjs": { "optional": false }
   },
   "dependencies": {
-    "@nexus/form-engine": "^0.0.0"
+    "@nexus/form-engine": "^0.0.0",
+    "@nexus/form-engine-react": "^0.0.0"
   },
   "devDependencies": {}
 }

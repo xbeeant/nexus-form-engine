@@ -6,42 +6,42 @@
 import {
   autoCompleteRemoteSchema,
   autoCompleteSchema,
-} from './autoComplete-schema.ts';
-import { cardSchema } from './card-schema.ts';
-import { cascaderRemoteSchema, cascaderSchema } from './cascader-schema.ts';
-import { checkboxSchema } from './checkbox-schema.ts';
-import { checkboxesSchema } from './checkboxes-schema.ts';
-import { colorSchema } from './color-schema.ts';
-import { dateSchema } from './date-schema.ts';
-import { dateRangeSchema } from './dateRange-schema.ts';
-import { fileSchema } from './file-schema.ts';
-import { htmlSchema } from './html-schema.ts';
-import { imageSchema } from './image-schema.ts';
-import { inputSchema } from './input-schema.ts';
-import { listSchema } from './list-schema.ts';
-import { mentionsRemoteSchema, mentionsSchema } from './mentions-schema.ts';
+} from './autoComplete-schema';
+import { cardSchema } from './card-schema';
+import { cascaderRemoteSchema, cascaderSchema } from './cascader-schema';
+import { checkboxSchema } from './checkbox-schema';
+import { checkboxesSchema } from './checkboxes-schema';
+import { colorSchema } from './color-schema';
+import { dateSchema } from './date-schema';
+import { dateRangeSchema } from './dateRange-schema';
+import { fileSchema } from './file-schema';
+import { htmlSchema } from './html-schema';
+import { imageSchema } from './image-schema';
+import { inputSchema } from './input-schema';
+import { listSchema } from './list-schema';
+import { mentionsRemoteSchema, mentionsSchema } from './mentions-schema';
 import {
   multiSelectRemoteSchema,
   multiSelectSchema,
-} from './multiSelect-schema.ts';
-import { numberSchema } from './number-schema.ts';
-import { passwordSchema } from './password-schema.ts';
-import { radioSchema } from './radio-schema.ts';
-import { rateSchema } from './rate-schema.ts';
-import { segmentedSchema } from './segmented-schema.ts';
-import { selectRemoteSchema, selectSchema } from './select-schema.ts';
-import { simpleListSchema } from './simpleList-schema.ts';
-import { sliderSchema } from './slider-schema.ts';
-import { spaceSchema } from './space-schema.ts';
-import { switchSchema } from './switch-schema.ts';
-import { tableListSchema } from './tableList-schema.ts';
-import { textareaSchema } from './textarea-schema.ts';
-import { timeSchema } from './time-schema.ts';
-import { timeRangeSchema } from './timeRange-schema.ts';
-import { transferSchema } from './transfer-schema.ts';
-import { treeSelectSchema } from './treeSelect-schema.ts';
-import { urlInputSchema } from './urlInput-schema.ts';
-import { voidTitleSchema } from './voidTitle-schema.ts';
+} from './multiSelect-schema';
+import { numberSchema } from './number-schema';
+import { passwordSchema } from './password-schema';
+import { radioSchema } from './radio-schema';
+import { rateSchema } from './rate-schema';
+import { segmentedSchema } from './segmented-schema';
+import { selectRemoteSchema, selectSchema } from './select-schema';
+import { simpleListSchema } from './simpleList-schema';
+import { sliderSchema } from './slider-schema';
+import { spaceSchema } from './space-schema';
+import { switchSchema } from './switch-schema';
+import { tableListSchema } from './tableList-schema';
+import { textareaSchema } from './textarea-schema';
+import { timeSchema } from './time-schema';
+import { timeRangeSchema } from './timeRange-schema';
+import { transferSchema } from './transfer-schema';
+import { treeSelectSchema } from './treeSelect-schema';
+import { urlInputSchema } from './urlInput-schema';
+import { voidTitleSchema } from './voidTitle-schema';
 
 // ── 导出所有 Schema 定义 ─────────────────────────────────────────────────────────
 export {

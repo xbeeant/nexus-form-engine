@@ -2,6 +2,7 @@ import { globSync } from 'node:fs';
 import { extname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+import dts from 'vite-plugin-dts';
 
 import packageJson from './package.json';
 
@@ -28,12 +29,24 @@ const multipleInputsMode = ['es', 'cjs'];
 // Core 层为纯 TypeScript 库，无任何 UI 依赖：
 // 不加载 react / tailwind / css-inject 等插件，保证产物纯净
 export default defineConfig({
+  plugins:
+    format === 'es'
+      ? [
+          dts({
+            tsconfigPath: './tsconfig.app.json',
+            entryRoot: 'src',
+            outDirs: 'dist/es',
+          }),
+        ]
+      : [],
   build: {
-    sourcemap: true,
+    // 默认不生成 sourcemap（publish 产物不含 map），本地调试用 BUILD_SOURCEMAP=true 开启
+    sourcemap: process.env.BUILD_SOURCEMAP === 'true',
     copyPublicDir: false,
     emptyOutDir: false,
     lib: {
       entry: './src/index.ts',
+      fileName: 'index',
     },
     // @ts-expect-error
     rollupOptions: {
@@ -45,7 +58,7 @@ export default defineConfig({
         output: [
           {
             format: format,
-            name: 'nexus-form-engine.js',
+            name: 'NexusFormEngine',
             dir: resolve(__dirname, `dist/${format}`),
           },
         ],
@@ -78,8 +91,11 @@ export default defineConfig({
           {
             //打包格式
             format: format,
-            entryFileNames: '[name].js',
-            chunkFileNames: 'chunks/[name]-[hash].js',
+            entryFileNames: format === 'cjs' ? '[name].cjs' : '[name].js',
+            chunkFileNames:
+              format === 'cjs'
+                ? 'chunks/[name]-[hash].cjs'
+                : 'chunks/[name]-[hash].js',
             assetFileNames: (assetInfo) => {
               const name = assetInfo.name || '';
               return name.split('/').pop() || 'index[extname]';

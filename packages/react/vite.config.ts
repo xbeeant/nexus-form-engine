@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import Sonda from 'sonda/vite';
 import { defineConfig } from 'vite';
+import dts from 'vite-plugin-dts';
 import { libInjectCss } from 'vite-plugin-lib-inject-css';
 
 import packageJson from './package.json';
@@ -30,7 +31,26 @@ console.info('[build][format]', format);
 const multipleInputsMode = ['es', 'cjs'];
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), libInjectCss(), Sonda()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    libInjectCss(),
+    Sonda(),
+    ...(format === 'es'
+      ? [
+          dts({
+            tsconfigPath: './tsconfig.app.json',
+            entryRoot: 'src',
+            outDirs: 'dist/es',
+            // vite resolve.alias 指向源码目录，d.ts 产物中必须保留包名导入
+            aliasesExclude: [
+              '@nexus/form-engine',
+              '@nexus/form-engine-ui',
+            ],
+          }),
+        ]
+      : []),
+  ],
   css: {
     preprocessorOptions: {
       less: {
@@ -48,11 +68,13 @@ export default defineConfig({
     },
   },
   build: {
-    sourcemap: true,
+    // 默认不生成 sourcemap（publish 产物不含 map），本地调试用 BUILD_SOURCEMAP=true 开启
+    sourcemap: process.env.BUILD_SOURCEMAP === 'true',
     copyPublicDir: false,
     emptyOutDir: false,
     lib: {
       entry: './src/index.ts',
+      fileName: 'index',
     },
     // @ts-expect-error
     rollupOptions: {
@@ -69,7 +91,7 @@ export default defineConfig({
         output: [
           {
             format: format,
-            name: 'flow-designer.js',
+            name: 'NexusFormEngineReact',
             //配置打包根目录
             dir: resolve(__dirname, `dist/${format}`),
           },
@@ -94,8 +116,11 @@ export default defineConfig({
           {
             //打包格式
             format: format,
-            entryFileNames: '[name].js',
-            chunkFileNames: 'chunks/[name]-[hash].js',
+            entryFileNames: format === 'cjs' ? '[name].cjs' : '[name].js',
+            chunkFileNames:
+              format === 'cjs'
+                ? 'chunks/[name]-[hash].cjs'
+                : 'chunks/[name]-[hash].js',
             assetFileNames: (assetInfo) => {
               const name = assetInfo.name || '';
               return name.split('/').pop() || 'index[extname]';

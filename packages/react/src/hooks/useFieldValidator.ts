@@ -24,7 +24,7 @@
 
 import type { NexusEngine, NexusFormInstance } from '@nexus/form-engine';
 import { useEffect, useRef } from 'react';
-import { useNexusContext } from '../contexts/NexusContext.ts';
+import { useNexusContext } from '../contexts/NexusContext';
 
 export type FieldValidator = (
   value: unknown,

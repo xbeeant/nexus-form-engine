@@ -6,38 +6,43 @@
   "main": "./dist/es/index.js",
   "module": "./dist/es/index.js",
   "types": "./dist/es/index.d.ts",
+  "unpkg": "./dist/umd/index.umd.cjs",
+  "jsdelivr": "./dist/umd/index.umd.cjs",
   "exports": {
     ".": {
       "types": "./dist/es/index.d.ts",
       "import": "./dist/es/index.js",
-      "require": "./dist/cjs/index.js"
+      "require": "./dist/cjs/index.cjs"
     },
     "./components/*": {
       "types": "./dist/es/components/*.d.ts",
       "import": "./dist/es/components/*.js",
-      "require": "./dist/cjs/components/*.js"
+      "require": "./dist/cjs/components/*.cjs"
     },
     "./hooks/*": {
       "types": "./dist/es/hooks/*.d.ts",
       "import": "./dist/es/hooks/*.js",
-      "require": "./dist/cjs/hooks/*.js"
+      "require": "./dist/cjs/hooks/*.cjs"
     },
     "./contexts/*": {
       "types": "./dist/es/contexts/*.d.ts",
       "import": "./dist/es/contexts/*.js",
-      "require": "./dist/cjs/contexts/*.js"
+      "require": "./dist/cjs/contexts/*.cjs"
     },
     "./utils/*": {
       "types": "./dist/es/utils/*.d.ts",
       "import": "./dist/es/utils/*.js",
-      "require": "./dist/cjs/utils/*.js"
+      "require": "./dist/cjs/utils/*.cjs"
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "src", "README.md"],
+  "files": ["dist", "src", "README.md", "!**/*.map"],
   "sideEffects": ["**/*.css"],
   "scripts": {
-    "build": "tsc -b && vite build",
+    "build": "npm run build:es && npm run build:cjs && npm run build:umd",
+    "build:es": "tsc -b && vite build -f es",
+    "build:cjs": "vite build -f cjs",
+    "build:umd": "vite build -f umd",
     "lint": "biome check .",
     "lint:fix": "biome check --write ."
   },
@@ -49,6 +54,8 @@
     "react": { "optional": false },
     "react-dom": { "optional": false }
   },
-  "dependencies": {},
+  "dependencies": {
+    "@nexus/form-engine": "^0.0.0"
+  },
   "devDependencies": {}
 }

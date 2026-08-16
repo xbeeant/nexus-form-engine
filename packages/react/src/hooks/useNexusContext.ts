@@ -4,8 +4,8 @@
 
 import type { NexusEngine } from '@nexus/form-engine';
 import { createContext, useContext } from 'react';
-import type { FormController } from '../components/FormController.ts';
-import type { NexusFormConfig } from '../components/NexusForm.tsx';
+import type { FormController } from '../components/FormController';
+import type { NexusFormConfig } from '../components/NexusForm';
 
 interface NexusContextValue {
   engine: NexusEngine;

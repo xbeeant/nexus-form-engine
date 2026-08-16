@@ -3,7 +3,7 @@ import { useCallback, useContext, useMemo, useSyncExternalStore } from 'react';
 import { FieldInheritContext } from '../contexts/FieldInheritContext';
 import { GridContext } from '../contexts/GridContext';
 import { LayoutConfigContext } from '../contexts/LayoutConfigContext';
-import { useNexusContext } from '../contexts/NexusContext.ts';
+import { useNexusContext } from '../contexts/NexusContext';
 import { resolveColSpan } from '../utils/resolveColSpan';
 
 interface NexusFieldProps {
