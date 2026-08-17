@@ -6,6 +6,7 @@
 
 import { NexusForm, useForm } from '@xbeeant/form-engine-react';
 import { registerAntdUI } from '@xbeeant/form-engine-ui';
+import type { NexusSchema } from '@xbeeant/form-engine';
 import { Button, Card, Divider, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { CodeBlock } from '../site/CodeBlock';
@@ -38,7 +39,7 @@ const profileSchema = {
       enumNames: ['男', '女'],
     },
   },
-} as const;
+} satisfies NexusSchema;
 
 const orderSchema = {
   type: 'object',
@@ -65,7 +66,7 @@ const orderSchema = {
       default: 1,
     },
   },
-} as const;
+} satisfies NexusSchema;
 
 // ── 演示 2：联动表单（A 为数据源，B 订阅 A）────────────────────────────────
 // A 表单：订单（formId: 'order-form'）→ 价格、数量、备注
@@ -96,7 +97,7 @@ const linkSourceSchema = {
       placeholder: '输入后同步到汇总表单',
     },
   },
-} as const;
+} satisfies NexusSchema;
 
 // B 表单：汇总（formId: 'summary-form'）
 // - total：crossForm 计算字段，订阅 A 的 price/count，实时重算总额
@@ -144,7 +145,7 @@ const linkTargetSchema = {
       description: '来源：linkForm 编程式联动（transform 加前缀）',
     },
   },
-} as const;
+} satisfies NexusSchema;
 
 // 关键代码片段（用于 CodeBlock 展示）
 const linkSchemaSnippet = `// B 表单 Schema：跨表单联动声明

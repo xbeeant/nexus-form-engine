@@ -1,0 +1,8 @@
+/* UI 库样式入口（Tailwind CSS v4）
+ * 仅引入 theme + utilities，不引入 preflight：
+ * - 避免全局 reset 覆盖宿主应用的样式（与 antd 组合使用时尤其重要）
+ * - widgets/layouts 中使用的工具类（flex/gap/border/text-black/45 等）
+ *   经 @tailwindcss/vite 扫描 src 自动生成，随构建产物输出为 index.css
+ */
+@import "tailwindcss/theme";
+@import "tailwindcss/utilities";

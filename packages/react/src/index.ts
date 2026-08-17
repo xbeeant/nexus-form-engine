@@ -3,6 +3,8 @@
 // 导出所有React组件、Hooks和类型定义，供上层应用使用
 // ============================================================================
 
+import './styles.css';
+
 export { FormController } from './components/FormController';
 export { NexusField } from './components/NexusField';
 export type { NexusFormConfig } from './components/NexusForm';

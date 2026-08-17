@@ -2,6 +2,8 @@
 // 此文件是 @xbeeant/ui 包的主入口，统一导出所有布局、组件和 Schema 定义
 // 用于快速集成 Ant Design UI 组件到表单引擎中
 
+import './styles.css';
+
 import type { NexusEngine, NexusPlugin } from '@xbeeant/form-engine';
 import { antdLayouts } from './layouts';
 import { antdWidgets } from './widgets';

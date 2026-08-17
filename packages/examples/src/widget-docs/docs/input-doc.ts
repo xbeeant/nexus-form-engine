@@ -79,7 +79,7 @@ export const inputDoc: WidgetDoc = {
     {
       title: '字数统计与长度限制',
       description:
-        'maxLength 限制最大字符数，showCount 展示当前字数。二者常组合使用实现输入长度控制。',
+        'max 限制最大字符数（自动生成校验规则），showCount 展示当前字数。二者常组合使用实现输入长度控制。',
       schema: {
         type: 'object',
         displayType: 'row',
@@ -88,14 +88,14 @@ export const inputDoc: WidgetDoc = {
             type: 'string',
             widget: 'input',
             title: '宣传语',
-            maxLength: 20,
+            max: 20,
             props: { showCount: true },
           },
           code: {
             type: 'string',
             widget: 'input',
             title: '短代码',
-            maxLength: 6,
+            max: 6,
             placeholder: '最多 6 位',
           },
         },

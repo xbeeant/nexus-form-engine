@@ -1,0 +1,6 @@
+/* Renderer 样式入口（Tailwind CSS v4）
+ * 仅引入 theme + utilities（不引入 preflight），随构建产物输出为 index.css，
+ * 供未接入 Tailwind 的宿主应用使用；已接入 Tailwind 的应用可忽略该文件
+ */
+@import "tailwindcss/theme";
+@import "tailwindcss/utilities";

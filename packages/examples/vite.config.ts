@@ -1,8 +1,8 @@
-import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { fumadocsMdx } from 'fumadocs-mdx/vite';
 import { defineConfig } from 'vite';
+import { workspaceAliases } from '../../scripts/vite-lib';
 
 // GitHub Pages 部署在仓库子路径：https://<user>.github.io/nexus-form-engine/
 // 可通过环境变量 NEXUS_BASE 覆盖（如自定义域名时传 "/"）
@@ -33,15 +33,8 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: {
-      '@xbeeant/form-engine': path.resolve(__dirname, '../core/src'),
-      '@xbeeant/form-engine-ui': path.resolve(__dirname, '../ui/src'),
-      '@xbeeant/form-engine-designer': path.resolve(__dirname, '../designer/src'),
-      '@xbeeant/form-engine-react': path.resolve(__dirname, '../react/src'),
-    },
-  },
-  server: {
-    proxy: {},
+    // 工作区包解析：node_modules 无符号链接，直接映射到源码
+    alias: workspaceAliases(),
   },
   build: {
     outDir: 'dist',
