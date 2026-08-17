@@ -8,6 +8,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import type { NexusEngine } from '../Engine.ts';
+import type { FormRegistry } from '../FormRegistry';
 
 /** 表达式字符串，用 {{ }} 包裹 */
 export type Expression = string;
@@ -190,6 +191,22 @@ export interface Reaction {
     state?: ReactionStatePatch;
     schema?: ReactionSchemaPatch;
   };
+  /**
+   * 跨表单联动：源表单的 formId
+   *
+   * 存在时该 reaction 的 `dependencies` 指向**源表单**中的字段路径，
+   * 由源表单对应字段的值变化触发（通过 FormRegistry 建立订阅），
+   * 目标字段始终为本表单（reaction 所在字段）。
+   *
+   * 上下文语义：
+   * - `$deps`：源表单依赖字段的值（按 dependencies 顺序）
+   * - `formData` / `rootValue`：**本表单**的数据（可同时引用本表单字段做联合条件）
+   * - `$self`：本表单目标字段状态
+   *
+   * 注意：跨表单 reaction 不进入本表单依赖图（依赖边属于源表单引擎），
+   * 为单向联动；反向联动请在源表单配置 `crossForm` reaction 或调用 `linkForm`。
+   */
+  crossForm?: string;
   /** 内部标记：自动生成的 reaction（由 SchemaParser 从表达式字段转换而来） */
   _autoExpr?: boolean;
 }
@@ -900,6 +917,31 @@ export interface DefaultRuleMessages {
 export interface NexusEngineOptions {
   /** 校验默认消息模板覆盖（仅覆盖传入的 key） */
   messages?: Partial<DefaultRuleMessages>;
+  /**
+   * 表单实例唯一标识
+   *
+   * 配置后引擎在 init() 时自动注册到表单注册表（默认 defaultFormRegistry），
+   * 使其他表单可通过 `crossForm` reaction / `linkForm` 建立跨表单联动。
+   */
+  formId?: string;
+  /**
+   * 表单注册表实例
+   *
+   * 缺省使用 defaultFormRegistry（页面级单例）；
+   * 测试/隔离场景可传入 createFormRegistry() 创建的独立实例。
+   */
+  registry?: FormRegistry;
+}
+
+/**
+ * 编程式跨表单值联动配置（engine.linkForm）
+ */
+export interface CrossFormLinkOptions {
+  /**
+   * 值转换函数：源表单字段值 → 本表单目标字段值
+   * 缺省直接透传源值（相当于双向绑定的单向同步）
+   */
+  transform?: (value: unknown) => unknown;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -991,6 +1033,31 @@ export interface FormEngine extends ReadonlyFormEngine {
   getRenderTree(): RenderTreeNode[];
   /** 销毁引擎实例 */
   destroy(): void;
+
+  // =========================================================================
+  // 跨表单联动（多表单实例）
+  // =========================================================================
+
+  /** 获取本表单实例的唯一标识 */
+  getFormId(): string | undefined;
+  /** 设置表单实例标识并注册到注册表 */
+  setFormId(formId: string): void;
+  /** 获取表单注册表实例 */
+  getRegistry(): FormRegistry;
+  /**
+   * 编程式跨表单值联动：源表单字段变化时同步到本表单目标字段
+   * @param source - 源表单引擎实例或注册表中的 formId
+   * @param sourcePath - 源表单字段路径
+   * @param targetPath - 本表单目标字段路径
+   * @param options - 可选（transform 值转换函数）
+   * @returns 取消联动函数
+   */
+  linkForm(
+    source: NexusEngine | string,
+    sourcePath: string,
+    targetPath: string,
+    options?: CrossFormLinkOptions,
+  ): () => void;
 
   // =========================================================================
   // 数组字段操作（P1）

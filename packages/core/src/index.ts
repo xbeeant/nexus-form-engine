@@ -23,11 +23,19 @@ export {
   ErrorHandlerStrategy,
   ExpressionSandbox,
 } from './ExpressionSandbox';
+export type { FormRegisterCallback } from './FormRegistry';
+/** 多表单实例注册表（跨表单联动基础设施） */
+export {
+  createFormRegistry,
+  defaultFormRegistry,
+  FormRegistry,
+} from './FormRegistry';
 /** Schema 解析器（命名空间对象：SchemaParser.parse / SchemaParser.createArrayItemState 等） */
 export * from './SchemaParser';
 // 类型定义
 export type {
   BindSchema,
+  CrossFormLinkOptions,
   DataArraySchema,
   DataFieldSchema,
   DataNode,

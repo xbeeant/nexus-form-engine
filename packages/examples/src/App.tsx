@@ -12,6 +12,7 @@ import DesignerPage from './pages/DesignerPage';
 import ExamplesPage from './pages/ExamplesPage';
 import ExtensionsPage from './pages/ExtensionsPage';
 import { MdxDocsPage } from './pages/MdxDocsPage';
+import MultiFormPage from './pages/MultiFormPage';
 import WidgetValidationPage from './pages/WidgetValidationPage';
 import { WidgetDocsPage } from './widget-docs/components/WidgetDocsPage';
 
@@ -24,6 +25,7 @@ function buildTree(): Root {
       ...mdTree.children,
       { type: 'separator', name: '演示' },
       { type: 'page', name: '使用示例', url: '/examples' },
+      { type: 'page', name: '多表单联动', url: '/multi-form' },
       { type: 'page', name: '组件文档', url: '/widget-docs' },
       { type: 'page', name: '组件内校验', url: '/widget-validation' },
       { type: 'page', name: '高级组件', url: '/advanced-widgets' },
@@ -38,6 +40,9 @@ function PageRouter({ path }: { path: string }) {
   }
   if (path === '/examples') {
     return <ExamplesPage />;
+  }
+  if (path === '/multi-form') {
+    return <MultiFormPage />;
   }
   if (path === '/widget-docs') {
     return <WidgetDocsPage />;

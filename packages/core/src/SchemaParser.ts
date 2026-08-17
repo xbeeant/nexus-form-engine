@@ -1125,7 +1125,12 @@ function resolveReactionScopes(fieldStates: Map<string, FieldState>): void {
     }
 
     const resolved = state.reactions.map((reaction) => {
-      if (reaction._autoExpr === true || !reaction.dependencies) {
+      // 跨表单联动：dependencies 指向源表单字段，不做本表单作用域解析
+      if (
+        reaction._autoExpr === true ||
+        reaction.crossForm ||
+        !reaction.dependencies
+      ) {
         return reaction;
       }
       return {
@@ -1199,9 +1204,11 @@ function buildDependencyGraph(fieldStates: Map<string, FieldState>): {
   for (const [path, state] of fieldStates) {
     if (state.reactions) {
       for (const reaction of state.reactions) {
-        if (reaction.dependencies) {
-          graph.addDependencies(path, reaction.dependencies);
+        // 跨表单 reaction：依赖边属于源表单引擎，不进入本表单依赖图
+        if (reaction.crossForm || !reaction.dependencies) {
+          continue;
         }
+        graph.addDependencies(path, reaction.dependencies);
       }
     }
 

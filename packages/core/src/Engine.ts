@@ -9,9 +9,11 @@ import {
   createExpressionSandbox,
   type ExpressionSandbox,
 } from './ExpressionSandbox';
+import { defaultFormRegistry, type FormRegistry } from './FormRegistry';
 import * as SchemaParser from './SchemaParser';
 import type {
   ArrayOperationOptions,
+  CrossFormLinkOptions,
   DataFieldSchema,
   DefaultRuleMessages,
   FieldState,
@@ -162,14 +164,58 @@ export class NexusEngine implements IFormEngine {
   private formDataCache: Record<string, unknown> | null = null;
   private formDataDirty = true;
 
+  // ── 跨表单联动（多表单实例）──
+
+  /** 本表单实例的唯一标识（配置后自动注册到表单注册表） */
+  private formId?: string;
+  /** 表单注册表（跨表单联动寻址，缺省 defaultFormRegistry） */
+  private registry: FormRegistry;
+  /**
+   * 跨表单联动订阅的取消函数集合
+   * 记录对源表单字段的订阅（subscribe），init/destroy 时统一清理重建
+   * 仅承载 schema 声明式 crossForm reaction 的订阅
+   */
+  private crossFormUnsubscribers: Set<() => void> = new Set();
+  /**
+   * 编程式 linkForm 建立的联动订阅取消函数集合
+   * 与 schema 联动分离：不受 connectCrossFormLinks 重建影响，destroy 时统一清理
+   */
+  private programmaticLinkUnsubscribers: Set<() => void> = new Set();
+  /**
+   * 已建立的跨表单联动连接
+   * key = `${formId}|${targetPath}|${reactionIndex}`
+   */
+  private crossFormConnections: Map<
+    string,
+    {
+      formId: string;
+      sourcePaths: string[];
+      targetPath: string;
+      reaction: Reaction;
+    }
+  > = new Map();
+  /**
+   * 跨表单联动防环守护：key 同 crossFormConnections，
+   * value = 上次触发的依赖值快照；源字段值未变化时跳过（防止循环联动）
+   */
+  private crossFormLastDeps: Map<string, unknown[]> = new Map();
+
   /**
    * 创建引擎实例
    *
    * @param options - 可选配置
    * @param options.messages - 校验默认消息模板覆盖
+   * @param options.formId - 表单实例唯一标识（配置后自动注册到注册表）
+   * @param options.registry - 表单注册表（缺省 defaultFormRegistry）
    */
   constructor(options?: NexusEngineOptions) {
     this.messageTemplates = options?.messages ?? {};
+    this.formId = options?.formId;
+    this.registry = options?.registry ?? defaultFormRegistry;
+    // 源表单后注册时（先声明联动、后注册表单），延迟建立跨表单订阅
+    this.registry.onRegister(() => {
+      this.connectCrossFormLinks();
+    });
   }
 
   // 标记 formData 缓存失效
@@ -224,6 +270,12 @@ export class NexusEngine implements IFormEngine {
 
     // 执行初始 reactions（应用联动规则的初始状态）
     this.runAllReactions();
+
+    // 注册到表单注册表（供其他表单通过 formId 建立跨表单联动）
+    this.registerToRegistry();
+
+    // 建立跨表单联动订阅（schema 声明式 crossForm reactions）
+    this.connectCrossFormLinks();
 
     // 通知所有插件：初始化完成
     for (const plugin of this.plugins) {
@@ -1715,6 +1767,20 @@ export class NexusEngine implements IFormEngine {
     this.fieldValidators.clear();
     this.formDataCache = null;
     this.formDataDirty = true;
+    // 从注册表注销 + 清理跨表单联动订阅
+    if (this.formId) {
+      this.registry.unregister(this.formId);
+    }
+    for (const unsubscribe of this.crossFormUnsubscribers) {
+      unsubscribe();
+    }
+    this.crossFormUnsubscribers.clear();
+    for (const unsubscribe of this.programmaticLinkUnsubscribers) {
+      unsubscribe();
+    }
+    this.programmaticLinkUnsubscribers.clear();
+    this.crossFormConnections.clear();
+    this.crossFormLastDeps.clear();
   }
 
   // =========================================================================
@@ -1764,6 +1830,10 @@ export class NexusEngine implements IFormEngine {
     for (const [path, state] of this.fieldStates) {
       if (state.reactions) {
         for (const reaction of state.reactions) {
+          // 跨表单 reaction 由源表单变化触发，不在此处初始执行
+          if (reaction.crossForm) {
+            continue;
+          }
           this.executeReaction(path, reaction, formData);
         }
       }
@@ -1845,10 +1915,12 @@ export class NexusEngine implements IFormEngine {
     targetPath: string,
     reaction: Reaction,
     formData?: Record<string, unknown>,
+    dependValuesOverride?: unknown[],
   ): void {
-    const dependValues = reaction.dependencies.map((dep) =>
-      this.getFieldValue(dep),
-    );
+    // 跨表单场景：依赖值由调用方（源表单引擎）注入，本表单不反查源字段
+    const dependValues =
+      dependValuesOverride ??
+      reaction.dependencies.map((dep) => this.getFieldValue(dep));
     const targetState = this.fieldStates.get(targetPath);
     if (!targetState) {
       return;
@@ -1917,6 +1989,226 @@ export class NexusEngine implements IFormEngine {
   private extractIndexFromPath(path: string): number | undefined {
     const match = path.match(/\[(\d+)\]/);
     return match ? Number(match[1]) : undefined;
+  }
+
+  // =========================================================================
+  // 跨表单联动（多表单实例）
+  // =========================================================================
+
+  /**
+   * 获取本表单实例的唯一标识
+   *
+   * @returns formId；未配置时返回 undefined
+   */
+  getFormId(): string | undefined {
+    return this.formId;
+  }
+
+  /**
+   * 设置表单实例标识并注册到注册表
+   *
+   * 可在引擎构造后（init 前后均可）调用；会触发注册表 onRegister，
+   * 使依赖本表单的其他表单延迟建立联动。
+   *
+   * @param formId - 表单唯一标识
+   */
+  setFormId(formId: string): void {
+    if (this.formId) {
+      this.registry.unregister(this.formId);
+    }
+    this.formId = formId;
+    this.registry.register(formId, this);
+    // 源表单可能刚注册：尝试建立本表单声明的跨表单联动
+    this.connectCrossFormLinks();
+  }
+
+  /**
+   * 获取表单注册表实例
+   */
+  getRegistry(): FormRegistry {
+    return this.registry;
+  }
+
+  /**
+   * 编程式跨表单值联动：源表单字段变化时同步到本表单目标字段
+   *
+   * 与 schema 声明式 `crossForm` reaction 的区别：
+   * - linkForm 仅做「值同步」（可带 transform），不参与 when/fulfill/otherwise
+   * - 适合代码中动态建立联动（如两个动态实例、运行时绑定）
+   *
+   * 注意：
+   * - 单向联动（源 → 目标）；反向联动请再调用一次 linkForm（方向相反）
+   * - 目标字段需已存在（本表单已 init）
+   * - 值未变化时不会重复写入（防环守护，双向同步可安全终止）
+   *
+   * @param source - 源表单引擎实例，或注册表中的 formId 字符串
+   * @param sourcePath - 源表单字段路径
+   * @param targetPath - 本表单目标字段路径
+   * @param options - 可选配置（transform 值转换函数）
+   * @returns 取消联动函数
+   */
+  linkForm(
+    source: NexusEngine | string,
+    sourcePath: string,
+    targetPath: string,
+    options?: CrossFormLinkOptions,
+  ): () => void {
+    const sourceEngine =
+      typeof source === 'string' ? this.registry.get(source) : source;
+    if (!sourceEngine) {
+      console.warn(
+        `[NexusEngine] linkForm: source form '${String(source)}' not found in form registry.`,
+      );
+      return () => {};
+    }
+    if (!this.fieldStates.has(targetPath)) {
+      console.warn(
+        `[NexusEngine] linkForm: target field not found: ${targetPath}（请先 init 本表单）`,
+      );
+      return () => {};
+    }
+
+    const transform = options?.transform;
+    let active = true;
+    let lastValue: unknown = sourceEngine.getFieldValue(sourcePath);
+    const unsubscribe = sourceEngine.subscribe(sourcePath, () => {
+      if (!active) {
+        return;
+      }
+      const value = sourceEngine.getFieldValue(sourcePath);
+      // 值未变化跳过：订阅在字段任意状态变更时触发，避免冗余写入与循环联动
+      if (isDeepEqual(value, lastValue)) {
+        return;
+      }
+      lastValue = value;
+      this.setFieldValue(targetPath, transform ? transform(value) : value);
+    });
+
+    // 初始同步：目标字段为空（无值/默认值）时才写入，避免覆盖目标已设置的值
+    if (
+      lastValue !== undefined &&
+      isEmptyValue(this.getFieldValue(targetPath))
+    ) {
+      this.setFieldValue(
+        targetPath,
+        transform ? transform(lastValue) : lastValue,
+      );
+    }
+    this.programmaticLinkUnsubscribers.add(unsubscribe);
+
+    return () => {
+      active = false;
+      unsubscribe();
+      this.programmaticLinkUnsubscribers.delete(unsubscribe);
+    };
+  }
+
+  /** 注册本表单到注册表（配置了 formId 时生效） */
+  private registerToRegistry(): void {
+    if (this.formId) {
+      this.registry.register(this.formId, this);
+    }
+  }
+
+  /**
+   * 建立跨表单联动订阅（schema 声明式 crossForm reactions）
+   *
+   * 从 fieldStates 收集所有 crossForm reaction，按 formId 查注册表：
+   * - 源表单已注册 → 立即建立订阅并初始执行一次
+   * - 源表单未注册 → 跳过（源表单注册时通过 registry.onRegister 回调再次进入本方法）
+   *
+   * init/setSchemaByPath/reset 重新解析后调用（先清理旧订阅再重建）。
+   */
+  private connectCrossFormLinks(): void {
+    // 清理旧订阅与连接记录（重复 init 时防重复订阅）
+    for (const unsubscribe of this.crossFormUnsubscribers) {
+      unsubscribe();
+    }
+    this.crossFormUnsubscribers.clear();
+    this.crossFormConnections.clear();
+
+    for (const [targetPath, state] of this.fieldStates) {
+      if (!state.reactions) {
+        continue;
+      }
+      state.reactions.forEach((reaction, index) => {
+        if (!reaction.crossForm || !reaction.dependencies?.length) {
+          return;
+        }
+        const sourceEngine = this.registry.get(reaction.crossForm);
+        if (!sourceEngine) {
+          return;
+        }
+        this.establishCrossFormLink(
+          sourceEngine,
+          reaction.crossForm,
+          targetPath,
+          reaction,
+          index,
+        );
+      });
+    }
+  }
+
+  /**
+   * 建立单个跨表单联动订阅并初始执行
+   *
+   * @param sourceEngine - 源表单引擎
+   * @param formId - 源表单标识
+   * @param targetPath - 本表单目标字段路径
+   * @param reaction - 跨表单 reaction
+   * @param index - reaction 在目标字段 reactions 中的索引（连接唯一标识）
+   */
+  private establishCrossFormLink(
+    sourceEngine: NexusEngine,
+    formId: string,
+    targetPath: string,
+    reaction: Reaction,
+    index: number,
+  ): void {
+    const key = `${formId}|${targetPath}|${index}`;
+    if (this.crossFormConnections.has(key)) {
+      return;
+    }
+
+    const sourcePaths = [...reaction.dependencies];
+    this.crossFormConnections.set(key, {
+      formId,
+      sourcePaths,
+      targetPath,
+      reaction,
+    });
+
+    const run = () => {
+      const dependValues = sourcePaths.map((path) =>
+        sourceEngine.getFieldValue(path),
+      );
+      // 防环守护：依赖值未变化时跳过（源字段任意状态变更都会触发订阅）
+      const last = this.crossFormLastDeps.get(key);
+      if (last && isDeepEqual(last, dependValues)) {
+        return;
+      }
+      this.crossFormLastDeps.set(key, dependValues);
+
+      // 执行跨表单 reaction：$deps 来自源表单，formData/$self 为本表单
+      this.executeReaction(
+        targetPath,
+        reaction,
+        this.getFormDataInternal(),
+        dependValues,
+      );
+      // applyStatePatch/applySchemaPatch 已按路径通知；全局通知由这里统一收尾
+      this.bump();
+      this.notifyAll();
+    };
+
+    // 每个源字段路径各订阅一次（任一变化即重算）
+    for (const sourcePath of sourcePaths) {
+      this.crossFormUnsubscribers.add(sourceEngine.subscribe(sourcePath, run));
+    }
+
+    // 初始执行一次：同步源表单当前状态（如加载后双向同步）
+    run();
   }
 
   /**

@@ -219,6 +219,7 @@ function serializeSchemaNode(node: any, options: SerializeOptions): any {
       when: reaction.when,
       fulfill: reaction.fulfill,
       otherwise: reaction.otherwise,
+      crossForm: reaction.crossForm,
     }));
   }
 

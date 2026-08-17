@@ -112,6 +112,13 @@ export class FormController implements NexusFormInstance {
     return this.engine;
   }
 
+  /**
+   * 获取底层 Engine 实例（用于跨表单联动：linkForm / setFormId 等）
+   */
+  getEngine(): NexusEngine {
+    return this.engine;
+  }
+
   async submit(): Promise<void> {
     const errors = await this.engine.validate();
     if (errors.size > 0) {
