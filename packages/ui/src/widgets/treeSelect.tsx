@@ -10,12 +10,12 @@
 //   5. 只读模式：通过接口回显标签
 // ============================================================================
 
-import { Form, Spin, TreeSelect, Typography } from 'antd';
+import { Spin, TreeSelect, Typography } from 'antd';
 import type { DefaultOptionType } from 'antd/es/select';
 import type { TreeSelectProps } from 'antd/es/tree-select';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useFormItemProps, type WidgetProps } from './_shared';
+import { useFormItem, type WidgetProps } from './_shared';
 
 /** antd v6 TreeSelect 树节点类型（DataNode：value 为 SafeKey，不含 null） */
 type TreeDataNode = NonNullable<TreeSelectProps['treeData']>[number];
@@ -366,27 +366,30 @@ function buildTreeFromFlatRecords(
 
 // ── 组件 ──────────────────────────────────────────────────────────────────
 
-export function TreeSelectWidget({
-  value,
-  onChange,
-  placeholder,
-  disabled,
-  loading,
-  title,
-  description,
-  errors,
-  extra,
-  width,
-  readOnly,
-  required,
-  displayType,
-  labelWidth,
-  form,
-  options: _opt,
-  column: _col,
-  ...rest
-}: WidgetProps & TreeSelectConfig) {
-  const formItemProps = useFormItemProps({ displayType, labelWidth });
+export function TreeSelectWidget(props: WidgetProps & TreeSelectConfig) {
+  // 公共 Form.Item 包裹：label=false 时自动不包裹（裸渲染控件）
+  const { wrap } = useFormItem(props);
+
+  const {
+    value,
+    onChange,
+    placeholder,
+    disabled,
+    loading,
+    title: _title,
+    description: _desc,
+    errors: _errors,
+    extra: _extra,
+    width: _width,
+    readOnly,
+    required: _required,
+    displayType: _displayType,
+    labelWidth: _labelWidth,
+    form: _form,
+    options: _opt,
+    column: _col,
+    ...rest
+  } = props;
 
   // 解析 params（可能是设计器传入的 JSON 字符串）
   let paramsValue: unknown = rest.params;
@@ -846,22 +849,10 @@ export function TreeSelectWidget({
 
   // ── 只读渲染 ──
   if (readOnly) {
-    return (
-      <Form.Item
-        label={title}
-        required={required}
-        help={errors?.length ? errors[0] : description}
-        validateStatus={errors?.length ? 'error' : ''}
-        extra={extra}
-        style={formItemProps.style}
-        labelCol={formItemProps.labelCol}
-        wrapperCol={formItemProps.wrapperCol}
-        colon={formItemProps.colon}
-      >
-        <Typography.Text>
-          {readOnlyLabel || String(value ?? '-')}
-        </Typography.Text>
-      </Form.Item>
+    return wrap(
+      <Typography.Text>
+        {readOnlyLabel || String(value ?? '-')}
+      </Typography.Text>,
     );
   }
 
@@ -870,25 +861,13 @@ export function TreeSelectWidget({
 
   // 未就绪时显示 loading，避免 value 回显为原始值
   if (!ready && !readOnly) {
-    return (
-      <Form.Item
-        label={title}
-        required={required}
-        help={errors?.length ? errors[0] : description}
-        validateStatus={errors?.length ? 'error' : ''}
-        extra={extra}
-        style={formItemProps.style}
-        labelCol={formItemProps.labelCol}
-        wrapperCol={formItemProps.wrapperCol}
-        colon={formItemProps.colon}
+    return wrap(
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: 8, height: 32 }}
       >
-        <div
-          style={{ display: 'flex', alignItems: 'center', gap: 8, height: 32 }}
-        >
-          <Spin size='small' />
-          <span style={{ color: '#999' }}>加载中...</span>
-        </div>
-      </Form.Item>
+        <Spin size='small' />
+        <span style={{ color: '#999' }}>加载中...</span>
+      </div>,
     );
   }
 
@@ -922,59 +901,45 @@ export function TreeSelectWidget({
     ...treeRest
   } = rest as Record<string, unknown>;
 
-  return (
-    <Form.Item
-      label={title}
-      required={required}
-      help={errors?.length ? errors[0] : description}
-      validateStatus={errors?.length ? 'error' : ''}
-      extra={extra}
-      style={formItemProps.style}
-      labelCol={formItemProps.labelCol}
-      wrapperCol={formItemProps.wrapperCol}
-      colon={formItemProps.colon}
-    >
-      <TreeSelect
-        {...treeRest}
-        value={value}
-        onChange={onChange}
-        treeData={treeData as unknown as TreeDataNode[]}
-        placeholder={placeholder ?? '请选择...'}
-        disabled={disabled || loading}
-        allowClear={cfg.allowClear}
-        showSearch={cfg.showSearch}
-        onSearch={remoteSearchable ? handleSearch : undefined}
-        filterTreeNode={
-          localFilterable ? (localFilter as unknown as TreeFilterFn) : undefined
-        }
-        treeExpandedKeys={
-          expandedKeys.length > 0
-            ? (expandedKeys as unknown as TreeExpandedKeys)
-            : undefined
-        }
-        onTreeExpand={setExpandedKeys}
-        loadData={
-          cfg.asyncLoad
-            ? (handleLoadData as unknown as TreeLoadDataFn)
-            : undefined
-        }
-        multiple={cfg.multiple}
-        treeCheckable={
-          (userTreeCheckable as boolean | undefined) ?? cfg.multiple
-        }
-        showCheckedStrategy={
-          (userShowCheckedStrategy as
-            | 'SHOW_ALL'
-            | 'SHOW_PARENT'
-            | 'SHOW_CHILD'
-            | undefined) ?? (cfg.multiple ? TreeSelect.SHOW_CHILD : undefined)
-        }
-        notFoundContent={fetching ? <Spin size='small' /> : undefined}
-        suffixIcon={fetching ? <Spin size='small' /> : undefined}
-        style={{ width: '100%' }}
-        treeNodeFilterProp='title'
-      />
-    </Form.Item>
+  return wrap(
+    <TreeSelect
+      {...treeRest}
+      value={value}
+      onChange={onChange}
+      treeData={treeData as unknown as TreeDataNode[]}
+      placeholder={placeholder ?? '请选择...'}
+      disabled={disabled || loading}
+      allowClear={cfg.allowClear}
+      showSearch={cfg.showSearch}
+      onSearch={remoteSearchable ? handleSearch : undefined}
+      filterTreeNode={
+        localFilterable ? (localFilter as unknown as TreeFilterFn) : undefined
+      }
+      treeExpandedKeys={
+        expandedKeys.length > 0
+          ? (expandedKeys as unknown as TreeExpandedKeys)
+          : undefined
+      }
+      onTreeExpand={setExpandedKeys}
+      loadData={
+        cfg.asyncLoad
+          ? (handleLoadData as unknown as TreeLoadDataFn)
+          : undefined
+      }
+      multiple={cfg.multiple}
+      treeCheckable={(userTreeCheckable as boolean | undefined) ?? cfg.multiple}
+      showCheckedStrategy={
+        (userShowCheckedStrategy as
+          | 'SHOW_ALL'
+          | 'SHOW_PARENT'
+          | 'SHOW_CHILD'
+          | undefined) ?? (cfg.multiple ? TreeSelect.SHOW_CHILD : undefined)
+      }
+      notFoundContent={fetching ? <Spin size='small' /> : undefined}
+      suffixIcon={fetching ? <Spin size='small' /> : undefined}
+      style={{ width: '100%' }}
+      treeNodeFilterProp='title'
+    />,
   );
 }
 

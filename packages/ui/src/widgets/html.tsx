@@ -1,7 +1,7 @@
 import { Typography } from 'antd';
-import { type WidgetProps, withFormItem } from './_shared';
+import type { WidgetProps } from './_shared';
 
-export const htmlWidget = withFormItem(({ value }: WidgetProps) => {
+export const htmlWidget = ({ value }: WidgetProps) => {
   return (
     <Typography>
       <div
@@ -11,4 +11,4 @@ export const htmlWidget = withFormItem(({ value }: WidgetProps) => {
       />
     </Typography>
   );
-});
+};

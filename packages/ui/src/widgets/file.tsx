@@ -1,7 +1,7 @@
 import type { UploadFile } from 'antd';
 import { Button, message, Upload } from 'antd';
 import { useEffect, useState } from 'react';
-import { ReadOnlyDisplay, type WidgetProps, withFormItem } from './_shared';
+import { ReadOnlyDisplay, type WidgetProps } from './_shared';
 
 export interface FileWidgetConfig {
   /** 上传接口地址 */
@@ -40,127 +40,119 @@ function toFileList(urls: string[]): UploadFile[] {
   }));
 }
 
-export const fileWidget = withFormItem(
-  ({
-    value,
-    onChange,
-    disabled,
-    loading,
-    readOnly,
-    form,
-    dependValues: _dv,
-    dataPath: _dp,
-    path: _p,
-    action,
-    accept,
-    listType,
-    maxCount,
-    multiple,
-    drag,
-    buttonText,
-    beforeUpload,
-    ...rest
-  }: WidgetProps & FileWidgetConfig) => {
-    const urls = toUrlList(value);
-    const [fileList, setFileList] = useState<UploadFile[]>(() =>
-      toFileList(urls),
-    );
+export const fileWidget = ({
+  value,
+  onChange,
+  disabled,
+  loading,
+  readOnly,
+  form,
+  dependValues: _dv,
+  dataPath: _dp,
+  path: _p,
+  action,
+  accept,
+  listType,
+  maxCount,
+  multiple,
+  drag,
+  buttonText,
+  beforeUpload,
+  ...rest
+}: WidgetProps & FileWidgetConfig) => {
+  const urls = toUrlList(value);
+  const [fileList, setFileList] = useState<UploadFile[]>(() =>
+    toFileList(urls),
+  );
 
-    // 外部值变化时同步 fileList（重置 / setValues 场景）
-    useEffect(() => {
-      setFileList(toFileList(toUrlList(value)));
-    }, [value]);
+  // 外部值变化时同步 fileList（重置 / setValues 场景）
+  useEffect(() => {
+    setFileList(toFileList(toUrlList(value)));
+  }, [value]);
 
-    if (readOnly) {
-      const display = urls.map((u) => {
-        const name = u.split('/').pop() || u;
-        if (listType === 'picture' || listType === 'picture-card') {
-          return u;
-        }
-        return name;
-      });
-      return <ReadOnlyDisplay value={display} />;
+  if (readOnly) {
+    const display = urls.map((u) => {
+      const name = u.split('/').pop() || u;
+      if (listType === 'picture' || listType === 'picture-card') {
+        return u;
+      }
+      return name;
+    });
+    return <ReadOnlyDisplay value={display} />;
+  }
+
+  const handleChange = ({ fileList: newList }: { fileList: UploadFile[] }) => {
+    const next = newList
+      .filter((f) => f.status === 'done' || f.url)
+      .map((f) => f.url || f.response?.url)
+      .filter((u): u is string => typeof u === 'string' && u.length > 0);
+    setFileList(newList);
+    onChange(multiple || maxCount !== 1 ? next : (next[0] ?? ''));
+  };
+
+  const mergedBeforeUpload = (file: File) => {
+    if (beforeUpload) {
+      const allowed = beforeUpload(file);
+      if (allowed === false) {
+        return false;
+      }
     }
+    if (accept && accept !== '*' && accept !== 'image/*') {
+      const mime = file.type.toLowerCase();
+      const accepted = accept
+        .split(',')
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean)
+        .some((t) => {
+          if (t.endsWith('/*')) {
+            return mime.startsWith(t.slice(0, -1));
+          }
+          return mime === t || file.name.toLowerCase().endsWith(t.slice(1));
+        });
+      if (!accepted) {
+        message.error(`不支持的文件类型：${file.name}`);
+        return Upload.LIST_IGNORE;
+      }
+    }
+    return true;
+  };
 
-    const handleChange = ({
-      fileList: newList,
-    }: {
-      fileList: UploadFile[];
-    }) => {
-      const next = newList
-        .filter((f) => f.status === 'done' || f.url)
-        .map((f) => f.url || f.response?.url)
+  const uploadProps = {
+    fileList,
+    onChange: handleChange,
+    onRemove: (f: UploadFile) => {
+      setFileList((prev) => prev.filter((x) => x.uid !== f.uid));
+      const remain = fileList
+        .filter((x) => x.uid !== f.uid)
+        .map((x) => x.url || x.response?.url)
         .filter((u): u is string => typeof u === 'string' && u.length > 0);
-      setFileList(newList);
-      onChange(multiple || maxCount !== 1 ? next : (next[0] ?? ''));
-    };
+      onChange(multiple || maxCount !== 1 ? remain : (remain[0] ?? ''));
+    },
+    ...(action ? { action } : {}),
+    accept,
+    multiple,
+    maxCount,
+    beforeUpload: mergedBeforeUpload,
+  };
 
-    const mergedBeforeUpload = (file: File) => {
-      if (beforeUpload) {
-        const allowed = beforeUpload(file);
-        if (allowed === false) {
-          return false;
-        }
-      }
-      if (accept && accept !== '*' && accept !== 'image/*') {
-        const mime = file.type.toLowerCase();
-        const accepted = accept
-          .split(',')
-          .map((t) => t.trim().toLowerCase())
-          .filter(Boolean)
-          .some((t) => {
-            if (t.endsWith('/*')) {
-              return mime.startsWith(t.slice(0, -1));
-            }
-            return mime === t || file.name.toLowerCase().endsWith(t.slice(1));
-          });
-        if (!accepted) {
-          message.error(`不支持的文件类型：${file.name}`);
-          return Upload.LIST_IGNORE;
-        }
-      }
-      return true;
-    };
-
-    const uploadProps = {
-      fileList,
-      onChange: handleChange,
-      onRemove: (f: UploadFile) => {
-        setFileList((prev) => prev.filter((x) => x.uid !== f.uid));
-        const remain = fileList
-          .filter((x) => x.uid !== f.uid)
-          .map((x) => x.url || x.response?.url)
-          .filter((u): u is string => typeof u === 'string' && u.length > 0);
-        onChange(multiple || maxCount !== 1 ? remain : (remain[0] ?? ''));
-      },
-      ...(action ? { action } : {}),
-      accept,
-      multiple,
-      maxCount,
-      beforeUpload: mergedBeforeUpload,
-    };
-
-    if (drag) {
-      return (
-        <Upload.Dragger {...uploadProps} {...rest}>
-          <div>
-            <p className='text-[14px] text-[#333]'>
-              {buttonText ?? '点击或拖拽文件到此区域上传'}
-            </p>
-            {accept && (
-              <p className='text-[12px] text-[#999]'>支持格式：{accept}</p>
-            )}
-          </div>
-        </Upload.Dragger>
-      );
-    }
-
+  if (drag) {
     return (
-      <Upload {...uploadProps} listType={listType ?? 'text'} {...rest}>
-        <Button disabled={disabled || loading}>
-          {buttonText ?? '点击上传'}
-        </Button>
-      </Upload>
+      <Upload.Dragger {...uploadProps} {...rest}>
+        <div>
+          <p className='text-[14px] text-[#333]'>
+            {buttonText ?? '点击或拖拽文件到此区域上传'}
+          </p>
+          {accept && (
+            <p className='text-[12px] text-[#999]'>支持格式：{accept}</p>
+          )}
+        </div>
+      </Upload.Dragger>
     );
-  },
-);
+  }
+
+  return (
+    <Upload {...uploadProps} listType={listType ?? 'text'} {...rest}>
+      <Button disabled={disabled || loading}>{buttonText ?? '点击上传'}</Button>
+    </Upload>
+  );
+};

@@ -1,47 +1,45 @@
 import { Rate } from 'antd';
-import { ReadOnlyDisplay, type WidgetProps, withFormItem } from './_shared';
+import { ReadOnlyDisplay, type WidgetProps } from './_shared';
 
-export const rateWidget = withFormItem(
-  ({
-    value,
-    onChange,
-    disabled,
-    loading,
-    readOnly,
-    tooltips,
-    form,
-    dependValues: _dv,
-    dataPath: _dp,
-    path: _p,
-    ...rest
-  }: WidgetProps) => {
-    if (readOnly) {
-      const starCount = Math.round(Number(value) || 0);
-      if (starCount <= 0) {
-        return <ReadOnlyDisplay value={value} />;
-      }
-      return (
-        <span style={{ fontSize: 16, color: '#fadb14', letterSpacing: 2 }}>
-          {'★'.repeat(starCount)}
-        </span>
-      );
+export const rateWidget = ({
+  value,
+  onChange,
+  disabled,
+  loading,
+  readOnly,
+  tooltips,
+  form,
+  dependValues: _dv,
+  dataPath: _dp,
+  path: _p,
+  ...rest
+}: WidgetProps) => {
+  if (readOnly) {
+    const starCount = Math.round(Number(value) || 0);
+    if (starCount <= 0) {
+      return <ReadOnlyDisplay value={value} />;
     }
-    // 声明式拆分：tooltips 逗号分隔字符串 → 数组
-    const tooltipsProp =
-      typeof tooltips === 'string' && tooltips.trim()
-        ? tooltips
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : undefined;
     return (
-      <Rate
-        value={value as number}
-        onChange={(v) => onChange(v)}
-        disabled={disabled || loading}
-        tooltips={tooltipsProp}
-        {...rest}
-      />
+      <span style={{ fontSize: 16, color: '#fadb14', letterSpacing: 2 }}>
+        {'★'.repeat(starCount)}
+      </span>
     );
-  },
-);
+  }
+  // 声明式拆分：tooltips 逗号分隔字符串 → 数组
+  const tooltipsProp =
+    typeof tooltips === 'string' && tooltips.trim()
+      ? tooltips
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined;
+  return (
+    <Rate
+      value={value as number}
+      onChange={(v) => onChange(v)}
+      disabled={disabled || loading}
+      tooltips={tooltipsProp}
+      {...rest}
+    />
+  );
+};

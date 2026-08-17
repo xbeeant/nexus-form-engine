@@ -214,12 +214,81 @@ export function ReadOnlyDisplay({
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// withFormItem — 包裹 widget，统一处理 Form.Item 布局 + readOnly
+// useFormItem — 公共 Form.Item 包裹 Hook（所有 widget 默认使用）
+// 约束：
+// - 默认包裹 Form.Item（label/错误/必填/布局）
+// - 字段级 label === false 或表单级 label === false 时：不包裹 Form.Item，
+//   直接裸渲染控件（用于无 label 场景，如 html / 纯控件布局）
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface UseFormItemResult {
+  /** 是否显示 label（字段级 label !== false 且 表单级 label !== false） */
+  showLabel: boolean;
+  /**
+   * 条件包裹函数：showLabel 为 true 时渲染 Form.Item，否则裸渲染控件
+   * @param children - 控件内容
+   */
+  wrap: (children: React.ReactNode) => React.ReactElement;
+}
+
+export function useFormItem(props: WidgetProps): UseFormItemResult {
+  // 字段级 label（meta.label，Parser 默认 true）与表单级 label 同时生效，
+  // 任一为 false 即不显示该字段 label（且不包裹 Form.Item）
+  const configLabel = useFormConfig().label;
+  const showLabel = props.label !== false && configLabel !== false;
+
+  const formItemProps = useFormItemProps({
+    displayType: props.displayType,
+    labelWidth: props.labelWidth,
+  });
+
+  // 合并 inline 布局样式与 width
+  const mergedStyle: Record<string, unknown> = {
+    width: '100%',
+    ...formItemProps.style,
+    ...(props.width ? { width: props.width } : {}),
+  };
+
+  const wrap = (children: React.ReactNode): React.ReactElement => {
+    if (!showLabel) {
+      // label=false：不使用 Form.Item 包裹，裸渲染控件
+      return <React.Fragment>{children}</React.Fragment>;
+    }
+
+    const formItemHelp = props.errors?.length
+      ? props.errors[0]
+      : props.description;
+    const formItemStatus = props.errors?.length ? 'error' : '';
+
+    return (
+      <Form.Item
+        label={props.title}
+        required={toBoolean(props.required)}
+        help={formItemHelp}
+        validateStatus={formItemStatus}
+        extra={props.extra}
+        style={Object.keys(mergedStyle).length > 0 ? mergedStyle : undefined}
+        labelCol={formItemProps.labelCol}
+        wrapperCol={formItemProps.wrapperCol}
+        colon={formItemProps.colon}
+      >
+        {children}
+      </Form.Item>
+    );
+  };
+
+  return { showLabel, wrap };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// withFormItem — 公共包裹方法：给裸 widget 组件套上默认 Form.Item
+// 由注册处（widgets/index.ts antdWidgets）对内置 widget 统一应用；
+// 自定义 widget 也可直接使用（label=false 时同样不包裹 Form.Item）
 // ────────────────────────────────────────────────────────────────────────────
 
 export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
   return (props: WidgetProps) => {
-    const configLabel = useFormConfig().label;
+    const { wrap } = useFormItem(props);
     // Form.Item 消费的元数据需从 rest 中剥离，避免透传到底层 antd 控件：
     //  - required: 会让 <input required> 触发浏览器原生校验，拦截 submit 导致自定义校验不执行
     //  - errors / title / description: 作为未知属性渲染到 DOM，产生 React 警告
@@ -232,7 +301,7 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
       extra,
       width,
       readOnly,
-      label,
+      label: _label,
       options,
       required,
       errors,
@@ -254,50 +323,22 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
       ...rest
     } = props;
 
-    // 字段级 label（meta.label，Parser 默认 true）与表单级 label 同时生效，
-    // 任一为 false 即不显示该字段 label
-    const showLabel = label !== false && configLabel !== false;
-
-    const formItemProps = useFormItemProps({ displayType, labelWidth });
-
-    // 合并 inline 布局样式与 width
-    const mergedStyle: Record<string, unknown> = {
-      width: '100%',
-      ...formItemProps.style,
-      ...(width ? { width } : {}),
-    };
-
-    const formItemHelp = errors?.length ? errors[0] : description;
-    const formItemStatus = errors?.length ? 'error' : '';
-
-    return (
-      <Form.Item
-        label={showLabel ? title : null}
-        required={toBoolean(required)}
-        help={formItemHelp}
-        validateStatus={formItemStatus}
-        extra={extra}
-        style={Object.keys(mergedStyle).length > 0 ? mergedStyle : undefined}
-        labelCol={formItemProps.labelCol}
-        wrapperCol={formItemProps.wrapperCol}
-        colon={formItemProps.colon}
-      >
-        {render({
-          value,
-          onChange,
-          disabled,
-          readOnly,
-          loading,
-          placeholder,
-          options,
-          form,
-          items,
-          dependValues,
-          dataPath,
-          path,
-          ...rest,
-        })}
-      </Form.Item>
+    return wrap(
+      render({
+        value,
+        onChange,
+        disabled,
+        readOnly,
+        loading,
+        placeholder,
+        options,
+        form,
+        items,
+        dependValues,
+        dataPath,
+        path,
+        ...rest,
+      }),
     );
   };
 }

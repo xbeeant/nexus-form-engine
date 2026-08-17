@@ -61,8 +61,9 @@ export type { WidgetProps } from './widgets/_shared';
 export {
   mapOptions, // 将选项数据映射为 Select/Option 格式
   ReadOnlyDisplay, // 只读显示组件
+  useFormItem, // 公共 Hook - 默认包裹 Form.Item（label=false 时不包裹）
   useFormItemProps, // 获取 Ant Design FormItem 属性 Hook
-  withFormItem, // 包装组件以支持表单验证
+  withFormItem, // 公共包裹方法 - 为任意组件包装表单验证功能
 } from './widgets/_shared';
 export { autoCompleteWidget } from './widgets/autoComplete';
 export { cascaderWidget } from './widgets/cascader';
