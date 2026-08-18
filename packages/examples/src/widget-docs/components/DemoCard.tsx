@@ -13,11 +13,13 @@ import type { WidgetDemo } from '../types';
 
 interface DemoCardProps {
   demo: WidgetDemo;
+  /** 表单级只读（由组件文档页统一切换，所有示例联动） */
+  readOnly?: boolean;
 }
 
 const PREVIEW_HEIGHT = 360;
 
-export function DemoCard({ demo }: DemoCardProps) {
+export function DemoCard({ demo, readOnly = false }: DemoCardProps) {
   const [form] = useForm();
   const [showCode, setShowCode] = useState(false);
   const [submitted, setSubmitted] = useState<Record<string, unknown> | null>(
@@ -71,6 +73,7 @@ export function DemoCard({ demo }: DemoCardProps) {
               schema={demo.schema as never}
               footer={false}
               initialValues={demo.initialValues}
+              readOnly={readOnly}
             />
           </div>
 

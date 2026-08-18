@@ -3,7 +3,7 @@
 // 左侧：分组组件导航；右侧：组件简介 + 示例实例列表 + 属性介绍表
 // ============================================================================
 
-import { Layout, Menu, Typography } from 'antd';
+import { Layout, Menu, Segmented, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 import { widgetDocs } from '../registry';
 import type { DocGroup } from '../types';
@@ -26,6 +26,7 @@ const GROUP_ORDER: DocGroup[] = [
 
 export function WidgetDocsPage() {
   const [selectedId, setSelectedId] = useState<string>(widgetDocs[0]?.id ?? '');
+  const [readOnly, setReadOnly] = useState(false);
 
   const doc = widgetDocs.find((d) => d.id === selectedId) ?? widgetDocs[0];
 
@@ -87,18 +88,45 @@ export function WidgetDocsPage() {
           scrollbarColor: '#d9d9d9 transparent',
         }}
       >
-        <Typography.Title level={2} style={{ marginBottom: 4 }}>
-          {doc.title}{' '}
-          <Typography.Text type='secondary' style={{ fontWeight: 400 }}>
-            {doc.english}
-          </Typography.Text>
-        </Typography.Title>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <Typography.Title level={2} style={{ marginBottom: 4 }}>
+            {doc.title}{' '}
+            <Typography.Text type='secondary' style={{ fontWeight: 400 }}>
+              {doc.english}
+            </Typography.Text>
+          </Typography.Title>
+          <Segmented
+            value={readOnly ? 'readonly' : 'edit'}
+            onChange={(v) => setReadOnly(v === 'readonly')}
+            options={[
+              { label: '编辑', value: 'edit' },
+              { label: '只读', value: 'readonly' },
+            ]}
+          />
+        </div>
         <Typography.Paragraph type='secondary' style={{ maxWidth: 720 }}>
           {doc.description}
         </Typography.Paragraph>
+        {readOnly && (
+          <Typography.Paragraph type='secondary' style={{ fontSize: 12 }}>
+            当前为只读模式：本页所有示例表单均以文本展示，切换回「编辑」可继续操作
+          </Typography.Paragraph>
+        )}
 
         {doc.demos.map((demo, index) => (
-          <DemoCard key={`${doc.id}-demo-${index}`} demo={demo} />
+          <DemoCard
+            key={`${doc.id}-demo-${index}`}
+            demo={demo}
+            readOnly={readOnly}
+          />
         ))}
 
         <PropsTable doc={doc} />
