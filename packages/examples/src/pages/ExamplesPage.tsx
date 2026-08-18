@@ -29,7 +29,9 @@ export default function ExamplesPage() {
   );
   const [errorCount, setErrorCount] = useState(0);
   const [readOnly, setReadOnly] = useState(false);
+  const [locale, setLocale] = useState<'zh-CN' | 'en-US'>('zh-CN');
   const [removeHidden, setRemoveHidden] = useState(true);
+  const [persist, setPersist] = useState(false);
   const [showSchema, setShowSchema] = useState<'form' | 'schema'>('form');
 
   // 注册 antd UI（仅首次）
@@ -111,13 +113,21 @@ export default function ExamplesPage() {
         />
       </div>
 
-      <Space style={{ marginBottom: 16 }}>
+      <Space style={{ marginBottom: 16 }} wrap>
         <Button
           onClick={() => setReadOnly((v) => !v)}
           type={readOnly ? 'primary' : 'default'}
         >
           {readOnly ? '退出只读模式' : '进入只读模式'}
         </Button>
+        <Segmented
+          value={locale}
+          onChange={(v) => setLocale(v as 'zh-CN' | 'en-US')}
+          options={[
+            { label: '中文', value: 'zh-CN' },
+            { label: 'English', value: 'en-US' },
+          ]}
+        />
         <Typography.Text type='secondary' style={{ fontSize: 12 }}>
           「促销与计算」卡片演示 visible/required 别名联动与计算字段（单价 ×
           数量 = 总额）
@@ -144,6 +154,17 @@ export default function ExamplesPage() {
                   onChange={setRemoveHidden}
                   checkedChildren='移除 hidden'
                   unCheckedChildren='包含 hidden'
+                />
+              </Space>
+              <Space>
+                <Typography.Text>
+                  <b>persist</b>（草稿持久化，刷新页面自动续填）：
+                </Typography.Text>
+                <Switch
+                  checked={persist}
+                  onChange={setPersist}
+                  checkedChildren='保存草稿'
+                  unCheckedChildren='关闭'
                 />
               </Space>
               <Space>
@@ -224,6 +245,12 @@ export default function ExamplesPage() {
             form={form}
             schema={demoSchema}
             readOnly={readOnly}
+            locale={locale}
+            persist={
+              persist
+                ? { key: 'nexus-examples-draft', storage: 'localStorage' }
+                : undefined
+            }
             removeHiddenData={removeHidden}
             watch={{
               username: (value, allValues) => {

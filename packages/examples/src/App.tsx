@@ -8,6 +8,7 @@ import { DocsLayout } from 'fumadocs-ui/layouts/docs';
 import { DocsFrameworkProvider, useHashPath } from './lib/router';
 import { source } from './lib/source';
 import AdvancedWidgetsPage from './pages/AdvancedWidgetsPage';
+import BenchmarkPage from './pages/BenchmarkPage';
 import DesignerPage from './pages/DesignerPage';
 import ExamplesPage from './pages/ExamplesPage';
 import ExtensionsPage from './pages/ExtensionsPage';
@@ -25,6 +26,7 @@ function buildTree(): Root {
       ...mdTree.children,
       { type: 'separator', name: '演示' },
       { type: 'page', name: '使用示例', url: '/examples' },
+      { type: 'page', name: '性能压测', url: '/benchmark' },
       { type: 'page', name: '多表单联动', url: '/multi-form' },
       { type: 'page', name: '组件文档', url: '/widget-docs' },
       { type: 'page', name: '组件内校验', url: '/widget-validation' },
@@ -40,6 +42,9 @@ function PageRouter({ path }: { path: string }) {
   }
   if (path === '/examples') {
     return <ExamplesPage />;
+  }
+  if (path === '/benchmark') {
+    return <BenchmarkPage />;
   }
   if (path === '/multi-form') {
     return <MultiFormPage />;
