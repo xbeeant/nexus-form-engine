@@ -14,6 +14,7 @@
     "@types/mdx": "^2.0.14",
     "@xbeeant/form-engine": "^0.0.3",
     "@xbeeant/form-engine-designer": "^0.0.3",
+    "@xbeeant/form-engine-devtools": "^0.0.3",
     "@xbeeant/form-engine-ui": "^0.0.3",
     "antd": "^6.5.3",
     "dayjs": "^1.11.11",

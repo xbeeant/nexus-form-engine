@@ -44,8 +44,8 @@
       "name": "@xbeeant/form-engine-designer",
       "version": "0.0.3",
       "dependencies": {
-        "@xbeeant/form-engine": "^0.0.0",
-        "@xbeeant/form-engine-ui": "^0.0.0",
+        "@xbeeant/form-engine": "^0.0.3",
+        "@xbeeant/form-engine-ui": "^0.0.3",
       },
       "devDependencies": {
         "vitest": "^4.1.10",
@@ -57,14 +57,27 @@
         "react-dom": ">=18.0.0",
       },
     },
+    "packages/devtools": {
+      "name": "@xbeeant/form-engine-devtools",
+      "version": "0.0.3",
+      "dependencies": {
+        "@xbeeant/form-engine": "^0.0.3",
+      },
+      "peerDependencies": {
+        "antd": ">=5.0.0",
+        "react": ">=18.0.0",
+        "react-dom": ">=18.0.0",
+      },
+    },
     "packages/examples": {
       "name": "@xbeeant/form-engine-examples",
       "version": "0.0.3",
       "dependencies": {
         "@types/mdx": "^2.0.14",
-        "@xbeeant/form-engine": "^0.0.0",
-        "@xbeeant/form-engine-designer": "^0.0.0",
-        "@xbeeant/form-engine-ui": "^0.0.0",
+        "@xbeeant/form-engine": "^0.0.3",
+        "@xbeeant/form-engine-designer": "^0.0.3",
+        "@xbeeant/form-engine-devtools": "^0.0.3",
+        "@xbeeant/form-engine-ui": "^0.0.3",
         "antd": "^6.5.3",
         "dayjs": "^1.11.11",
         "fumadocs-core": "^16.14.4",
@@ -76,7 +89,7 @@
       "name": "@xbeeant/form-engine-react",
       "version": "0.0.3",
       "dependencies": {
-        "@xbeeant/form-engine": "^0.0.0",
+        "@xbeeant/form-engine": "^0.0.3",
       },
       "peerDependencies": {
         "react": ">=18.0.0",
@@ -87,8 +100,8 @@
       "name": "@xbeeant/form-engine-ui",
       "version": "0.0.3",
       "dependencies": {
-        "@xbeeant/form-engine": "^0.0.0",
-        "@xbeeant/form-engine-react": "^0.0.0",
+        "@xbeeant/form-engine": "^0.0.3",
+        "@xbeeant/form-engine-react": "^0.0.3",
       },
       "peerDependencies": {
         "antd": ">=5.0.0",
@@ -822,6 +835,8 @@
     "@xbeeant/form-engine": ["@xbeeant/form-engine@workspace:packages/core"],
 
     "@xbeeant/form-engine-designer": ["@xbeeant/form-engine-designer@workspace:packages/designer"],
+
+    "@xbeeant/form-engine-devtools": ["@xbeeant/form-engine-devtools@workspace:packages/devtools"],
 
     "@xbeeant/form-engine-examples": ["@xbeeant/form-engine-examples@workspace:packages/examples"],
 

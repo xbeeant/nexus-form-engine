@@ -66,27 +66,23 @@ cd packages/ui && bunx vite build -c bench/vite.bench.config.ts && bun bench/dis
 
 ## 四、测试过程中发现并修复的问题
 
-1. **`requiredOn/disabledOn/readOnlyOn/visibleOn` 别名未实现（Bug）**
-   - AGENTS.md §2.4 声明这些正向别名支持 `"{{ ... }}"` 表达式联动，但 `SchemaParser.REACTION_EXPR_FIELDS` 只有 `required/disabled/readOnly/hidden`，别名写在 Schema 上会被静默忽略（依赖图为空、无反应）。类型定义也未提供。
-   - **处理**：本次未修复（超出性能测试范围），已定位到 `packages/core/src/SchemaParser.ts:92`，建议补入别名并加测试。
-
-2. **`runAllReactions` 每个 reaction 重复构建 formData（性能 Bug，已修复）**
+1. **`runAllReactions` 每个 reaction 重复构建 formData（性能 Bug，已修复）**
    - `Engine.runAllReactions` 调 `executeReaction` 未传快照，内部 `formData ?? this.getFormData()` 对每个表达式字段全量重建 formData（100 字段 ≈ 100 次全量收集）。
    - 修复：`Engine.ts:1727` 复用单份快照（与 `runReactionsForSource` 一致）。**`engine.init`（扇出 1→100）2.75ms → 665µs，约 4.1 倍提升**。
    - 103 个单测全部通过。
 
-3. **`useSyncExternalStore` 缺少 `getServerSnapshot`（SSR Bug，已修复）**
+2. **`useSyncExternalStore` 缺少 `getServerSnapshot`（SSR Bug，已修复）**
    - `react/NexusField.tsx:24` 只传 2 参，React 19 SSR 直接抛错「Missing getServerSnapshot」，会退回客户端渲染，影响 Next.js 等 SSR 场景。
    - 修复：补第三参 `() => engine.getFieldVersion(dataPath)`。`NexusForm.tsx` 原本已带，无需改。
 
-4. **UI 包未声明 `@xbeeant/form-engine-react` 依赖**
+3. **UI 包未声明 `@xbeeant/form-engine-react` 依赖**
    - `ui/src/widgets/_shared.tsx` import 了 react 包，但 `packages/ui/package.json` 未声明，已补 `devDependencies`。
 
-5. **构建把 workspace 依赖内联进 dist（打包架构问题）**
+4. **构建把 workspace 依赖内联进 dist（打包架构问题）**
    - vite 配置把 `@xbeeant/form-engine*` alias 到 src，`external` 对已 alias 的 id 失效，导致每个包的 dist 内联一份 core/react 源码。跨包共享 React Context 时会出现「双实例」→ `[NexusField] Must be used within <NexusFormProvider>`。
    - 本次基准通过「三包全部 alias 到 src」规避；建议单独处理（外部化 workspace 依赖），否则直接消费构建产物时存在 context 分裂风险。
 
-6. **withFormItem 把 `dataPath`/`dependValues` 透传到 DOM（小问题）**
+5. **withFormItem 把 `dataPath`/`dependValues` 透传到 DOM（小问题）**
    - 渲染时 React 警告「does not recognize the dataPath prop」。`_shared.tsx` 的 WidgetProps 含索引签名 `[key: string]: unknown`，透传未剥除内部 props。
 
 ## 五、后续优化建议（按性价比排序）
@@ -94,7 +90,6 @@ cd packages/ui && bunx vite build -c bench/vite.bench.config.ts && bun bench/dis
 | 优先级 | 建议 | 预期收益 |
 | :--- | :--- | :--- |
 | P0 | arrayOperation 增量更新项状态：push/remove 只重建受影响 index 的 item 子状态（`syncArrayItemStates` 改为增量），构建 N 项列表由 O(N²) 降为 O(N) | push 从 ~1ms 降至 ~50µs 量级 |
-| P1 | 实现 `requiredOn` 等别名（补 `REACTION_EXPR_FIELDS` + `BaseSchemaNode` 类型），避免 Schema 静默失效 | 协议完备性 |
 | P1 | 外部化 workspace 依赖，消除 dist 内联导致的 context 双实例 | 构建产物可被直接消费 |
 | P2 | validate() 全量 200 字段约 10ms，超大表单（1000+ 字段）建议按需/分片校验 | 大表单提交延迟 |
 | P2 | withFormItem 透传时剥除 `dataPath/dependValues/...` 内部 props | 消除 React warning |

@@ -1448,6 +1448,19 @@ export class NexusEngine implements IFormEngine {
     return this.dependencyGraph.getDependents(path);
   }
 
+  /**
+   * 获取指定字段的全部依赖源（依赖图中的入边）
+   *
+   * 例如：address.city 依赖 address.province 时，
+   * getDependencies('address.city') 返回 Set['address.province']
+   *
+   * @param path - 字段路径
+   * @returns 该字段依赖的其他字段集合（防御性拷贝）
+   */
+  getDependencies(path: string): Set<string> {
+    return this.dependencyGraph.getDependencies(path);
+  }
+
   // =========================================================================
   // 订阅系统
   // =========================================================================

@@ -45,7 +45,7 @@ AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/u
 
 ### 2.4 联动协议 (Reactions)
 
-- **简单联动**: `required/disabled/readOnly/hidden` 及**正向别名** `requiredOn/disabledOn/readOnlyOn/visibleOn`（amis 语义）支持 `"{{ formData.x === 'y' }}"` 字符串，Parser 通过 `collectExpressionReactions` **自动转换为 `_autoExpr` reaction**（静态布尔值不处理，直接作为初始状态）。
+- **简单联动**: `required/disabled/readOnly/hidden` 支持 `"{{ formData.x === 'y' }}"` 字符串，Parser 通过 `collectExpressionReactions` **自动转换为 `_autoExpr` reaction**（静态布尔值不处理，直接作为初始状态）。
 - **计算字段（formily 对齐）**: `fulfill/otherwise.state.value` 支持 `"{{ ... }}"` 表达式，值变化后自动**重校验 + 沿依赖图继续传播**（`Engine.applyStatePatch`），可声明式实现总额 = 单价 × 数量。
 - **复杂联动**: 结构化 `reactions` 数组：
   - `dependencies: string[]` — **允许相对路径**，`resolveReactionScopes` 从目标字段最内层作用域向上逐级解析（如 `address.city` 内 `dependencies: ["province"]` → `"address.province"`）；`_autoExpr` 的依赖均为根级绝对路径，不做作用域解析
