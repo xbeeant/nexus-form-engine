@@ -6,6 +6,7 @@
 import { layoutCatalog, widgetCatalog } from '@xbeeant/form-engine-designer';
 import { Card, Col, Collapse, Row, Space, Tag, Typography } from 'antd';
 import { CodeBlock } from '../site/CodeBlock';
+import { MainArea } from '../site/MainArea';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -47,8 +48,8 @@ const customWidgetSteps = [
     desc: '在 packages/ui/src/widgets/ 下新建 xxx.tsx',
   },
   {
-    title: '包裹 withFormItem',
-    desc: '统一处理布局、校验、只读模式',
+    title: '裸组件导出',
+    desc: 'Form.Item 包裹（label/错误/布局）由 NexusForm 渲染层默认完成，无需手动包裹',
   },
   {
     title: '注册映射',
@@ -62,7 +63,8 @@ const customWidgetSteps = [
 
 export default function ExtensionsPage() {
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 16px 48px' }}>
+    <MainArea>
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 16px 48px' }}>
       <Title level={2}>扩展介绍</Title>
       <Paragraph type='secondary'>
         引擎不内置任何 UI 组件，全部通过 <code>registerWidgets</code> /{' '}
@@ -147,8 +149,9 @@ export default function ExtensionsPage() {
         自定义 Widget
       </Title>
       <Paragraph>
-        通过 <code>withFormItem</code>{' '}
-        高阶函数快速包装自定义组件，统一获得布局、校验与只读能力。 详细规范见
+        自定义 widget 只需导出裸组件——Form.Item 包裹（label、错误、必填、
+        布局）由 NexusForm 渲染层通过 <code>FieldWrapper</code> 默认完成，
+        <code>label: false</code> 时跳过包裹。 详细规范见
         <Text type='secondary'> packages/ui/docs/custom-widget-guide.md</Text>。
       </Paragraph>
       <Collapse
@@ -176,24 +179,23 @@ export default function ExtensionsPage() {
                 lang='tsx'
                 title='自定义 MyInput Widget'
                 code={`import { Input } from 'antd';
-import { withFormItem, type WidgetProps } from './_shared';
+import type { WidgetProps } from '@xbeeant/form-engine-ui';
 
 type MyInputProps = WidgetProps & {
   maxLength?: number;
   [key: string]: any;
 };
 
-export const myInput = withFormItem(
-  ({ value, onChange, disabled, loading, placeholder, maxLength, ...rest }: MyInputProps) => (
-    <Input
-      value={value as string}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled || loading}
-      placeholder={placeholder}
-      maxLength={maxLength}
-      {...rest}
-    />
-  ),
+// 裸组件：Form.Item 包裹由 NexusForm 渲染层默认完成（label: false 时跳过）
+export const myInput = ({ value, onChange, disabled, loading, placeholder, maxLength, ...rest }: MyInputProps) => (
+  <Input
+    value={value as string}
+    onChange={(e) => onChange(e.target.value)}
+    disabled={disabled || loading}
+    placeholder={placeholder}
+    maxLength={maxLength}
+    {...rest}
+  />
 );
 
 // 注册
@@ -216,9 +218,9 @@ export const antdWidgets = {
       <CodeBlock
         lang='ts'
         title='registerAntdUI'
-        code={`// ui 包提供一键注册函数：widgets + layouts + AsyncValidatorPlugin
+        code={`// ui 包提供一键注册函数：widgets + layouts + FieldWrapper
 export function registerAntdUI(engine: NexusEngine): void {
-  engine.use(new AsyncValidatorPlugin(engine));
+  engine.registerFieldWrapper(FieldWrapper); // 渲染层默认包裹所有 widget
   engine.registerWidgets(antdWidgets);
   engine.registerLayouts(antdLayouts);
 }
@@ -227,6 +229,7 @@ export function registerAntdUI(engine: NexusEngine): void {
 engine.registerWidgets({ input: MyInput, select: MySelect });
 engine.registerLayouts({ card: MyCard, grid: MyGrid });`}
       />
-    </div>
+      </div>
+    </MainArea>
   );
 }

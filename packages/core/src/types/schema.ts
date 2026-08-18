@@ -882,6 +882,8 @@ export interface NexusPlugin {
   widgets?: Record<string, NexusComponent>;
   /** 自定义布局注册表，key 为布局名称 */
   layouts?: Record<string, NexusComponent>;
+  /** 字段包裹组件（渲染层默认包裹所有 widget，label === false 时跳过包裹） */
+  fieldWrapper?: NexusComponent;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1029,6 +1031,13 @@ export interface FormEngine extends ReadonlyFormEngine {
   registerWidgets(widgets: Record<string, NexusComponent>): void;
   /** 注册自定义布局 */
   registerLayouts(layouts: Record<string, NexusComponent>): void;
+  /**
+   * 注册字段包裹组件（UI 无关，Renderer 层注入）
+   * 渲染层默认用它包裹所有 widget，包裹组件自身决定是否跳过（如 label === false）
+   */
+  registerFieldWrapper(wrapper: NexusComponent): void;
+  /** 获取已注册的字段包裹组件 */
+  getFieldWrapper(): NexusComponent | undefined;
   /** 获取渲染树 */
   getRenderTree(): RenderTreeNode[];
   /** 销毁引擎实例 */

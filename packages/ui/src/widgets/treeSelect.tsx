@@ -15,7 +15,7 @@ import type { DefaultOptionType } from 'antd/es/select';
 import type { TreeSelectProps } from 'antd/es/tree-select';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useFormItem, type WidgetProps } from './_shared';
+import type { WidgetProps } from './_shared';
 
 /** antd v6 TreeSelect 树节点类型（DataNode：value 为 SafeKey，不含 null） */
 type TreeDataNode = NonNullable<TreeSelectProps['treeData']>[number];
@@ -367,9 +367,6 @@ function buildTreeFromFlatRecords(
 // ── 组件 ──────────────────────────────────────────────────────────────────
 
 export function TreeSelectWidget(props: WidgetProps & TreeSelectConfig) {
-  // 公共 Form.Item 包裹：label=false 时自动不包裹（裸渲染控件）
-  const { wrap } = useFormItem(props);
-
   const {
     value,
     onChange,
@@ -849,10 +846,8 @@ export function TreeSelectWidget(props: WidgetProps & TreeSelectConfig) {
 
   // ── 只读渲染 ──
   if (readOnly) {
-    return wrap(
-      <Typography.Text>
-        {readOnlyLabel || String(value ?? '-')}
-      </Typography.Text>,
+    return (
+      <Typography.Text>{readOnlyLabel || String(value ?? '-')}</Typography.Text>
     );
   }
 
@@ -861,13 +856,13 @@ export function TreeSelectWidget(props: WidgetProps & TreeSelectConfig) {
 
   // 未就绪时显示 loading，避免 value 回显为原始值
   if (!ready && !readOnly) {
-    return wrap(
+    return (
       <div
         style={{ display: 'flex', alignItems: 'center', gap: 8, height: 32 }}
       >
         <Spin size='small' />
         <span style={{ color: '#999' }}>加载中...</span>
-      </div>,
+      </div>
     );
   }
 
@@ -901,7 +896,7 @@ export function TreeSelectWidget(props: WidgetProps & TreeSelectConfig) {
     ...treeRest
   } = rest as Record<string, unknown>;
 
-  return wrap(
+  return (
     <TreeSelect
       {...treeRest}
       value={value}
@@ -939,7 +934,7 @@ export function TreeSelectWidget(props: WidgetProps & TreeSelectConfig) {
       suffixIcon={fetching ? <Spin size='small' /> : undefined}
       style={{ width: '100%' }}
       treeNodeFilterProp='title'
-    />,
+    />
   );
 }
 

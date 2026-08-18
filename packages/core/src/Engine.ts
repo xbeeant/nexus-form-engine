@@ -135,6 +135,8 @@ export class NexusEngine implements IFormEngine {
   private widgetRegistry: Map<string, NexusComponent> = new Map();
   /** 自定义布局组件注册表，key 为布局名称（UI 无关，Renderer 层注入） */
   private layoutRegistry: Map<string, NexusComponent> = new Map();
+  /** 字段包裹组件（UI 无关，Renderer 层注入；渲染层默认包裹所有 widget，label=false 时跳过） */
+  private fieldWrapper: NexusComponent | undefined;
   /**
    * 组件声明级校验/联动描述快照（widget 名称 → WidgetValidationDescriptor）
    * registerWidgets/registerLayouts/插件注入时从 widget.widgetMeta 快照，
@@ -1608,6 +1610,11 @@ export class NexusEngine implements IFormEngine {
         }
       }
     }
+
+    // 注册插件提供的字段包裹组件（渲染层默认包裹所有 widget）
+    if (plugin.fieldWrapper) {
+      this.fieldWrapper = plugin.fieldWrapper;
+    }
   }
 
   /**
@@ -1742,6 +1749,27 @@ export class NexusEngine implements IFormEngine {
     return this.layoutRegistry.get(name);
   }
 
+  /**
+   * 注册字段包裹组件（UI 无关，Renderer 层注入）
+   *
+   * 渲染层（NexusForm/NexusField）默认用该组件包裹所有 widget，
+   * 包裹组件自身决定是否包裹（如 label === false 时不包裹 Form.Item）。
+   *
+   * @param wrapper - 字段包裹组件
+   */
+  registerFieldWrapper(wrapper: NexusComponent): void {
+    this.fieldWrapper = wrapper;
+  }
+
+  /**
+   * 获取已注册的字段包裹组件
+   *
+   * @returns 字段包裹组件或 undefined
+   */
+  getFieldWrapper(): NexusComponent | undefined {
+    return this.fieldWrapper;
+  }
+
   // =========================================================================
   // 销毁
   // =========================================================================
@@ -1763,6 +1791,7 @@ export class NexusEngine implements IFormEngine {
     this.customValidators.clear();
     this.widgetRegistry.clear();
     this.layoutRegistry.clear();
+    this.fieldWrapper = undefined;
     this.widgetMetas = {};
     this.fieldValidators.clear();
     this.formDataCache = null;

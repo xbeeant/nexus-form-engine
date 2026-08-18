@@ -212,7 +212,6 @@ export function RenderItemControl({
   // readOnly / disabled：列表容器传入（列表级只读/禁用）与项字段引擎状态（含联动）取并集
   const finalReadOnly = readOnly || fieldState?.readOnly || false;
   const finalDisabled = disabled || fieldState?.disabled || false;
-  const finalRequired = fieldState?.required ?? false;
   const finalPlaceholder =
     fieldState?.meta.placeholder ?? placeholder ?? fieldSchema.placeholder;
   const finalProps = fieldState?.props ?? fieldSchema.props ?? {};
@@ -222,6 +221,8 @@ export function RenderItemControl({
   );
 
   if (Widget) {
+    // required/errors 等元数据属于列表容器（列头/行级校验由列表自行展示），
+    // 不透传给裸 item widget，避免透传到底层 antd 控件产生 DOM 警告
     return (
       <Widget
         dataPath={path}
@@ -230,11 +231,9 @@ export function RenderItemControl({
         onChange={onChange}
         disabled={finalDisabled}
         readOnly={finalReadOnly}
-        required={finalRequired}
         loading={fieldState?.loading}
         placeholder={finalPlaceholder}
         options={finalOptions}
-        errors={fieldState?.errors}
         form={form}
         {...finalProps}
       />

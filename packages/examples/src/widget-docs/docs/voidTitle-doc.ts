@@ -15,7 +15,7 @@ export const voidTitleDoc: WidgetDoc = {
     {
       title: '分区标题',
       description:
-        'title 声明标题文本、description 补充说明；bind: false 确保纯展示、不进入提交数据。',
+        'title 声明标题文本、description 补充说明；label: false 跳过 Form.Item 包裹（标题由组件自身渲染），bind: false 确保纯展示、不进入提交数据。',
       schema: {
         type: 'object',
         displayType: 'row',
@@ -24,6 +24,7 @@ export const voidTitleDoc: WidgetDoc = {
             type: 'string',
             widget: 'voidTitle',
             title: '一、基本信息',
+            label: false,
             bind: false,
           },
           name: {
@@ -36,6 +37,7 @@ export const voidTitleDoc: WidgetDoc = {
             widget: 'voidTitle',
             title: '二、联系方式',
             description: '请填写常用联系方式',
+            label: false,
             bind: false,
           },
           phone: {

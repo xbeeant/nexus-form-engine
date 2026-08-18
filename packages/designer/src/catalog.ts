@@ -226,6 +226,7 @@ export const widgetCatalog: CatalogItem[] = [
       type: 'string',
       widget: 'voidTitle',
       title: '标题文字',
+      label: false,
     }),
   },
   {

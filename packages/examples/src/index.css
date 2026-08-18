@@ -2,6 +2,8 @@
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
 
-/* 扫描 designer 包源码中的 Tailwind 工具类 */
+/* 扫描 designer/react/ui 包源码中的 Tailwind 工具类（ui/react 库产物自带的
+ * styles.css 独立 Tailwind 会话在示例应用构建中被排除，见 vite.config.ts） */
 @source "../../designer/src";
 @source "../../react/src";
+@source "../../ui/src";

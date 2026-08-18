@@ -7,6 +7,7 @@ import './styles.css';
 import type { NexusEngine, NexusPlugin } from '@xbeeant/form-engine';
 import { antdLayouts } from './layouts';
 import { antdWidgets } from './widgets';
+import { FieldWrapper } from './widgets/_shared';
 
 // ── 布局组件导出 ───────────────────────────────────────────────────────────────
 export { antdLayouts } from './layouts';
@@ -61,6 +62,7 @@ export {
 export { antdWidgets } from './widgets';
 export type { WidgetProps } from './widgets/_shared';
 export {
+  FieldWrapper,
   mapOptions, // 将选项数据映射为 Select/Option 格式
   ReadOnlyDisplay, // 只读显示组件
   useFormItem, // 公共 Hook - 默认包裹 Form.Item（label=false 时不包裹）
@@ -137,17 +139,20 @@ export { voidTitleWidget } from './widgets/voidTitle';
  * 将所有 Ant Design UI 组件（widgets 和 layouts）注册到表单引擎中
  * @param engine - 表单引擎实例，用于注册组件
  * @description
- * 自动注册所有 antdWidgets 和 antdLayouts 到引擎中，
+ * 自动注册 antdWidgets、antdLayouts 及 FieldWrapper 到引擎中，
  * 使引擎可以使用这些组件构建表单。此函数会覆盖已注册的同名组件。
+ * FieldWrapper 注册后，NexusForm 渲染层默认包裹所有 widget
+ * （Form.Item 布局/校验展示），仅当 label === false 时不包裹。
  */
 export function registerAntdUI(engine: NexusEngine): void {
+  engine.registerFieldWrapper(FieldWrapper);
   engine.registerWidgets(antdWidgets);
   engine.registerLayouts(antdLayouts);
 }
 
 /**
  * Ant Design UI 预设插件
- * @description 导出一个完整的 Ant Design UI 插件对象，包含所有组件和布局
+ * @description 导出一个完整的 Ant Design UI 插件对象，包含所有组件、布局和字段包裹组件
  * @example
  * ```typescript
  * const engine = new NexusEngine();
@@ -156,6 +161,7 @@ export function registerAntdUI(engine: NexusEngine): void {
  */
 export const antdPreset: NexusPlugin = {
   name: 'antd-preset',
+  fieldWrapper: FieldWrapper,
   widgets: antdWidgets,
   layouts: antdLayouts,
 };

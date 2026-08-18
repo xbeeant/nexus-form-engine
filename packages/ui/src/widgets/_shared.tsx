@@ -281,9 +281,59 @@ export function useFormItem(props: WidgetProps): UseFormItemResult {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// FieldMetaContext — 字段元数据透传上下文
+// NexusField（渲染层）剥离 title/description 等元数据 props 后，通过
+// FieldWrapper 以 Context 提供给 widget 消费（如 voidTitle 自身渲染标题）。
+// ────────────────────────────────────────────────────────────────────────────
+
+export const FieldMetaContext = React.createContext<
+  | {
+      title?: string;
+      description?: string;
+    }
+  | undefined
+>(undefined);
+
+// ────────────────────────────────────────────────────────────────────────────
+// FieldWrapper — 字段包裹组件（NexusForm 渲染层默认包裹所有 widget）
+// 约束：
+// - 默认包裹 Form.Item（label/错误/必填/布局）
+// - 字段级 label === false 或表单级 label === false 时：不包裹 Form.Item，
+//   直接裸渲染控件（用于无 label 场景，如 html / 纯控件布局）
+// - 以 Context 向 widget 透传 title/description（供需要自身渲染标题的 widget）
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface FieldWrapperProps {
+  label?: boolean;
+  title?: string;
+  description?: string;
+  errors?: string[];
+  required?: boolean;
+  extra?: string;
+  width?: string;
+  displayType?: 'row' | 'column' | 'inline';
+  labelWidth?: number | string;
+  column?: number;
+  children: React.ReactNode;
+}
+
+export function FieldWrapper(props: FieldWrapperProps) {
+  const { children, ...rest } = props;
+  const { wrap } = useFormItem(rest as WidgetProps);
+  return wrap(
+    <FieldMetaContext.Provider
+      value={{ title: rest.title, description: rest.description }}
+    >
+      {children}
+    </FieldMetaContext.Provider>,
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // withFormItem — 公共包裹方法：给裸 widget 组件套上默认 Form.Item
-// 由注册处（widgets/index.ts antdWidgets）对内置 widget 统一应用；
-// 自定义 widget 也可直接使用（label=false 时同样不包裹 Form.Item）
+// 注意：NexusForm 渲染时默认已通过 FieldWrapper 包裹所有 widget，
+// 仅在渲染于 NexusForm 之外（或自行控制包裹）时使用本方法；
+// 已注册的 widget 无需再包（label=false 时同样不包裹 Form.Item）
 // ────────────────────────────────────────────────────────────────────────────
 
 export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {

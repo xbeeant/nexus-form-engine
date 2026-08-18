@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { useFieldValidator } from '@xbeeant/form-engine-react';
-import { type WidgetProps, withFormItem } from '@xbeeant/form-engine-ui';
+import type { WidgetProps } from '@xbeeant/form-engine-ui';
 import { Input } from 'antd';
 import { useState } from 'react';
 
@@ -12,9 +12,11 @@ import { useState } from 'react';
 // confirmPassword — 确认密码
 // 在组件内部注册「两次密码一致」校验，并订阅 password 字段：
 // password 变化时自动对确认密码字段实时重校验（dependsOn 联动）
+// 注意：widget 为裸组件，Form.Item 包裹（label/错误展示）由 NexusForm
+// 渲染层通过 FieldWrapper 默认完成，无需 withFormItem。
 // ────────────────────────────────────────────────────────────────────────────
 
-export const confirmPasswordWidget = withFormItem((props: WidgetProps) => {
+export const confirmPasswordWidget = (props: WidgetProps) => {
   const {
     dataPath,
     form,
@@ -60,7 +62,7 @@ export const confirmPasswordWidget = withFormItem((props: WidgetProps) => {
       {...rest}
     />
   );
-});
+};
 
 // ────────────────────────────────────────────────────────────────────────────
 // usernameUnique — 用户名唯一性（异步）
@@ -68,7 +70,7 @@ export const confirmPasswordWidget = withFormItem((props: WidgetProps) => {
 // 同时通过组件内部 loading state 联动输入框的 loading 表现
 // ────────────────────────────────────────────────────────────────────────────
 
-export const usernameUniqueWidget = withFormItem((props: WidgetProps) => {
+export const usernameUniqueWidget = (props: WidgetProps) => {
   const {
     dataPath,
     form,
@@ -112,4 +114,4 @@ export const usernameUniqueWidget = withFormItem((props: WidgetProps) => {
       {...rest}
     />
   );
-});
+};

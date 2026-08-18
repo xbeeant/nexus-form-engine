@@ -9,6 +9,7 @@ import { registerAntdUI } from '@xbeeant/form-engine-ui';
 import { Alert, Button, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { CodeBlock } from '../site/CodeBlock';
+import { MainArea } from '../site/MainArea';
 
 const { Title, Paragraph } = Typography;
 
@@ -108,44 +109,48 @@ export default function AdvancedWidgetsPage() {
   };
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 24px 64px' }}>
-      <Title level={2}>高级 antd 组件</Title>
-      <Paragraph>
-        6 个 antd 6.x 表单组件 + Space 布局，均可在设计器中使用，并通过
-        widgetSchemas 定义组件属性（PropertyPanel「组件属性」分区）。
-      </Paragraph>
+    <MainArea>
+      <div
+        style={{ maxWidth: 860, margin: '0 auto', padding: '32px 24px 64px' }}
+      >
+        <Title level={2}>高级 antd 组件</Title>
+        <Paragraph>
+          6 个 antd 6.x 表单组件 + Space 布局，均可在设计器中使用，并通过
+          widgetSchemas 定义组件属性（PropertyPanel「组件属性」分区）。
+        </Paragraph>
 
-      <Space direction='vertical' size={16} style={{ width: '100%' }}>
-        <NexusForm
-          form={form}
-          schema={advancedSchema as never}
-          footer={false}
+        <Space orientation='vertical' size={16} style={{ width: '100%' }}>
+          <NexusForm
+            form={form}
+            schema={advancedSchema as never}
+            footer={false}
+          />
+
+          <Button type='primary' onClick={handleSubmit}>
+            提交
+          </Button>
+        </Space>
+
+        {submitted && (
+          <Alert
+            type='success'
+            showIcon
+            message='提交数据'
+            description={
+              <pre style={{ margin: 0, fontSize: 12 }}>
+                {JSON.stringify(submitted, null, 2)}
+              </pre>
+            }
+            style={{ marginTop: 16 }}
+          />
+        )}
+
+        <CodeBlock
+          code={JSON.stringify(advancedSchema, null, 2)}
+          lang='json'
+          title='Schema'
         />
-
-        <Button type='primary' onClick={handleSubmit}>
-          提交
-        </Button>
-      </Space>
-
-      {submitted && (
-        <Alert
-          type='success'
-          showIcon
-          message='提交数据'
-          description={
-            <pre style={{ margin: 0, fontSize: 12 }}>
-              {JSON.stringify(submitted, null, 2)}
-            </pre>
-          }
-          style={{ marginTop: 16 }}
-        />
-      )}
-
-      <CodeBlock
-        code={JSON.stringify(advancedSchema, null, 2)}
-        lang='json'
-        title='Schema'
-      />
-    </div>
+      </div>
+    </MainArea>
   );
 }

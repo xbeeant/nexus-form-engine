@@ -18,6 +18,7 @@ import {
 import { useEffect, useState } from 'react';
 import { CodeBlock } from '../site/CodeBlock';
 import { demoSchema } from '../site/demoSchema';
+import { MainArea } from '../site/MainArea';
 
 const { Paragraph } = Typography;
 
@@ -81,7 +82,8 @@ export default function ExamplesPage() {
   }, [form]);
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 16px 48px' }}>
+    <MainArea>
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 16px 48px' }}>
       <div
         style={{
           display: 'flex',
@@ -301,6 +303,7 @@ export default function ExamplesPage() {
           )}
         </>
       )}
-    </div>
+      </div>
+    </MainArea>
   );
 }

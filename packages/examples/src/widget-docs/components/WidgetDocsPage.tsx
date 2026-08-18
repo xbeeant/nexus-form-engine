@@ -9,6 +9,7 @@ import { widgetDocs } from '../registry';
 import type { DocGroup } from '../types';
 import { DemoCard } from './DemoCard';
 import { PropsTable } from './PropsTable';
+import { MainArea } from '../../site/MainArea';
 
 const { Sider, Content } = Layout;
 
@@ -43,13 +44,14 @@ export function WidgetDocsPage() {
   }, []);
 
   return (
-    <Layout
-      style={{
-        height: 'calc(100dvh - var(--fd-docs-row-2, 0px))',
-        minHeight: 0,
-        overflow: 'hidden',
-      }}
-    >
+    <MainArea>
+      <Layout
+        style={{
+          height: 'calc(100dvh - var(--fd-docs-row-2, 0px))',
+          minHeight: 0,
+          overflow: 'hidden',
+        }}
+      >
       <Sider
         width={200}
         theme='light'
@@ -101,6 +103,7 @@ export function WidgetDocsPage() {
 
         <PropsTable doc={doc} />
       </Content>
-    </Layout>
+      </Layout>
+    </MainArea>
   );
 }

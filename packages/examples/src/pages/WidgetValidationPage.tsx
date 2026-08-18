@@ -8,6 +8,7 @@ import { registerAntdUI } from '@xbeeant/form-engine-ui';
 import { Alert, Button, Card, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { CodeBlock } from '../site/CodeBlock';
+import { MainArea } from '../site/MainArea';
 import {
   confirmPasswordWidget,
   usernameUniqueWidget,
@@ -42,7 +43,8 @@ const demoWidgetSchema = {
 const exampleCode = `// 1) 组件内部注册校验规则（widgets/confirmPassword.tsx）
 import { useFieldValidator } from '@xbeeant/form-engine-react';
 
-export const confirmPasswordWidget = withFormItem((props: WidgetProps) => {
+// widget 为裸组件：Form.Item 包裹由 NexusForm 渲染层默认完成（label=false 时跳过）
+export const confirmPasswordWidget = (props: WidgetProps) => {
   const { dataPath, form, value, dependValues: _dv, path: _p, ...rest } = props;
 
   // 组件内注册校验器：闭包可读取组件 state，实现与组件状态联动
@@ -56,7 +58,7 @@ export const confirmPasswordWidget = withFormItem((props: WidgetProps) => {
   });
 
   return <Input.Password value={value} {...rest} />;
-});
+};
 
 // 2) 引擎注册自定义 widget
 engine.registerWidgets({
@@ -92,7 +94,8 @@ export default function WidgetValidationPage() {
   }, [form]);
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '0 16px 48px' }}>
+    <MainArea>
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '0 16px 48px' }}>
       <Title level={2}>组件内注册校验规则</Title>
       <Paragraph type='secondary'>
         校验规则可以直接注册在 widget UI 组件内部（类似 x-render 子表单校验），
@@ -173,6 +176,7 @@ export default function WidgetValidationPage() {
         实现方式
       </Title>
       <CodeBlock lang='tsx' title='组件内注册校验' code={exampleCode} />
-    </div>
+      </div>
+    </MainArea>
   );
 }

@@ -48,6 +48,13 @@ export interface NexusFormProps {
   onFinish?: (formData: Record<string, unknown>) => void | Promise<void>;
   /** 校验失败回调 */
   onFinishFailed?: (errors: Map<string, string[]>) => void;
+  /**
+   * 表单首次加载回调：非空 schema 首次传入并完成渲染后执行一次
+   * - undefined / null / {}（无 properties）均视为「空」schema，不触发
+   * - schema 由空变为非空时，于首个非空渲染提交后触发
+   * - 后续 schema 变更不重复触发
+   */
+  onMount?: () => void;
   /** 是否显示默认 footer（提交/重置按钮），或自定义 footer */
   footer?: boolean | ReactNode;
   /** 自定义类名 */
@@ -107,6 +114,7 @@ export function NexusForm({
   layouts,
   onFinish,
   onFinishFailed,
+  onMount,
   footer = false,
   className,
   style,
@@ -160,6 +168,22 @@ export function NexusForm({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engine, schema]);
+
+  // onMount：首次传入「非空」schema 并完成渲染后执行一次
+  // undefined / null / {}（无任何键）均视为空 schema，不触发；
+  // schema 由空变为非空时，于首个非空渲染提交（useEffect）后触发。
+  const onMountRef = useRef(onMount);
+  onMountRef.current = onMount;
+  const onMountFiredRef = useRef(false);
+  const isSchemaEmpty =
+    !schema || (typeof schema === 'object' && Object.keys(schema).length === 0);
+  useEffect(() => {
+    if (onMountFiredRef.current || isSchemaEmpty) {
+      return;
+    }
+    onMountFiredRef.current = true;
+    onMountRef.current?.();
+  }, [isSchemaEmpty]);
 
   // 绑定 form controller
   // 使用 ref 持有 onFinish / onFinishFailed，避免每次 re-render 都造成绑定逻辑重复执行

@@ -1,4 +1,4 @@
-import type { CSSProperties, FocusEvent } from 'react';
+import type { CSSProperties, FocusEvent, ReactElement } from 'react';
 import { useCallback, useContext, useMemo, useSyncExternalStore } from 'react';
 import { FieldInheritContext } from '../contexts/FieldInheritContext';
 import { GridContext } from '../contexts/GridContext';
@@ -146,37 +146,63 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
     ...(effectiveColSpan ? { gridColumn: `span ${effectiveColSpan}` } : {}),
   };
 
+  // 默认包裹：所有 widget 统一由 FieldWrapper 包裹（引擎注册，UI 层提供），
+  // 仅当 label === false（字段级或表单级）时 FieldWrapper 不包裹 Form.Item。
+  // 未注册 FieldWrapper（纯 react 无 ui 层）时直接渲染裸 widget。
+  const FieldWrapper = engine.getFieldWrapper();
+
+  // Form.Item 消费的元数据 props 剥离给 FieldWrapper，避免透传到底层 antd 控件：
+  // - required: 会让 <input required> 触发浏览器原生校验
+  // - errors/title/description/label/extra/width/displayType/labelWidth/column:
+  //   作为未知属性透传到 DOM 会产生 React 警告
+  const fieldWrapperProps = {
+    label: state.meta.label,
+    title: state.meta.title,
+    description: state.meta.description,
+    errors: state.errors,
+    required: state.required,
+    extra: state.meta.extra,
+    width: state.meta.width,
+    displayType: fieldDisplayType,
+    labelWidth: fieldLabelWidth,
+    column: fieldColumn,
+  };
+
+  // widget 仅接收控件相关 props（value/onChange/状态/选项/表单引用/自有 props）
+  const widgetProps = {
+    dataPath,
+    path: dataPath,
+    value: state.value,
+    onChange: handleChange,
+    disabled,
+    readOnly,
+    loading: state.loading,
+    placeholder: state.meta.placeholder,
+    options,
+    form,
+    dependValues,
+    items: state.meta.items,
+    ...state.props,
+  };
+
+  let control: ReactElement;
+  if (FieldWrapper) {
+    control = (
+      <FieldWrapper key={layoutKey} {...fieldWrapperProps}>
+        <Widget {...widgetProps} />
+      </FieldWrapper>
+    );
+  } else {
+    control = <Widget key={layoutKey} {...widgetProps} />;
+  }
+
   return (
     <div
       data-nexus-field={dataPath}
       onBlur={handleBlur}
       style={Object.keys(wrapperStyle).length > 0 ? wrapperStyle : undefined}
     >
-      <Widget
-        key={layoutKey}
-        dataPath={dataPath}
-        path={dataPath}
-        value={state.value}
-        onChange={handleChange}
-        disabled={disabled}
-        readOnly={readOnly}
-        loading={state.loading}
-        required={state.required}
-        title={state.meta.title}
-        description={state.meta.description}
-        placeholder={state.meta.placeholder}
-        label={state.meta.label}
-        options={options}
-        errors={state.errors}
-        extra={state.meta.extra}
-        displayType={fieldDisplayType}
-        labelWidth={fieldLabelWidth}
-        column={fieldColumn}
-        form={form}
-        dependValues={dependValues}
-        items={state.meta.items}
-        {...state.props}
-      />
+      {control}
     </div>
   );
 }

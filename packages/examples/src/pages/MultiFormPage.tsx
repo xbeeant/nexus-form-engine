@@ -4,12 +4,13 @@
 // 演示 2：两个表单联动（schema 声明式 crossForm + 编程式 linkForm）
 // ============================================================================
 
+import type { NexusSchema } from '@xbeeant/form-engine';
 import { NexusForm, useForm } from '@xbeeant/form-engine-react';
 import { registerAntdUI } from '@xbeeant/form-engine-ui';
-import type { NexusSchema } from '@xbeeant/form-engine';
 import { Button, Card, Divider, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { CodeBlock } from '../site/CodeBlock';
+import { MainArea } from '../site/MainArea';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -225,7 +226,8 @@ export default function MultiFormPage() {
   }, [sourceForm, targetForm]);
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 16px 48px' }}>
+    <MainArea>
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 16px 48px' }}>
       <Title level={2} style={{ marginBottom: 4 }}>
         多表单实例与跨表单联动
       </Title>
@@ -376,6 +378,7 @@ export default function MultiFormPage() {
           添加前缀）。跨表单联动为单向，反向联动可在源表单同样声明。
         </Paragraph>
       </Card>
-    </div>
+      </div>
+    </MainArea>
   );
 }
