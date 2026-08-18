@@ -1,6 +1,6 @@
 import { toBoolean } from '@xbeeant/form-engine';
 import { InputNumber } from 'antd';
-import type { WidgetProps } from './_shared';
+import { ReadOnlyDisplay, type WidgetProps } from './_shared';
 
 export const inputNumberWidget = ({
   value,
@@ -14,14 +14,19 @@ export const inputNumberWidget = ({
   readOnly,
   required,
   ...rest
-}: WidgetProps) => (
-  <InputNumber
-    value={value as number | undefined}
-    onChange={(v) => onChange(v ?? undefined)}
-    disabled={toBoolean(disabled || loading)}
-    readOnly={toBoolean(readOnly)}
-    required={toBoolean(required)}
-    style={{ width: '100%' }}
-    {...rest}
-  />
-);
+}: WidgetProps) => {
+  if (readOnly) {
+    return <ReadOnlyDisplay value={value} />;
+  }
+
+  return (
+    <InputNumber
+      value={value as number | undefined}
+      onChange={(v) => onChange(v ?? undefined)}
+      disabled={toBoolean(disabled || loading)}
+      required={toBoolean(required)}
+      style={{ width: '100%' }}
+      {...rest}
+    />
+  );
+};

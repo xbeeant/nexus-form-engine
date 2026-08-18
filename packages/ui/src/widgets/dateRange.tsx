@@ -1,6 +1,6 @@
 import { DatePicker } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { toDayjs, type WidgetProps } from './_shared';
+import { ReadOnlyDisplay, toDayjs, type WidgetProps } from './_shared';
 
 export const dateRangeWidget = ({
   value,
@@ -16,7 +16,6 @@ export const dateRangeWidget = ({
   path: _p,
   ...rest
 }: WidgetProps) => {
-  console.log(format, rest);
   const formatStr = typeof format === 'string' ? format : undefined;
   const [startDate, endDate] =
     Array.isArray(value) && value.length === 2
@@ -48,6 +47,18 @@ export const dateRangeWidget = ({
   const _placeholder = (Array.isArray(placeholder)
     ? placeholder
     : ['', '']) as unknown as [string, string] | undefined;
+
+  if (readOnly) {
+    // antd 6 DatePicker 已不支持 readOnly，统一回退文本展示
+    const range =
+      Array.isArray(value) && value.length === 2
+        ? (value as unknown[])
+            .filter((v) => v !== '' && v != null)
+            .join(' ~ ')
+        : value;
+    return <ReadOnlyDisplay value={range} />;
+  }
+
   return (
     <div
       className={`

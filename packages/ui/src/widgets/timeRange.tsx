@@ -1,6 +1,6 @@
 import { TimePicker, type TimePickerProps } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { toDayjs, type WidgetProps } from './_shared';
+import { ReadOnlyDisplay, toDayjs, type WidgetProps } from './_shared';
 
 type PickerDisabledTime = NonNullable<TimePickerProps['disabledTime']>;
 type PickerDisabledTimes = ReturnType<PickerDisabledTime>;
@@ -120,6 +120,18 @@ export const timeRangeWidget = ({
   const _placeholder = (Array.isArray(placeholder)
     ? placeholder
     : ['', '']) as unknown as [string, string] | undefined;
+
+  if (readOnly) {
+    // antd 6 TimePicker 已不支持 readOnly，统一回退文本展示
+    const range =
+      Array.isArray(value) && value.length === 2
+        ? (value as unknown[])
+            .filter((v) => v !== '' && v != null)
+            .join(' ~ ')
+        : value;
+    return <ReadOnlyDisplay value={range} />;
+  }
+
   return (
     <div
       className={`

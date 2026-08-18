@@ -1,6 +1,6 @@
 import { toBoolean } from '@xbeeant/form-engine/utils/schema-helper';
 import { Input } from 'antd';
-import type { WidgetProps } from './_shared';
+import { ReadOnlyDisplay, type WidgetProps } from './_shared';
 
 export const textAreaWidget = ({
   value,
@@ -30,6 +30,10 @@ export const textAreaWidget = ({
           ...(maxRows !== undefined ? { maxRows: maxRows as number } : {}),
         }
       : autoSize;
+
+  if (readOnly) {
+    return <ReadOnlyDisplay value={value} />;
+  }
 
   return (
     <Input.TextArea

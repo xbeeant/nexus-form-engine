@@ -1,5 +1,5 @@
 import { Input } from 'antd';
-import type { WidgetProps } from './_shared';
+import { ReadOnlyDisplay, type WidgetProps } from './_shared';
 
 export const passwordWidget = ({
   value,
@@ -13,13 +13,18 @@ export const passwordWidget = ({
   dataPath: _dp,
   path: _p,
   ...rest
-}: WidgetProps) => (
-  <Input.Password
-    value={(value as string) ?? ''}
-    onChange={(e) => onChange(e.target.value)}
-    placeholder={placeholder}
-    readOnly={readOnly}
-    disabled={disabled || loading}
-    {...rest}
-  />
-);
+}: WidgetProps) => {
+  if (readOnly) {
+    return <ReadOnlyDisplay value={value} />;
+  }
+
+  return (
+    <Input.Password
+      value={(value as string) ?? ''}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      disabled={disabled || loading}
+      {...rest}
+    />
+  );
+};

@@ -1,6 +1,6 @@
 import { toBoolean } from '@xbeeant/form-engine/utils/schema-helper';
 import { Input } from 'antd';
-import type { WidgetProps } from './_shared';
+import { ReadOnlyDisplay, type WidgetProps } from './_shared';
 
 export const urlInputWidget = ({
   value,
@@ -25,6 +25,10 @@ export const urlInputWidget = ({
   path: _p,
   ...rest
 }: WidgetProps) => {
+  if (readOnly) {
+    return <ReadOnlyDisplay value={value} />;
+  }
+
   return (
     <Input
       value={(value as string) ?? ''}
