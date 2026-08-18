@@ -1,6 +1,6 @@
 {
   "name": "@xbeeant/form-engine-designer",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -53,8 +53,8 @@
     }
   },
   "dependencies": {
-    "@xbeeant/form-engine": "^0.0.2",
-    "@xbeeant/form-engine-ui": "^0.0.2"
+    "@xbeeant/form-engine": "^0.0.3",
+    "@xbeeant/form-engine-ui": "^0.0.3"
   },
   "devDependencies": {
     "vitest": "^4.1.10"

@@ -1,6 +1,6 @@
 {
   "name": "@xbeeant/form-engine-ui",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -19,8 +19,15 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "src", "README.md", "!**/*.map"],
-  "sideEffects": ["**/*.css"],
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "!**/*.map"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "scripts": {
     "build": "npm run build:es && npm run build:cjs && npm run build:umd",
     "prepublishOnly": "npm run build",
@@ -51,7 +58,7 @@
     }
   },
   "dependencies": {
-    "@xbeeant/form-engine": "^0.0.2",
-    "@xbeeant/form-engine-react": "^0.0.2"
+    "@xbeeant/form-engine": "^0.0.3",
+    "@xbeeant/form-engine-react": "^0.0.3"
   }
 }

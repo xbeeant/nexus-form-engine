@@ -1,7 +1,7 @@
 {
   "name": "@xbeeant/form-engine-examples",
   "private": true,
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "module",
   "description": "@xbeeant/form-engine 项目介绍站点（GitHub Pages）",
   "scripts": {
@@ -12,9 +12,9 @@
   },
   "dependencies": {
     "@types/mdx": "^2.0.14",
-    "@xbeeant/form-engine": "^0.0.2",
-    "@xbeeant/form-engine-designer": "^0.0.2",
-    "@xbeeant/form-engine-ui": "^0.0.2",
+    "@xbeeant/form-engine": "^0.0.3",
+    "@xbeeant/form-engine-designer": "^0.0.3",
+    "@xbeeant/form-engine-ui": "^0.0.3",
     "antd": "^6.5.3",
     "dayjs": "^1.11.11",
     "fumadocs-core": "^16.14.4",
