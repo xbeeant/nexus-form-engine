@@ -100,12 +100,13 @@ function collectFieldPaths(
   if (!node || typeof node !== 'object') {
     return;
   }
-  // 布局节点：Key 不进路径，properties 透传父路径继续下钻
+  // 布局节点：自身 Key 不进路径，子字段在布局的父路径下按自身 Key 拼接
   if (isLayoutNode(node)) {
-    for (const [, child] of Object.entries(
+    for (const [key, child] of Object.entries(
       (node as { properties?: Record<string, SchemaNode> }).properties ?? {},
     )) {
-      collectFieldPaths(child as SchemaNode, parentPath, entries);
+      const childPath = parentPath ? `${parentPath}.${key}` : key;
+      collectFieldPaths(child as SchemaNode, childPath, entries);
     }
     return;
   }
@@ -124,7 +125,12 @@ function collectFieldPaths(
       entries.push({ path: parentPath, node });
     }
     for (const [key, child] of Object.entries(node.properties ?? {})) {
-      const childPath = parentPath ? `${parentPath}.${key}` : key;
+      // 布局节点子字段透传父路径（Key 不进路径）
+      const childPath = isLayoutNode(child as SchemaNode)
+        ? parentPath
+        : parentPath
+          ? `${parentPath}.${key}`
+          : key;
       collectFieldPaths(child as SchemaNode, childPath, entries);
     }
     return;
@@ -133,7 +139,11 @@ function collectFieldPaths(
   const properties = (node as { properties?: Record<string, SchemaNode> })
     .properties;
   for (const [key, child] of Object.entries(properties ?? {})) {
-    const childPath = parentPath ? `${parentPath}.${key}` : key;
+    const childPath = isLayoutNode(child as SchemaNode)
+      ? parentPath
+      : parentPath
+        ? `${parentPath}.${key}`
+        : key;
     collectFieldPaths(child as SchemaNode, childPath, entries);
   }
 }
@@ -187,9 +197,9 @@ function diffTopLevelProps(
   for (const key of allKeys) {
     const a = (prev as Record<string, unknown>)[key];
     const b = (next as Record<string, unknown>)[key];
-    // properties/items 内部变化由递归 diff 报告，顶层只标记自身引用变化
+    // properties/items 内部变化由递归 diff 报告，此处仅对比内容是否一致
     if (key === 'properties' || key === 'items') {
-      if (a !== b) {
+      if (JSON.stringify(a) !== JSON.stringify(b)) {
         changed.push(key);
       }
       continue;
@@ -263,10 +273,17 @@ export function migrateValues(
   nextSchema: SchemaNode,
   values: Record<string, unknown>,
 ): Record<string, unknown> {
+  const prevPaths = getSchemaFieldPaths(prevSchema);
   const nextPaths = new Set(getSchemaFieldPaths(nextSchema));
+  // 对象容器路径不直接拷贝整体值（其子字段已分别迁移，避免带入已删除子字段）
+  const containerPaths = new Set(
+    prevPaths.filter(
+      (p) => p !== '' && prevPaths.some((other) => other.startsWith(`${p}.`)),
+    ),
+  );
   const result: Record<string, unknown> = {};
-  for (const path of getSchemaFieldPaths(prevSchema)) {
-    if (!nextPaths.has(path)) {
+  for (const path of prevPaths) {
+    if (!nextPaths.has(path) || containerPaths.has(path)) {
       continue;
     }
     const value = getPathValue(values, path);

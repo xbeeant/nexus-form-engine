@@ -117,3 +117,15 @@ export {
   serialize,
   sizeOf,
 } from './utils/schema-serializer';
+/** Schema 生命周期工具（字段收集 / 初始值提取 / 变更对比 / 值迁移） */
+export {
+  diffSchemas,
+  getInitialValues,
+  getPathValue,
+  getSchemaFieldPaths,
+  migrateValues,
+  setPathValue,
+  type SchemaDiff,
+  type SchemaDiffKind,
+  type SchemaFieldEntry,
+} from './utils/schema-lifecycle';
