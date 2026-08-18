@@ -1184,6 +1184,27 @@ export class NexusEngine implements IFormEngine {
     return results;
   }
 
+  /**
+   * 表单提交：依次分发所有插件的 onSubmit 钩子
+   *
+   * 任一插件返回 false 时提交被阻止（返回 false）。表单校验由调用方
+   * （如 FormController.submit）先行执行，此处仅承担提交前拦截语义，
+   * Core 不承载 UI 提交流程。
+   *
+   * @param formData - 待提交的表单数据（调用方构建，通常为 getFormData()）
+   * @returns 是否允许提交（任一插件返回 false 则阻止）
+   */
+  async submit(formData: Record<string, unknown>): Promise<boolean> {
+    let allowed = true;
+    for (const plugin of this.plugins) {
+      const result = await plugin.hooks?.onSubmit?.(formData);
+      if (result === false) {
+        allowed = false;
+      }
+    }
+    return allowed;
+  }
+
   // =========================================================================
   // 重置
   // =========================================================================

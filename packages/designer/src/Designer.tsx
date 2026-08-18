@@ -14,7 +14,7 @@ import {
   Space,
   Typography,
 } from 'antd';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Canvas } from './Canvas';
 import './Designer.css';
 import { layoutCatalog, widgetCatalog } from './catalog';
@@ -107,9 +107,52 @@ function mergeCatalog(
 }
 
 function DesignerForm() {
-  const { mode, setMode, schema, setSchema, selectNode } = useDesigner();
+  const {
+    mode,
+    setMode,
+    schema,
+    setSchema,
+    selectNode,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+  } = useDesigner();
   const [schemaText, setSchemaText] = useState('');
   const [schemaActive, setSchemaActive] = useState(false);
+
+  // 全局快捷键：Cmd/Ctrl+Z 撤销、+Shift+Z 或 Ctrl+Y 重做。
+  // 输入框/文本域内不拦截（保留原生文本撤销）
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (!(e.metaKey || e.ctrlKey)) {
+        return;
+      }
+      const key = e.key.toLowerCase();
+      if (key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+      } else if (key === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [undo, redo]);
 
   // 清空画布：重置为空 schema 并取消选中（必须新建对象，保证触发重渲染）
   const handleClearSchema = () => {
@@ -205,9 +248,15 @@ function DesignerForm() {
           </Radio.Group>
           <Button onClick={handleImport}>导入</Button>
           <Button onClick={handleExport}>导出</Button>
+          <Button disabled={!canUndo} onClick={undo}>
+            撤销
+          </Button>
+          <Button disabled={!canRedo} onClick={redo}>
+            重做
+          </Button>
           <Popconfirm
             title='清空画布'
-            description='将移除画布上所有组件，此操作不可撤销'
+            description='将移除画布上所有组件，可使用 Ctrl/Cmd+Z 撤销'
             okText='清空'
             cancelText='取消'
             okButtonProps={{ danger: true }}

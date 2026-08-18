@@ -129,6 +129,11 @@ export class FormController implements NexusFormInstance {
     const formData = this.removeHiddenData
       ? this.engine.getFormData()
       : this.engine.getAllFormData();
+    // 插件 onSubmit 钩子：任一插件返回 false 阻止提交
+    const allowed = await this.engine.submit(formData);
+    if (!allowed) {
+      return;
+    }
     await this.getOnFinish()?.(formData);
   }
 

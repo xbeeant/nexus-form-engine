@@ -1,0 +1,215 @@
+---
+title: 插件与自定义控件 SDK
+description: 插件系统（生命周期钩子/提交拦截）与自定义控件、布局的开发指南：注册、类型增强、设计器接入。
+---
+
+## 插件系统（Plugin SDK）
+
+Core 主类不硬编码任何业务逻辑，扩展统一通过 `engine.use(plugin)` 注入。插件可注册校验器、组件、布局，并拦截引擎生命周期。
+
+```ts
+import type { NexusEngine, NexusPlugin } from '@xbeeant/form-engine';
+
+const myPlugin: NexusPlugin = {
+  name: 'my-plugin',
+  hooks: {
+    onInit(engine) {
+      console.log('引擎初始化完成');
+    },
+  },
+  // 插件还可以注册能力（engine.use 时自动并入引擎）：
+  validators: {},   // { 名称: 校验函数 } → engine.registerValidator 同款签名
+  widgets: {},      // 组件注册（并入 widgetRegistry，widgetMeta 自动快照）
+  layouts: {},      // 布局注册
+  fieldWrapper: undefined,
+};
+
+engine.use(myPlugin);
+```
+
+### 生命周期钩子
+
+| 钩子 | 触发时机 | 返回值语义 |
+| :--- | :--- | :--- |
+| `onInit(engine)` | `engine.init()` 完成 | — |
+| `onBeforeFieldValueChange(path, newValue, oldValue)` | 字段值变更前 | 返回 `false` 阻止更新 |
+| `onFieldValueChange(path, value)` | 字段值变更后 | — |
+| `onValidateField(path)` | 字段实时（同步）校验完成后 | 异步校验插件经此接管调度 |
+| `onBeforeValidate(paths?)` | `validate()` 开始前 | — |
+| `onValidate(results)` | `validate()` 完成后 | 收到 `Map<path, errors[]>` |
+| `onArrayOperation(options, engine)` | 数组字段操作时 | 返回非 `undefined` 表示已处理 |
+| `onSubmit(formData)` | 表单提交时 | 返回 `false` 阻止提交 |
+
+### 提交拦截（onSubmit）
+
+`FormController.submit()`（或直接调用 `engine.submit(formData)`）会依次分发所有插件的 `onSubmit` 钩子——任一插件返回 `false` 即阻止提交，`onFinish` 不会被触发。
+
+```ts
+import { AsyncValidatorPlugin } from '@xbeeant/form-engine';
+
+const engine = new NexusEngine();
+engine.use(
+  new AsyncValidatorPlugin(engine), // 异步校验：防抖 300ms / 超时 5s / 并行调度
+);
+engine.use({
+  name: 'prevent-empty-submit',
+  hooks: {
+    onSubmit(formData) {
+      if (Object.keys(formData).length === 0) {
+        return false; // 拦截空表单提交
+      }
+    },
+  },
+});
+```
+
+### 内置插件
+
+- **`AsyncValidatorPlugin`**：承载异步校验调度（防抖 / 超时 / 并行），Core 只做同步校验。
+- **`ArrayOperationsPlugin`**：承载 `engine.arrayOperation()`（push/pop/remove/update/insert/move），不可变计算后写回。
+- **`antdPreset`**（`@xbeeant/form-engine-ui`）：一键注册 `FieldWrapper` + 全部 widgets + layouts。
+
+```ts
+import { antdPreset } from '@xbeeant/form-engine-ui';
+engine.use(antdPreset);
+```
+
+## 自定义控件（Widget SDK）
+
+组件是 UI 无关的 `NexusComponent`：`(props) => any` 签名，**不在 Core / React 层内置任何控件实现**。
+
+### 1. 编写组件
+
+```tsx
+// MyRating.tsx
+import type { NexusComponent } from '@xbeeant/form-engine';
+import { Rate } from 'antd';
+
+export const MyRating: NexusComponent = (props) => <Rate {...props} />;
+```
+
+### 2. 注册
+
+```tsx
+import { NexusForm } from '@xbeeant/form-engine-react';
+
+<NexusForm
+  schema={{
+    type: 'object',
+    properties: {
+      score: { type: 'number', widget: 'rating', title: '评分' },
+    },
+  }}
+  widgets={{ rating: MyRating }}
+/>;
+```
+
+也可以在引擎上全局注册（`engine.registerWidgets()` / `engine.registerLayouts()`），或经插件 `widgets`/`layouts` 字段注入。
+
+### 3. 类型增强（WidgetPropsMap）
+
+通过 module augmentation 让 Schema 中 `props` 获得 widget 级类型检查与补全：
+
+```ts
+// rating.d.ts
+import type { WidgetPropsMap } from '@xbeeant/form-engine';
+
+declare module '@xbeeant/form-engine' {
+  interface WidgetPropsMap {
+    rating: { count?: number; allowHalf?: boolean };
+  }
+}
+```
+
+此后 `TypedFieldSchema<'rating'>` 的 `props` 字段即被强类型约束。
+
+### 4. 组件声明级规则（widgetMeta）
+
+校验规则、联动与默认 props 可以注册在组件上而非写进每条 Schema——字段使用该 widget 时自动合并（Schema 显式声明优先）：
+
+```ts
+export const ConfirmPassword: NexusComponent = (props) => (
+  <Input.Password {...props} />
+);
+
+ConfirmPassword.widgetMeta = {
+  rules: [
+    {
+      _validateExpr: "{{ formData.password === $self.value }}",
+      message: '两次密码不一致',
+      trigger: 'change',
+    },
+  ],
+  props: { placeholder: '再次输入密码' },
+};
+```
+
+### 5. Schema 推断与兼容
+
+Schema 未指定 `widget` 时，Parser 按 `type` / `format` 自动推断。widget 命名遵循小驼峰，同类型多形态用前缀区分（`datePicker` / `dateRange` / `checkboxes`）。
+
+### 6. 设计器接入
+
+自定义控件要出现在设计器 Palette 与属性面板，需提供目录项与属性描述：
+
+```ts
+import type { CatalogItem } from '@xbeeant/form-engine-designer';
+
+const ratingCatalogItem: CatalogItem = {
+  category: 'widget',
+  widget: 'rating',
+  label: '评分',
+  icon: '⭐',
+  createNode: () => ({
+    type: 'number',
+    widget: 'rating',
+    title: '评分',
+    props: { count: 5 },
+  }),
+};
+```
+
+属性面板通过 `propertySchemaMap`（`PropertySchemaMap`）决定展示哪些配置项；`@xbeeant/form-engine-ui` 的 `widgetSchemas` 提供 antd 组件全覆盖的默认映射，可整体替换或按 widget 名覆盖。
+
+```tsx
+<Designer
+  widgetCatalog={[ratingCatalogItem]}
+  propertySchemaMap={{ ...widgetSchemas, rating: myRatingSchema }}
+  onSchemaChange={(schema) => save(schema)}
+/>
+```
+
+## 自定义布局（Layout SDK）
+
+布局节点（`card` / `tabs` / `grid` 等）的 Key **不进入数据路径**——自定义布局同样遵循该协议：
+
+```tsx
+import type { NexusComponent } from '@xbeeant/form-engine';
+
+export const MyPanel: NexusComponent = (props) => (
+  <div className='my-panel'>
+    <h3>{props.title}</h3>
+    {props.children}
+  </div>
+);
+```
+
+```tsx
+<NexusForm
+  layouts={{ myPanel: MyPanel }}
+  schema={{
+    type: 'object',
+    properties: {
+      area: {
+        type: 'myPanel', // 布局容器：Key 被丢弃，子字段进入根路径
+        title: '信息区',
+        properties: {
+          name: { type: 'string', widget: 'input', title: '姓名' },
+        },
+      },
+    },
+  }}
+/>
+```
+
+> 布局节点同样可通过 `widgetMeta` 声明默认 props；未注册的布局/面板类型在父容器内平铺降级渲染。

@@ -439,3 +439,40 @@ describe('NexusEngine P1', () => {
     });
   });
 });
+
+describe('插件 onSubmit 钩子（提交拦截）', () => {
+  it('onSubmit 分发表单数据，任一插件返回 false 阻止提交', async () => {
+    const engine = new NexusEngine();
+    engine.init({
+      type: 'object',
+      properties: {
+        name: { type: 'string', widget: 'input', title: '姓名' },
+      },
+    } as never);
+
+    const calls: Array<Record<string, unknown>> = [];
+    engine.use({
+      name: 'submit-spy',
+      hooks: {
+        onSubmit: (formData) => {
+          calls.push(formData);
+          return undefined;
+        },
+      },
+    });
+    engine.setFieldValue('name', '张三');
+
+    expect(await engine.submit({ name: '张三' })).toBe(true);
+    expect(calls).toEqual([{ name: '张三' }]);
+
+    engine.use({
+      name: 'submit-blocker',
+      hooks: {
+        onSubmit: () => false,
+      },
+    });
+    expect(await engine.submit({ name: '张三' })).toBe(false);
+    // 两个插件都被调用（阻塞不短路）
+    expect(calls).toHaveLength(2);
+  });
+});

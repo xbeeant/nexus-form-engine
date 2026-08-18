@@ -17,8 +17,8 @@ import {
   isDataField,
   isDataObject,
   isLayoutNode,
-  type SchemaNode,
 } from './schema-helper';
+import type { SchemaNode } from '../types/schema';
 
 /** 数据字段路径（含 path 与字段节点） */
 export interface SchemaFieldEntry {
