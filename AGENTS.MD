@@ -91,7 +91,8 @@ AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/u
 
 - `engine.subscribe(path, cb)`：按路径订阅（回调携带最新 `FieldState`）。
 - `engine.subscribeField(path, cb)` + `getFieldVersion(path)`：**按路径精准版本订阅**，供 `useSyncExternalStore` 使用——字段状态每次变更版本 +1，**严禁让所有字段共享同一次全局重渲染**。
-- `engine.subscribeAll(cb)` / `subscribeStore(onStoreChange)` + `getSnapshot()`：全局订阅（仅用于 `useFormData` / RenderTree 消费）。
+- `engine.subscribeAll(cb)` / `subscribeStore(onStoreChange)` + `getSnapshot()`：全局订阅（仅用于 `useFormData` 消费）。
+- **版本拆分（红线）**：`getSnapshot()`（store 版本）仅记录**数据变化**（值/错误/校验）；`subscribeRender` + `getRenderSnapshot()`（渲染树版本）仅记录**结构变化**（init/setSchema/reset）。`NexusForm` 必须订阅渲染树版本计算 renderTree，**严禁**订阅 store 版本——否则字段值变化会重建渲染树、导致所有字段重渲染。字段值变更走 `setFieldValue`（`bumpStore` + `notifyField`），错误展示走字段级版本。
 - **严禁**使用 `watch(formData)` 之类隐式全量监听做联动。
 
 ---
@@ -126,6 +127,7 @@ AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/u
 ## 6. 测试与命令 (Testing & Commands)
 
 - Core 单元测试：`packages/core/tests/*.test.ts`（Vitest）。新增核心逻辑（Parser 路径计算 / 依赖图 / reactions / 校验 / 数组操作）**必须**配套测试。
+- React/UI 组件测试：`packages/react/tests/*.test.tsx`、`packages/ui/tests/*.test.tsx`（Vitest + jsdom + @testing-library/react）。渲染层新增逻辑（订阅重渲染 / FieldWrapper / 隐藏占位 / 只读回退）**必须**配套测试；vitest.config.ts 已内置 workspace 别名与 react dedupe，勿手动配置。
 - 各包脚本：
   - 测试：`lerna run test`（core 内为 `vitest run`）
   - Lint：`bunx --bun @biomejs/biome lint .`（包内 `biome check .`）

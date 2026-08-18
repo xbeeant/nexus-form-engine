@@ -55,7 +55,8 @@
     "build:cjs": "vite build -f cjs",
     "build:umd": "vite build -f umd",
     "lint": "biome check .",
-    "lint:fix": "biome check --write ."
+    "lint:fix": "biome check --write .",
+    "test": "vitest run"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

@@ -16,6 +16,8 @@
   "devDependencies": {
     "@ant-design/pro-components": "^2.8.10",
     "@biomejs/biome": "2.5.3",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.3.0",
     "@types/node": "^24.13.2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
@@ -23,13 +25,15 @@
     "antd": "^6.6.0",
     "dayjs": "^1.11.21",
     "globals": "^16.3.0",
+    "jsdom": "^26.1.0",
     "lerna": "^8.0.0",
     "sonda": "^0.14.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
     "vite": "^7.0.4",
     "vite-plugin-dts": "^5.0.3",
-    "vite-plugin-lib-inject-css": "^2.2.2"
+    "vite-plugin-lib-inject-css": "^2.2.2",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

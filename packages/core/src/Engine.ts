@@ -157,10 +157,16 @@ export class NexusEngine implements IFormEngine {
   // ── 版本计数器（用于 useSyncExternalStore 快照比对）──
   /** 每次状态变更时递增，React 通过比对版本号判断是否需要重渲染 */
   private version = 0;
+  /** 渲染树版本：仅 Schema 结构变化（init/setSchema/reset）时递增 */
+  private renderVersion = 0;
+  /** 渲染树订阅者（NexusForm renderTree 消费，避免字段值变化触发全表单重渲染） */
+  private renderListeners: Set<Listener> = new Set();
 
   // ── 校验默认消息模板（rule.message > messages[key] > 内置默认）──
 
   private messageTemplates: Partial<DefaultRuleMessages>;
+  /** 表单语言标识（'zh-CN' / 'en-US'，UI 层消费） */
+  private locale: string;
 
   /** formData 缓存与脏标记 */
   private formDataCache: Record<string, unknown> | null = null;
@@ -214,10 +220,18 @@ export class NexusEngine implements IFormEngine {
     this.messageTemplates = options?.messages ?? {};
     this.formId = options?.formId;
     this.registry = options?.registry ?? defaultFormRegistry;
+    this.locale = options?.locale ?? 'zh-CN';
     // 源表单后注册时（先声明联动、后注册表单），延迟建立跨表单订阅
     this.registry.onRegister(() => {
       this.connectCrossFormLinks();
     });
+  }
+
+  /**
+   * 获取表单语言标识（引擎透传存储，UI 层消费）
+   */
+  getLocale(): string {
+    return this.locale;
   }
 
   // 标记 formData 缓存失效
@@ -334,7 +348,7 @@ export class NexusEngine implements IFormEngine {
 
     // 版本必须先递增，再通知订阅者；
     // 否则 useSyncExternalStore 在 onStoreChange 时读到旧版本会跳过重渲染
-    this.bump();
+    this.bumpStore();
     this.notifyField(path);
     this.notifyAll();
   }
@@ -384,7 +398,7 @@ export class NexusEngine implements IFormEngine {
     }
 
     // 批量通知订阅者
-    this.bump();
+    this.bumpStore();
     for (const path of changedPaths) {
       this.notifyField(path);
     }
@@ -707,7 +721,7 @@ export class NexusEngine implements IFormEngine {
     }
 
     this.markFormDataDirty();
-    this.bump();
+    this.bumpStore();
     this.notifyField(path);
     this.notifyAll();
   }
@@ -856,7 +870,7 @@ export class NexusEngine implements IFormEngine {
     }
     this.validateFieldRealtime(path, state, options?.trigger ?? 'change');
     // 版本必须先递增，再通知订阅者；否则 useSyncExternalStore 读到旧版本会跳过重渲染
-    this.bump();
+    this.bumpStore();
     this.notifyField(path);
     this.notifyAll();
   }
@@ -1165,7 +1179,7 @@ export class NexusEngine implements IFormEngine {
       plugin.hooks?.onValidate?.(results);
     }
 
-    this.bump();
+    this.bumpStore();
     this.notifyAll();
     return results;
   }
@@ -1402,7 +1416,7 @@ export class NexusEngine implements IFormEngine {
         this.notifyField(path);
       }
     }
-    this.bump();
+    this.bumpStore();
     this.notifyAll();
   }
 
@@ -1416,7 +1430,7 @@ export class NexusEngine implements IFormEngine {
     if (state) {
       state.errors = [];
       this.notifyField(path);
-      this.bump();
+      this.bumpStore();
       this.notifyAll();
     }
   }
@@ -1543,6 +1557,32 @@ export class NexusEngine implements IFormEngine {
    */
   getSnapshot = (): number => {
     return this.version;
+  };
+
+  /**
+   * 供 useSyncExternalStore 使用的渲染树订阅方法
+   *
+   * 仅 Schema 结构变化（init/setSchema/setSchemaByPath/reset）时触发，
+   * 字段值/错误/校验等数据变化不触发——NexusForm 消费此版本计算 renderTree，
+   * 保证字段值变化时不会重建渲染树导致所有字段重渲染（配合字段级版本订阅）。
+   *
+   * @param onStoreChange - 变更回调函数
+   * @returns 取消订阅的函数
+   */
+  subscribeRender = (onStoreChange: () => void): (() => void) => {
+    this.renderListeners.add(onStoreChange);
+    return () => {
+      this.renderListeners.delete(onStoreChange);
+    };
+  };
+
+  /**
+   * 渲染树版本快照（配合 subscribeRender 使用）
+   *
+   * @returns 当前渲染树版本号
+   */
+  getRenderSnapshot = (): number => {
+    return this.renderVersion;
   };
 
   // =========================================================================
@@ -2227,7 +2267,7 @@ export class NexusEngine implements IFormEngine {
         dependValues,
       );
       // applyStatePatch/applySchemaPatch 已按路径通知；全局通知由这里统一收尾
-      this.bump();
+      this.bumpStore();
       this.notifyAll();
     };
 
@@ -2638,11 +2678,29 @@ export class NexusEngine implements IFormEngine {
   }
 
   /**
-   * 递增版本计数器
+   * 递增版本计数器（结构变化：Schema 解析 / 重置）
+   *
+   * 同时递增 store 版本与渲染树版本：
+   * - store 版本：useFormData 等表单数据消费者
+   * - 渲染树版本：NexusForm renderTree 消费者
    *
    * 用于 useSyncExternalStore 的快照比对
    */
   private bump(): void {
+    this.version++;
+    this.renderVersion++;
+    for (const listener of this.renderListeners) {
+      listener();
+    }
+  }
+
+  /**
+   * 递增 store 版本计数器（数据变化：值/错误/校验）
+   *
+   * 不递增渲染树版本：字段值变化不应重建 renderTree /
+   * 触发 NexusForm 重渲染（各字段通过字段级版本精准订阅）
+   */
+  private bumpStore(): void {
     this.version++;
   }
 }
