@@ -10,6 +10,7 @@ export { NexusField } from './components/NexusField';
 export type { NexusFormConfig } from './components/NexusForm';
 export { NexusForm } from './components/NexusForm';
 export { NexusFormProvider } from './components/NexusFormProvider';
+export { NexusContext } from './contexts/NexusContext';
 export { NexusLayout } from './components/NexusLayout';
 export { NexusObject } from './components/NexusObject';
 export type { FieldInheritValue } from './contexts/FieldInheritContext';

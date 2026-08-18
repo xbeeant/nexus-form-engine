@@ -9,6 +9,12 @@ import {
 } from 'react';
 
 import { renderTreeNode } from '../utils/renderTreeNode';
+import {
+  clearPersisted,
+  loadPersisted,
+  savePersisted,
+  type PersistOptions,
+} from '../utils/persist';
 import type { FormController } from './FormController';
 import { NexusFormProvider } from './NexusFormProvider';
 
@@ -31,6 +37,8 @@ export interface NexusFormConfig {
   readOnly?: boolean;
   /** 表单每行显示多少列 */
   column?: number;
+  /** 表单语言标识（如 'zh-CN' / 'en-US'，ui 层消费：antd locale + 内置文案） */
+  locale?: string;
 }
 
 export interface NexusFormProps {
@@ -83,6 +91,16 @@ export interface NexusFormProps {
    * - false: submit/getValues 包含所有字段（含 hidden）
    */
   removeHiddenData?: boolean;
+  /** 表单语言标识（如 'zh-CN' / 'en-US'，ui 层消费：antd locale + 内置文案） */
+  locale?: string;
+  /**
+   * 表单草稿持久化：值变化时自动保存到 Web Storage，下次挂载自动恢复
+   * @example
+   * ```tsx
+   * <NexusForm persist={{ key: 'apply-form', storage: 'localStorage' }} />
+   * ```
+   */
+  persist?: PersistOptions;
 
   // ── 表单布局配置 ──────────────────────────────────────────────────────
   /** label 列配置（由 ui 层 Form.Item 消费） */
@@ -128,9 +146,14 @@ export function NexusForm({
   column,
   watch,
   removeHiddenData = true,
+  locale,
+  persist,
 }: NexusFormProps) {
   const engine = form._getEngine();
   const formElRef = useRef<HTMLFormElement | null>(null);
+  // persist 配置经 ref 持有：保存回调不随配置对象变化重建订阅
+  const persistRef = useRef<PersistOptions | undefined>(persist);
+  persistRef.current = persist;
 
   // Schema 顶层配置作为默认值，props 优先级更高
   const finalDisplayType = displayType ?? schema?.displayType ?? 'row';
@@ -139,6 +162,7 @@ export function NexusForm({
   const finalLabelWidth = labelWidth ?? schema?.labelWidth;
   const finalReadOnly = readOnly ?? schema?.readOnly ?? false;
   const finalColumn = column ?? schema?.column;
+  const finalLocale = locale ?? schema?.locale ?? engine.getLocale();
 
   // 注册额外 widgets / layouts（仅首次或引用变化时）
   useEffect(() => {
@@ -160,7 +184,11 @@ export function NexusForm({
       return;
     }
     if (isFirstInitRef.current) {
-      engine.init(schema, initialValuesRef.current);
+      // 草稿持久化：恢复已保存草稿（优先于 initialValues）
+      const persisted = persistRef.current
+        ? loadPersisted(persistRef.current)
+        : undefined;
+      engine.init(schema, persisted ?? initialValuesRef.current);
       isFirstInitRef.current = false;
     } else {
       // schema 变化：保留当前已填数据，而非重置为 initialValues
@@ -168,6 +196,35 @@ export function NexusForm({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engine, schema]);
+
+  // 草稿持久化：store 版本变化（任意数据变更）时防抖保存
+  // 用持久化身份（storage:key）驱动订阅：开关切换 / 换 key 时重建订阅，
+  // 而 persist 对象本身每次渲染重建不影响订阅稳定性
+  const persistIdentity = persist
+    ? `${persist.storage ?? 'localStorage'}:${persist.key}`
+    : null;
+  useEffect(() => {
+    const options = persistIdentity ? persistRef.current : undefined;
+    if (!options) {
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const debounce = options.debounce ?? 300;
+    const unsub = engine.subscribeStore(() => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      timer = setTimeout(() => {
+        savePersisted(options, engine.getFormData());
+      }, debounce);
+    });
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      unsub();
+    };
+  }, [engine, persistIdentity]);
 
   // onMount：首次传入「非空」schema 并完成渲染后执行一次
   // undefined / null / {}（无任何键）均视为空 schema，不触发；
@@ -191,7 +248,14 @@ export function NexusForm({
     useRef<(data: Record<string, unknown>) => void | Promise<void>>(noop);
   const onFinishFailedRef =
     useRef<(errors: Map<string, string[]>) => void>(noop);
-  onFinishRef.current = onFinish ?? noop;
+  onFinishRef.current = (data) => {
+    // 提交成功后清除草稿（clearOnSubmit !== false）
+    const options = persistRef.current;
+    if (options?.clearOnSubmit !== false) {
+      clearPersisted(options!);
+    }
+    return onFinish?.(data);
+  };
   onFinishFailedRef.current = onFinishFailed ?? noop;
 
   // 只在挂载时绑定一次：传入「稳定的 getter」，让 FormController 在 submit 时读取最新回调
@@ -209,10 +273,13 @@ export function NexusForm({
     form._syncConfig({ removeHiddenData, watch });
   }, [form, removeHiddenData, watch]);
 
+  // 渲染树版本订阅：仅 Schema 结构变化（init/setSchema/reset）时重算 renderTree。
+  // 字段值/错误等数据变化只 bump store 版本（useFormData 消费），
+  // 不会触发 NexusForm 重渲染——各字段经字段级版本订阅精准重渲染。
   const _version = useSyncExternalStore(
-    engine.subscribeStore,
-    engine.getSnapshot,
-    engine.getSnapshot,
+    engine.subscribeRender,
+    engine.getRenderSnapshot,
+    engine.getRenderSnapshot,
   );
   // 依赖 _version：engine.init() / setSchema() 会 bump version，
   // 需要在此后重新读取 renderTree（首次渲染时 engine 尚未 init，renderTree 为空）
@@ -274,6 +341,7 @@ export function NexusForm({
       displayType: finalDisplayType,
       readOnly: finalReadOnly,
       column: finalColumn,
+      locale: finalLocale,
     }),
     [
       mergedLabelCol,
@@ -283,6 +351,7 @@ export function NexusForm({
       finalDisplayType,
       finalReadOnly,
       finalColumn,
+      finalLocale,
     ],
   );
 

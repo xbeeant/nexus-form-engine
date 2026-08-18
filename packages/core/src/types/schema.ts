@@ -636,6 +636,8 @@ export interface NexusSchema {
   readOnly?: boolean;
   /** 表单每行显示多少列（x-render 对齐） */
   column?: number;
+  /** 表单语言标识（如 'zh-CN' / 'en-US'，UI 层消费） */
+  locale?: string;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -919,6 +921,13 @@ export interface DefaultRuleMessages {
 export interface NexusEngineOptions {
   /** 校验默认消息模板覆盖（仅覆盖传入的 key） */
   messages?: Partial<DefaultRuleMessages>;
+  /**
+   * 表单语言标识（如 'zh-CN' / 'en-US'）
+   *
+   * 引擎仅透传存储，由 UI 层（antd ConfigProvider / 内置文案）消费；
+   * 校验消息语言通过 `messages` 覆盖实现。
+   */
+  locale?: string;
   /**
    * 表单实例唯一标识
    *

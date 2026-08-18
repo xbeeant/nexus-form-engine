@@ -4,11 +4,21 @@ import type {
   NexusFormInstance,
 } from '@xbeeant/form-engine';
 import { toBoolean } from '@xbeeant/form-engine/utils/schema-helper';
-import { useFormConfig } from '@xbeeant/form-engine-react';
-import { Form } from 'antd';
+import {
+  NexusContext,
+  useFormConfig,
+} from '@xbeeant/form-engine-react';
+import { ConfigProvider, Form } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
+import { useContext } from 'react';
 import React from 'react';
+
+import {
+  resolveAntdLocale,
+  resolveNexusLocale,
+  type NexusLocaleBundle,
+} from '../locales';
 
 // 支持按 format 模板解析（如 'YYYY年MM月DD日'），默认解析无法识别此类自定义格式
 dayjs.extend(customParseFormat);
@@ -115,6 +125,19 @@ export function toDayjs(value: unknown, format?: string): dayjs.Dayjs | null {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// useNexusLocale — 安全读取表单语言包
+// 在 NexusFormProvider 内读取 config.locale；脱离表单上下文（如独立使用
+// ReadOnlyDisplay）时回退默认语言包（zh-CN），不抛错
+// ────────────────────────────────────────────────────────────────────────────
+
+export function useNexusLocale(): NexusLocaleBundle {
+  // 直接读 Context（允许为空）：脱离 NexusFormProvider 时安全回退 zh-CN，
+  // 避免 try/catch 包裹 Hook（违反 hooks 规则）
+  const config = useContext(NexusContext)?.config;
+  return resolveNexusLocale(config?.locale);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // ReadOnlyDisplay — 只读模式下将值渲染为纯文本 / 结构化键值块
 // 支持基础值（字符串/数字/布尔/options 枚举）与结构化值（object / array）：
 // simpleList / tableList / list / object 等复杂组件的值在 readOnly 时
@@ -129,9 +152,10 @@ const isPrimitive = (v: unknown): boolean =>
 const renderScalarLabel = (
   v: unknown,
   mapped: ReturnType<typeof mapOptions>,
+  bundle: NexusLocaleBundle,
 ): string => {
   if (typeof v === 'boolean') {
-    return v ? '是' : '否';
+    return v ? bundle.readonlyDisplay.yes : bundle.readonlyDisplay.no;
   }
   const hit = mapped.find((o) => o.value === v);
   return hit ? hit.label : String(v);
@@ -141,6 +165,7 @@ const renderScalarLabel = (
 function renderReadOnlyValue(
   value: unknown,
   mapped: ReturnType<typeof mapOptions>,
+  bundle: NexusLocaleBundle,
   depth = 0,
 ): React.ReactNode {
   if (value === undefined || value === null || value === '') {
@@ -155,14 +180,14 @@ function renderReadOnlyValue(
     // 基础值数组（multiSelect / checkboxes / simpleList 字符串项）：顿号拼接
     if (value.every((item) => isPrimitive(item))) {
       return (
-        <>{value.map((item) => renderScalarLabel(item, mapped)).join('、')}</>
+        <>{value.map((item) => renderScalarLabel(item, mapped, bundle)).join('、')}</>
       );
     }
     // 对象数组（tableList / list）：逐项渲染为键值块
     return (
       <div className='flex flex-col gap-1'>
         {value.map((item, index) => (
-          <div key={index}>{renderReadOnlyValue(item, mapped, depth + 1)}</div>
+          <div key={index}>{renderReadOnlyValue(item, mapped, bundle, depth + 1)}</div>
         ))}
       </div>
     );
@@ -191,7 +216,7 @@ function renderReadOnlyValue(
               {key}
             </span>
             <span className='flex-1 text-right text-[13px] text-black/85'>
-              {renderReadOnlyValue(entryValue, mapped, depth + 1)}
+              {renderReadOnlyValue(entryValue, mapped, bundle, depth + 1)}
             </span>
           </div>
         ))}
@@ -200,7 +225,7 @@ function renderReadOnlyValue(
   }
 
   // 基础值（含 options 枚举映射）
-  return <>{renderScalarLabel(value, mapped)}</>;
+  return <>{renderScalarLabel(value, mapped, bundle)}</>;
 }
 
 export function ReadOnlyDisplay({
@@ -210,7 +235,8 @@ export function ReadOnlyDisplay({
   value: unknown;
   options?: WidgetProps['options'];
 }) {
-  return <>{renderReadOnlyValue(value, mapOptions(options))}</>;
+  const bundle = useNexusLocale();
+  return <>{renderReadOnlyValue(value, mapOptions(options), bundle)}</>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -319,13 +345,20 @@ export interface FieldWrapperProps {
 
 export function FieldWrapper(props: FieldWrapperProps) {
   const { children, ...rest } = props;
+  const config = useFormConfig();
   const { wrap } = useFormItem(rest as WidgetProps);
-  return wrap(
-    <FieldMetaContext.Provider
-      value={{ title: rest.title, description: rest.description }}
-    >
-      {children}
-    </FieldMetaContext.Provider>,
+  // antd 组件库 locale（ConfigProvider 包裹，表单级 locale 生效于所有控件）
+  const antdLocale = resolveAntdLocale(config.locale);
+  return (
+    <ConfigProvider locale={antdLocale}>
+      {wrap(
+        <FieldMetaContext.Provider
+          value={{ title: rest.title, description: rest.description }}
+        >
+          {children}
+        </FieldMetaContext.Provider>,
+      )}
+    </ConfigProvider>
   );
 }
 

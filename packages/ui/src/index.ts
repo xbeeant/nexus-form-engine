@@ -24,6 +24,16 @@ export {
 } from './layouts/passThrough';
 export { stepsLayout } from './layouts/steps';
 export { tabsLayout } from './layouts/tabs';
+// ── i18n 语言包导出 ────────────────────────────────────────────────────────────
+export {
+  antdLocales,
+  nexusLocales,
+  normalizeLocale,
+  resolveAntdLocale,
+  resolveNexusLocale,
+  toAntdLocaleName,
+} from './locales';
+export type { NexusLocaleBundle } from './locales';
 export type { PropertySchemaMap } from './schema';
 // ── Schema 定义导出 ─────────────────────────────────────────────────────────────
 // 每个组件的 Schema 定义，用于定义组件的配置结构、验证规则和渲染行为

@@ -22,6 +22,8 @@ export interface NexusFormConfig {
   readOnly?: boolean;
   /** 表单每行显示多少列 */
   column?: number;
+  /** 表单语言标识（如 'zh-CN' / 'en-US'，ui 层消费：antd locale + 内置文案） */
+  locale?: string;
 }
 
 interface NexusContextValue {
