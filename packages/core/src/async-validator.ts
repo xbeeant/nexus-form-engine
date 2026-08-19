@@ -70,8 +70,10 @@ export class AsyncValidatorPlugin implements NexusPlugin {
     onInit: (engine: NexusEngine) => {
       this.engine = engine;
     },
-    onValidateField: (path: string) => {
-      this.schedule(path);
+    onValidateField: (path: string, engine: NexusEngine) => {
+      // 多实例场景：使用发起校验的引擎视图（定向到目标实例），
+      // 保证异步校验结果写回正确的实例
+      this.schedule(path, engine ?? this.engine);
     },
   };
 
@@ -186,13 +188,14 @@ export class AsyncValidatorPlugin implements NexusPlugin {
    * 防抖窗口内同一字段再次变更会清除前一个定时器，以最后一次为准
    *
    * @param path - 字段路径
+   * @param engine - 目标实例引擎（多实例场景下为实例视图）
    */
-  private schedule(path: string): void {
-    const state = this.engine.getFieldState(path);
+  private schedule(path: string, engine: NexusEngine): void {
+    const state = engine.getFieldState(path);
     if (!state) {
       return;
     }
-    const validators = this.engine.getFieldValidators().get(path);
+    const validators = engine.getFieldValidators().get(path);
     if (!validators || validators.length === 0) {
       return;
     }
@@ -205,12 +208,12 @@ export class AsyncValidatorPlugin implements NexusPlugin {
 
     const timer = setTimeout(async () => {
       this.timers.delete(path);
-      const latest = this.engine.getFieldState(path);
+      const latest = engine.getFieldState(path);
       if (!latest?.visible) {
         return;
       }
 
-      const latestFormData = this.engine.getFormData();
+      const latestFormData = engine.getFormData();
       const asyncErrors: string[] = [];
 
       try {
@@ -238,7 +241,7 @@ export class AsyncValidatorPlugin implements NexusPlugin {
 
       if (asyncErrors.length > 0) {
         // 与当前同步错误合并，使用 Set 去重避免重复累积
-        this.engine.setFieldState(path, {
+        engine.setFieldState(path, {
           errors: Array.from(new Set([...latest.errors, ...asyncErrors])),
         });
       }

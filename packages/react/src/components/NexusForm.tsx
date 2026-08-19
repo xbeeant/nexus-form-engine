@@ -45,6 +45,12 @@ export interface NexusFormProps {
   form: FormController;
   /** Schema 定义 */
   schema?: NexusSchema;
+  /**
+   * 实例标识（同一 form 可挂载多个不同 schema 的 NexusForm，互不影响）
+   * - 缺省时首个 NexusForm 使用 'default' 实例，其余自动分配（nexus-1/nexus-2/...）
+   * - 同一 instanceId 的多个 NexusForm 共享同一实例的 schema/值/订阅
+   */
+  instanceId?: string;
   /** 初始值 */
   initialValues?: Record<string, unknown>;
   /** 额外注册的 widget（与已注册的合并） */
@@ -147,8 +153,18 @@ export function NexusForm({
   removeHiddenData = true,
   locale,
   persist,
+  instanceId,
 }: NexusFormProps) {
-  const engine = form._getEngine();
+  // 实例视图引擎：同一 form 挂载多个 NexusForm 时各自独立
+  // （schema/值/订阅互不影响）；hooks 消费 context 中的视图引擎自动定向到实例
+  const resolvedInstanceId = useMemo(
+    () => form._acquireInstanceId(instanceId),
+    [form, instanceId],
+  );
+  const engine = useMemo(
+    () => form._useInstance(resolvedInstanceId),
+    [form, resolvedInstanceId],
+  );
   const formElRef = useRef<HTMLFormElement | null>(null);
   // persist 配置经 ref 持有：保存回调不随配置对象变化重建订阅
   const persistRef = useRef<PersistOptions | undefined>(persist);
@@ -260,25 +276,26 @@ export function NexusForm({
   // 只在挂载时绑定一次：传入「稳定的 getter」，让 FormController 在 submit 时读取最新回调
   useEffect(() => {
     form._bind(
+      resolvedInstanceId,
       formElRef.current,
       () => onFinishRef.current,
       () => onFinishFailedRef.current,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form]);
+  }, [form, resolvedInstanceId]);
 
   // watch / removeHiddenData 变化时单独同步（不重置其他绑定）
   useEffect(() => {
-    form._syncConfig({ removeHiddenData, watch });
-  }, [form, removeHiddenData, watch]);
+    form._syncConfig(resolvedInstanceId, { removeHiddenData, watch });
+  }, [form, resolvedInstanceId, removeHiddenData, watch]);
 
   // 渲染树版本订阅：仅 Schema 结构变化（init/setSchema/reset）时重算 renderTree。
   // 字段值/错误等数据变化只 bump store 版本（useFormData 消费），
   // 不会触发 NexusForm 重渲染——各字段经字段级版本订阅精准重渲染。
   const _version = useSyncExternalStore(
-    engine.subscribeRender,
-    engine.getRenderSnapshot,
-    engine.getRenderSnapshot,
+    (cb) => engine.subscribeRender(cb),
+    () => engine.getRenderSnapshot(),
+    () => engine.getRenderSnapshot(),
   );
   // 依赖 _version：engine.init() / setSchema() 会 bump version，
   // 需要在此后重新读取 renderTree（首次渲染时 engine 尚未 init，renderTree 为空）
@@ -355,7 +372,12 @@ export function NexusForm({
   );
 
   return (
-    <NexusFormProvider engine={engine} config={formConfig} form={form}>
+    <NexusFormProvider
+      engine={engine}
+      config={formConfig}
+      form={form}
+      instanceId={resolvedInstanceId}
+    >
       <form
         ref={formElRef}
         onSubmit={handleSubmit}

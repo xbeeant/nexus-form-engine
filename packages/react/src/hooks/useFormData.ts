@@ -11,9 +11,9 @@ export function useFormData(): Record<string, unknown> {
   const engine = useEngine();
 
   const _version = useSyncExternalStore(
-    engine.subscribeStore,
-    engine.getSnapshot,
-    engine.getSnapshot,
+    (cb) => engine.subscribeStore(cb),
+    () => engine.getSnapshot(),
+    () => engine.getSnapshot(),
   );
   // biome-ignore lint/correctness/useExhaustiveDependencies: _version 是 formData 失效信号（engine 内部状态，静态分析不可见）
   return useMemo(() => engine.getFormData(), [engine, _version]);

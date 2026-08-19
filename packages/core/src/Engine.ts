@@ -74,6 +74,57 @@ function interpolateMessage(
 }
 
 /**
+ * 单个表单实例的完整状态（同一 NexusEngine 可承载多个独立实例）
+ *
+ * 引擎级能力（插件/组件注册/跨表单联动/表达式沙箱/消息模板）在 NexusEngine 上共享，
+ * 实例级状态（schema/字段/渲染树/依赖图/订阅/版本/缓存）全部收敛到此对象，
+ * 保证多个 NexusForm 使用同一 form 时 schema 与数据互不影响。
+ */
+interface EngineInstanceState {
+  /** 本实例当前加载的 Schema 定义 */
+  schema: NexusSchema | null;
+  /** init 时传入的初始值快照（reset 时按此重建 schema 级初始状态） */
+  initialValues?: Record<string, unknown>;
+  /** init() 之前由 setFieldValue / setFieldValues 写入的缓冲值 */
+  pendingValues?: Record<string, unknown>;
+  /** 所有字段的状态映射表，key 为字段路径(如 "profile.name") */
+  fieldStates: Map<string, FieldState>;
+  /** 渲染树节点数组，描述表单的 UI 层级结构 */
+  renderTree: RenderTreeNode[];
+  /** 显式依赖图：source → Set<target>（source 变化时哪些字段需要联动） */
+  dependencyGraph: DependencyGraph;
+  /** 含 validate 表达式规则的字段路径集合（依赖变化时需实时重校验） */
+  validateExprFields: Set<string>;
+  /** 字段路径 → 版本号，字段状态每次变更 +1（供 useSyncExternalStore 精准订阅） */
+  fieldVersions: Map<string, number>;
+  /** 按字段路径分组的监听器集合 */
+  fieldListeners: Map<string, Set<Listener>>;
+  /** 全局监听器集合（表单任何变化都会触发） */
+  globalListeners: Set<Listener>;
+  /** 值变更回调（由 FormController 注册，用于触发 watch） */
+  onFieldValueChangeCallback: ((path: string, value: unknown) => void) | null;
+  /** 外部注册的字段校验器（由 FormController 注册），按字段路径分组 */
+  fieldValidators: Map<
+    string,
+    Array<
+      (
+        value: unknown,
+        formData: Record<string, unknown>,
+      ) => string[] | Promise<string[]>
+    >
+  >;
+  /** store 版本：每次状态变更时递增，React 通过比对版本号判断是否需要重渲染 */
+  version: number;
+  /** 渲染树版本：仅 Schema 结构变化（init/setSchema/reset）时递增 */
+  renderVersion: number;
+  /** 渲染树订阅者（NexusForm renderTree 消费，避免字段值变化触发全表单重渲染） */
+  renderListeners: Set<Listener>;
+  /** formData 缓存与脏标记 */
+  formDataCache: Record<string, unknown> | null;
+  formDataDirty: boolean;
+}
+
+/**
  * NexusEngine — 表单引擎核心类
  *
  * 负责管理表单字段状态、数据绑定、联动逻辑、校验、订阅通知等
@@ -89,41 +140,70 @@ function interpolateMessage(
  * - 插件系统扩展
  */
 export class NexusEngine implements IFormEngine {
-  // ── 内部状态 ──
+  // ── 多实例状态（同一 engine 挂载多个表单，schema/值/订阅互相独立）──
 
-  /** 所有字段的状态映射表，key 为字段路径(如 "profile.name") */
-  private fieldStates: Map<string, FieldState> = new Map();
-  /** 渲染树节点数组，描述表单的 UI 层级结构 */
-  private renderTree: RenderTreeNode[] = [];
-  /** 显式依赖图：source → Set<target>（source 变化时哪些字段需要联动） */
-  private dependencyGraph: DependencyGraph = new DependencyGraph();
-  /** 当前加载的表单 Schema 定义 */
-  private schema: NexusSchema | null = null;
-  /** init 时传入的初始值快照（reset 时按此重建 schema 级初始状态） */
-  private initialValues?: Record<string, unknown>;
-  /** 含 validate 表达式规则的字段路径集合（依赖变化时需实时重校验） */
-  private validateExprFields: Set<string> = new Set();
+  /** 实例标识 → 实例状态（每份 schema 一份实例状态） */
+  private instances: Map<string, EngineInstanceState> = new Map();
+  /** 当前实例标识：根引擎为 'default'，instance() 视图覆盖该值定向到目标实例 */
+  private currentInstanceId = 'default';
 
-  // ── 字段级版本（供 useSyncExternalStore 按路径精准订阅）──
+  /** 解析当前实例状态（视图引擎经 currentInstanceId 定向） */
+  private _inst(): EngineInstanceState {
+    let inst = this.instances.get(this.currentInstanceId);
+    if (!inst) {
+      inst = {
+        schema: null,
+        initialValues: undefined,
+        pendingValues: undefined,
+        fieldStates: new Map(),
+        renderTree: [],
+        dependencyGraph: new DependencyGraph(),
+        validateExprFields: new Set(),
+        fieldVersions: new Map(),
+        fieldListeners: new Map(),
+        globalListeners: new Set(),
+        onFieldValueChangeCallback: null,
+        fieldValidators: new Map(),
+        version: 0,
+        renderVersion: 0,
+        renderListeners: new Set(),
+        formDataCache: null,
+        formDataDirty: true,
+      };
+      this.instances.set(this.currentInstanceId, inst);
+    }
+    return inst;
+  }
 
-  /** 字段路径 → 版本号，字段状态每次变更 +1 */
-  private fieldVersions: Map<string, number> = new Map();
+  /**
+   * 获取指定实例的引擎视图（同一引擎上的独立表单实例）
+   *
+   * 视图与根引擎共享插件/组件注册/跨表单联动等引擎级能力，
+   * 但 schema、字段状态、订阅与版本各自独立：
+   * - 通过视图调用 init/setFieldValue/subscribe 等仅作用于该实例
+   * - 未指定 instanceId 的 NexusForm 使用根引擎（'default' 实例）
+   * - 同一实例多次调用 instance(id) 返回不同视图对象（语义等价）
+   *
+   * @param instanceId - 实例标识
+   * @returns 定向到该实例的引擎视图
+   */
+  instance(instanceId: string): NexusEngine {
+    const view = Object.create(this) as NexusEngine;
+    view.currentInstanceId = instanceId;
+    return view;
+  }
+
+  /**
+   * 获取已创建的全部实例标识
+   */
+  getInstanceIds(): string[] {
+    return Array.from(this.instances.keys());
+  }
 
   // ── 表达式沙箱 ──
 
   /** 表达式安全求值沙箱（黑名单 + 上下文白名单过滤） */
   private expressionSandbox: ExpressionSandbox = createExpressionSandbox();
-
-  // ── 订阅系统 ──
-
-  /** 按字段路径分组的监听器集合 */
-  private fieldListeners: Map<string, Set<Listener>> = new Map();
-  /** 全局监听器集合（表单任何变化都会触发） */
-  private globalListeners: Set<Listener> = new Set();
-  /** 值变更回调（由 FormController 注册，用于触发 watch） */
-  private onFieldValueChangeCallback:
-    | ((path: string, value: unknown) => void)
-    | null = null;
 
   // ── 插件系统 ──
 
@@ -143,34 +223,14 @@ export class NexusEngine implements IFormEngine {
    * SchemaParser 解析字段时合并进 FieldState（规则/联动/默认 props）
    */
   private widgetMetas: WidgetDescriptors = {};
-  /** 外部注册的字段校验器（由 FormController 注册），按字段路径分组 */
-  private fieldValidators: Map<
-    string,
-    Array<
-      (
-        value: unknown,
-        formData: Record<string, unknown>,
-      ) => string[] | Promise<string[]>
-    >
-  > = new Map();
 
   // ── 版本计数器（用于 useSyncExternalStore 快照比对）──
-  /** 每次状态变更时递增，React 通过比对版本号判断是否需要重渲染 */
-  private version = 0;
-  /** 渲染树版本：仅 Schema 结构变化（init/setSchema/reset）时递增 */
-  private renderVersion = 0;
-  /** 渲染树订阅者（NexusForm renderTree 消费，避免字段值变化触发全表单重渲染） */
-  private renderListeners: Set<Listener> = new Set();
 
   // ── 校验默认消息模板（rule.message > messages[key] > 内置默认）──
 
   private messageTemplates: Partial<DefaultRuleMessages>;
   /** 表单语言标识（'zh-CN' / 'en-US'，UI 层消费） */
   private locale: string;
-
-  /** formData 缓存与脏标记 */
-  private formDataCache: Record<string, unknown> | null = null;
-  private formDataDirty = true;
 
   // ── 跨表单联动（多表单实例）──
 
@@ -207,12 +267,6 @@ export class NexusEngine implements IFormEngine {
    * value = 上次触发的依赖值快照；源字段值未变化时跳过（防止循环联动）
    */
   private crossFormLastDeps: Map<string, unknown[]> = new Map();
-  /**
-   * init() 之前由 setFieldValue / setFieldValues 写入的缓冲值（表单未渲染时调用）
-   * 引擎尚未初始化（schema 为 null）时值无法落到字段，先暂存，
-   * init() 时合并为 initialValues（显式赋值优先于 initialValues / 草稿）
-   */
-  private pendingValues: Record<string, unknown> | undefined;
 
   /**
    * 创建引擎实例
@@ -242,7 +296,7 @@ export class NexusEngine implements IFormEngine {
 
   // 标记 formData 缓存失效
   private markFormDataDirty(): void {
-    this.formDataDirty = true;
+    this._inst().formDataDirty = true;
   }
 
   // =========================================================================
@@ -265,19 +319,22 @@ export class NexusEngine implements IFormEngine {
    * @param initialValues - 可选的初始表单数据
    */
   init(schema: NexusSchema, initialValues?: Record<string, unknown>): void {
-    this.schema = schema;
+    this._inst().schema = schema;
     // 合并 init 之前缓冲的 setFieldValue/setFieldValues：显式赋值优先于 initialValues / 草稿
     // 缓冲值为点路径键（如 'profile.city'），经 setNestedValue 转为嵌套结构供 Parser 读取
-    if (this.pendingValues) {
+    const pendingValues = this._inst().pendingValues;
+    if (pendingValues) {
       initialValues = { ...(initialValues ?? {}) };
-      for (const [path, value] of Object.entries(this.pendingValues)) {
+      for (const [path, value] of Object.entries(pendingValues)) {
         setNestedValue(initialValues, path, value);
       }
-      this.pendingValues = undefined;
+      this._inst().pendingValues = undefined;
     }
     // 浅拷贝保存初始值快照：reset() 时恢复 schema 级初始状态（含 hidden/disabled/props 默认值）
-    this.initialValues = initialValues ? { ...initialValues } : undefined;
-    this.fieldStates.clear();
+    this._inst().initialValues = initialValues
+      ? { ...initialValues }
+      : undefined;
+    this._inst().fieldStates.clear();
     this.markFormDataDirty();
     // 注意：不清空 fieldListeners / globalListeners
     // React 的 useSyncExternalStore 会在组件卸载或依赖变化时自动清理订阅
@@ -286,16 +343,16 @@ export class NexusEngine implements IFormEngine {
     // 解析 Schema，生成字段状态和渲染树
     const result = SchemaParser.parse(
       schema,
-      this.initialValues,
+      this._inst().initialValues,
       this.widgetMetas,
     );
-    this.fieldStates = result.fieldStates;
-    this.renderTree = result.renderTree;
-    this.dependencyGraph = result.dependencyGraph;
-    this.validateExprFields = result.validateExprFields;
+    this._inst().fieldStates = result.fieldStates;
+    this._inst().renderTree = result.renderTree;
+    this._inst().dependencyGraph = result.dependencyGraph;
+    this._inst().validateExprFields = result.validateExprFields;
 
     // 为所有字段递增字段级版本（init / reset 后触发按路径订阅的组件重渲染）
-    for (const path of this.fieldStates.keys()) {
+    for (const path of this._inst().fieldStates.keys()) {
       this.bumpFieldVersion(path);
     }
 
@@ -355,14 +412,14 @@ export class NexusEngine implements IFormEngine {
   setFieldValue(path: string, value: unknown): void {
     // 引擎尚未初始化（schema 为 null）：缓冲待 init() 时应用，
     // 避免表单渲染前的 setValues 被 init 重置导致页面字段无值
-    if (!this.schema) {
-      this.pendingValues = {
-        ...(this.pendingValues ?? {}),
+    if (!this._inst().schema) {
+      this._inst().pendingValues = {
+        ...(this._inst().pendingValues ?? {}),
         [path]: value,
       };
       return;
     }
-    const state = this.fieldStates.get(path);
+    const state = this._inst().fieldStates.get(path);
     if (!state) {
       console.warn(`[NexusEngine] Field not found: ${path}`);
       return;
@@ -387,14 +444,17 @@ export class NexusEngine implements IFormEngine {
    */
   setFieldValues(values: Record<string, unknown>): void {
     // 引擎尚未初始化（schema 为 null）：缓冲待 init() 时应用
-    if (!this.schema) {
-      this.pendingValues = { ...(this.pendingValues ?? {}), ...values };
+    if (!this._inst().schema) {
+      this._inst().pendingValues = {
+        ...(this._inst().pendingValues ?? {}),
+        ...values,
+      };
       return;
     }
     // values 是转换后的数据格式，根据 bind 反向解析到字段
     const changedPaths: string[] = [];
 
-    for (const [path, state] of this.fieldStates) {
+    for (const [path, state] of this._inst().fieldStates) {
       // 数据对象容器不接收值（仅承载 UI 状态，子字段各自独立接收）
       if (state.meta.containerOnly) {
         continue;
@@ -504,8 +564,9 @@ export class NexusEngine implements IFormEngine {
     }
 
     // 外部 watch 回调
-    if (this.onFieldValueChangeCallback) {
-      this.onFieldValueChangeCallback(path, value);
+    const onFieldValueChangeCallback = this._inst().onFieldValueChangeCallback;
+    if (onFieldValueChangeCallback) {
+      onFieldValueChangeCallback(path, value);
     }
   }
 
@@ -516,7 +577,7 @@ export class NexusEngine implements IFormEngine {
    * @returns 字段值，不存在则返回 undefined
    */
   getFieldValue(path: string): unknown {
-    return this.fieldStates.get(path)?.value;
+    return this._inst().fieldStates.get(path)?.value;
   }
 
   /**
@@ -538,7 +599,7 @@ export class NexusEngine implements IFormEngine {
       const data: Record<string, unknown> = {};
       const pathSet = paths ? new Set(paths) : null;
 
-      for (const [path, state] of this.fieldStates) {
+      for (const [path, state] of this._inst().fieldStates) {
         // 数组项子字段不单独收集（数组整体由数组字段序列化）
         if (state.meta.itemOf) {
           continue;
@@ -565,13 +626,13 @@ export class NexusEngine implements IFormEngine {
       return data;
     }
     // 无路径：使用缓存
-    if (!this.formDataDirty && this.formDataCache) {
+    if (!this._inst().formDataDirty && this._inst().formDataCache) {
       // 返回浅拷贝，防止外部修改内部缓存
-      return { ...this.formDataCache };
+      return { ...this._inst().formDataCache };
     }
 
     const data: Record<string, unknown> = {};
-    for (const [path, state] of this.fieldStates) {
+    for (const [path, state] of this._inst().fieldStates) {
       if (state.meta.itemOf || state.meta.containerOnly) {
         continue;
       }
@@ -584,19 +645,19 @@ export class NexusEngine implements IFormEngine {
       this.applyBindToData(data, path, state);
     }
 
-    this.formDataCache = data;
-    this.formDataDirty = false;
+    this._inst().formDataCache = data;
+    this._inst().formDataDirty = false;
     // 返回浅拷贝
     return { ...data };
   }
 
   /** 内部使用：直接返回缓存引用（只读） */
   private getFormDataInternal(): Record<string, unknown> {
-    if (this.formDataDirty || !this.formDataCache) {
+    if (this._inst().formDataDirty || !this._inst().formDataCache) {
       // 强制刷新缓存
       this.getFormData(); // 构建并设置缓存
     }
-    return this.formDataCache!;
+    return this._inst().formDataCache!;
   }
 
   /**
@@ -656,7 +717,7 @@ export class NexusEngine implements IFormEngine {
     const segments = path.split('.');
     for (let i = segments.length - 1; i >= 1; i--) {
       const ancestor = segments.slice(0, i).join('.');
-      const state = this.fieldStates.get(ancestor);
+      const state = this._inst().fieldStates.get(ancestor);
       if (state?.meta.containerOnly && !state.visible) {
         return true;
       }
@@ -675,7 +736,7 @@ export class NexusEngine implements IFormEngine {
    * @returns 字段状态，不存在则返回 undefined
    */
   getFieldState(path: string): FieldState | undefined {
-    return this.fieldStates.get(path);
+    return this._inst().fieldStates.get(path);
   }
 
   /**
@@ -684,7 +745,7 @@ export class NexusEngine implements IFormEngine {
    * @returns 所有字段状态的 Map 副本
    */
   getAllFieldStates(): Map<string, FieldState> {
-    return new Map(this.fieldStates);
+    return new Map(this._inst().fieldStates);
   }
 
   /**
@@ -703,7 +764,7 @@ export class NexusEngine implements IFormEngine {
    * @param patch - 状态补丁对象，只更新传入的属性
    */
   setFieldState(path: string, patch: FieldStatePatch): void {
-    const state = this.fieldStates.get(path);
+    const state = this._inst().fieldStates.get(path);
     if (!state) {
       console.warn(`[NexusEngine] Field not found: ${path}`);
       return;
@@ -854,7 +915,7 @@ export class NexusEngine implements IFormEngine {
     // Promise 返回值的异步校验由 AsyncValidatorPlugin 通过 onValidateField 钩子接管：
     // 同步路径只处理同步结果（string[]），thenable 结果交由插件防抖调度后写回，
     // 与 schema 规则的默认 'change' trigger 保持一致的触发时机
-    const validators = this.fieldValidators.get(path);
+    const validators = this._inst().fieldValidators.get(path);
     if (validators && validators.length > 0) {
       const formData = this.getFormData();
       for (const validator of validators) {
@@ -876,8 +937,9 @@ export class NexusEngine implements IFormEngine {
     state.errors = errors;
 
     // 3. 通知插件执行后续校验（如异步校验器插件的防抖调度）
+    // 携带 dispatch 引擎（实例视图），插件可按实例寻址字段状态
     for (const plugin of this.plugins) {
-      plugin.hooks?.onValidateField?.(path);
+      plugin.hooks?.onValidateField?.(path, this);
     }
   }
 
@@ -892,7 +954,7 @@ export class NexusEngine implements IFormEngine {
    * @param options - 触发时机（默认 'change'）
    */
   validateField(path: string, options?: { trigger?: ValidationTrigger }): void {
-    const state = this.fieldStates.get(path);
+    const state = this._inst().fieldStates.get(path);
     if (!state) {
       console.warn(`[NexusEngine] Field not found: ${path}`);
       return;
@@ -1119,7 +1181,7 @@ export class NexusEngine implements IFormEngine {
    */
   async validate(paths?: string[]): Promise<Map<string, string[]>> {
     const results = new Map<string, string[]>();
-    const targetPaths = paths || Array.from(this.fieldStates.keys());
+    const targetPaths = paths || Array.from(this._inst().fieldStates.keys());
 
     // 插件通知：校验前回调
     for (const plugin of this.plugins) {
@@ -1127,7 +1189,7 @@ export class NexusEngine implements IFormEngine {
     }
 
     for (const path of targetPaths) {
-      const state = this.fieldStates.get(path);
+      const state = this._inst().fieldStates.get(path);
       if (!state?.visible) {
         continue;
       }
@@ -1181,7 +1243,7 @@ export class NexusEngine implements IFormEngine {
       }
 
       // 外部注册的字段校验器（registerValidator）
-      const validators = this.fieldValidators.get(path);
+      const validators = this._inst().fieldValidators.get(path);
       if (validators && validators.length > 0) {
         for (const validator of validators) {
           const extraErrors = await validator(state.value, formData);
@@ -1247,15 +1309,16 @@ export class NexusEngine implements IFormEngine {
    * - 重新执行联动规则，恢复初始联动状态
    */
   reset(): void {
-    if (this.schema) {
+    const schema = this._inst().schema;
+    if (schema) {
       // 重新解析 schema：恢复字段状态、依赖图、渲染树与初始联动
       // init 内部已执行 bump + notifyAll，且保留已有监听器（不会丢失 React 订阅）
-      this.init(this.schema, this.initialValues);
+      this.init(schema, this._inst().initialValues);
       return;
     }
 
     // Schema 不可用时的兜底：按字段 initialValue 手工重置
-    for (const [, state] of this.fieldStates) {
+    for (const [, state] of this._inst().fieldStates) {
       state.value = state.initialValue;
       state.errors = [];
       state.visible = true;
@@ -1280,7 +1343,7 @@ export class NexusEngine implements IFormEngine {
    * @returns 当前 Schema 或 null（未初始化时）
    */
   getSchema(): NexusSchema | null {
-    return this.schema;
+    return this._inst().schema;
   }
 
   /**
@@ -1292,7 +1355,7 @@ export class NexusEngine implements IFormEngine {
    */
   getAllFormData(): Record<string, unknown> {
     const data: Record<string, unknown> = {};
-    for (const [path, state] of this.fieldStates) {
+    for (const [path, state] of this._inst().fieldStates) {
       // 数组项子字段不单独收集（数组整体由数组字段序列化）
       if (state.meta.itemOf) {
         continue;
@@ -1315,7 +1378,7 @@ export class NexusEngine implements IFormEngine {
    */
   getHiddenValues(): Record<string, unknown> {
     const data: Record<string, unknown> = {};
-    for (const [path, state] of this.fieldStates) {
+    for (const [path, state] of this._inst().fieldStates) {
       // 数组项子字段不单独收集（数组整体由数组字段序列化）
       if (state.meta.itemOf) {
         continue;
@@ -1345,22 +1408,18 @@ export class NexusEngine implements IFormEngine {
    * @param patch - 要合并的 schema 片段
    */
   setSchemaByPath(path: string, patch: Record<string, unknown>): void {
-    if (!this.schema) {
+    const schema = this._inst().schema;
+    if (!schema) {
       console.warn('[NexusEngine] Schema not initialized');
       return;
     }
 
     const segments = path.split('.');
-    const updated = this.patchSchemaNode(
-      this.schema.properties,
-      segments,
-      0,
-      patch,
-    );
+    const updated = this.patchSchemaNode(schema.properties, segments, 0, patch);
     if (updated) {
       // 重新解析 schema 以刷新 fieldStates / renderTree
       const currentData = this.getFormData();
-      this.init(this.schema, currentData);
+      this.init(schema, currentData);
     }
   }
 
@@ -1413,7 +1472,7 @@ export class NexusEngine implements IFormEngine {
    * @returns 错误消息数组
    */
   getFieldError(path: string): string[] {
-    return this.fieldStates.get(path)?.errors ?? [];
+    return this._inst().fieldStates.get(path)?.errors ?? [];
   }
 
   /**
@@ -1423,7 +1482,7 @@ export class NexusEngine implements IFormEngine {
    * @returns 未触碰或字段不存在时返回 false
    */
   isFieldTouched(path: string): boolean {
-    return this.fieldStates.get(path)?.touched ?? false;
+    return this._inst().fieldStates.get(path)?.touched ?? false;
   }
 
   /**
@@ -1435,7 +1494,7 @@ export class NexusEngine implements IFormEngine {
    * @returns 未变更或字段不存在时返回 false
    */
   isFieldDirty(path: string): boolean {
-    return this.fieldStates.get(path)?.dirty ?? false;
+    return this._inst().fieldStates.get(path)?.dirty ?? false;
   }
 
   /**
@@ -1445,7 +1504,7 @@ export class NexusEngine implements IFormEngine {
    */
   getFieldsError(): Map<string, string[]> {
     const errors = new Map<string, string[]>();
-    for (const [path, state] of this.fieldStates) {
+    for (const [path, state] of this._inst().fieldStates) {
       if (state.errors.length > 0) {
         errors.set(path, [...state.errors]);
       }
@@ -1460,7 +1519,7 @@ export class NexusEngine implements IFormEngine {
    */
   setErrorFields(errors: Array<{ path: string; errors: string[] }>): void {
     for (const { path, errors: errs } of errors) {
-      const state = this.fieldStates.get(path);
+      const state = this._inst().fieldStates.get(path);
       if (state) {
         state.errors = [...errs];
         this.notifyField(path);
@@ -1476,7 +1535,7 @@ export class NexusEngine implements IFormEngine {
    * @param path - 字段路径
    */
   removeErrorField(path: string): void {
-    const state = this.fieldStates.get(path);
+    const state = this._inst().fieldStates.get(path);
     if (state) {
       state.errors = [];
       this.notifyField(path);
@@ -1495,7 +1554,7 @@ export class NexusEngine implements IFormEngine {
    * @returns 依赖该字段的其他字段集合（防御性拷贝）
    */
   getDependents(path: string): Set<string> {
-    return this.dependencyGraph.getDependents(path);
+    return this._inst().dependencyGraph.getDependents(path);
   }
 
   /**
@@ -1508,7 +1567,7 @@ export class NexusEngine implements IFormEngine {
    * @returns 该字段依赖的其他字段集合（防御性拷贝）
    */
   getDependencies(path: string): Set<string> {
-    return this.dependencyGraph.getDependencies(path);
+    return this._inst().dependencyGraph.getDependencies(path);
   }
 
   // =========================================================================
@@ -1529,21 +1588,21 @@ export class NexusEngine implements IFormEngine {
    * @returns 取消订阅的函数
    */
   subscribe(path: string, callback: (state: FieldState) => void): () => void {
-    if (!this.fieldListeners.has(path)) {
-      this.fieldListeners.set(path, new Set());
+    if (!this._inst().fieldListeners.has(path)) {
+      this._inst().fieldListeners.set(path, new Set());
     }
 
     // 包装回调，自动获取最新状态
     const wrappedCallback = () => {
-      const state = this.fieldStates.get(path);
+      const state = this._inst().fieldStates.get(path);
       if (state) {
         callback(state);
       }
     };
-    this.fieldListeners.get(path)?.add(wrappedCallback);
+    this._inst().fieldListeners.get(path)?.add(wrappedCallback);
 
     return () => {
-      this.fieldListeners.get(path)?.delete(wrappedCallback);
+      this._inst().fieldListeners.get(path)?.delete(wrappedCallback);
     };
   }
 
@@ -1558,12 +1617,12 @@ export class NexusEngine implements IFormEngine {
    * @returns 取消订阅的函数
    */
   subscribeField(path: string, callback: () => void): () => void {
-    if (!this.fieldListeners.has(path)) {
-      this.fieldListeners.set(path, new Set());
+    if (!this._inst().fieldListeners.has(path)) {
+      this._inst().fieldListeners.set(path, new Set());
     }
-    this.fieldListeners.get(path)?.add(callback);
+    this._inst().fieldListeners.get(path)?.add(callback);
     return () => {
-      this.fieldListeners.get(path)?.delete(callback);
+      this._inst().fieldListeners.get(path)?.delete(callback);
     };
   }
 
@@ -1574,7 +1633,7 @@ export class NexusEngine implements IFormEngine {
    * @returns 字段版本号
    */
   getFieldVersion(path: string): number {
-    return this.fieldVersions.get(path) ?? 0;
+    return this._inst().fieldVersions.get(path) ?? 0;
   }
 
   /**
@@ -1589,10 +1648,10 @@ export class NexusEngine implements IFormEngine {
     callback: (formData: Record<string, unknown>) => void,
   ): () => void {
     const wrappedCallback = () => callback(this.getFormData());
-    this.globalListeners.add(wrappedCallback);
+    this._inst().globalListeners.add(wrappedCallback);
 
     return () => {
-      this.globalListeners.delete(wrappedCallback);
+      this._inst().globalListeners.delete(wrappedCallback);
     };
   }
 
@@ -1601,15 +1660,18 @@ export class NexusEngine implements IFormEngine {
    *
    * React 通过此方法注册 store 变更回调
    *
+   * 注意：此方法为普通方法（非箭头字段），调用方需以「方法调用」形式使用
+   * （如 `(cb) => engine.subscribeStore(cb)`），确保 this 正确定向到实例视图
+   *
    * @param onStoreChange - 变更回调函数
    * @returns 取消订阅的函数
    */
-  subscribeStore = (onStoreChange: () => void): (() => void) => {
-    this.globalListeners.add(onStoreChange);
+  subscribeStore(onStoreChange: () => void): () => void {
+    this._inst().globalListeners.add(onStoreChange);
     return () => {
-      this.globalListeners.delete(onStoreChange);
+      this._inst().globalListeners.delete(onStoreChange);
     };
-  };
+  }
 
   /**
    * 供 useSyncExternalStore 使用的 getSnapshot 方法
@@ -1618,9 +1680,9 @@ export class NexusEngine implements IFormEngine {
    *
    * @returns 当前版本号
    */
-  getSnapshot = (): number => {
-    return this.version;
-  };
+  getSnapshot(): number {
+    return this._inst().version;
+  }
 
   /**
    * 供 useSyncExternalStore 使用的渲染树订阅方法
@@ -1629,24 +1691,26 @@ export class NexusEngine implements IFormEngine {
    * 字段值/错误/校验等数据变化不触发——NexusForm 消费此版本计算 renderTree，
    * 保证字段值变化时不会重建渲染树导致所有字段重渲染（配合字段级版本订阅）。
    *
+   * 注意：此方法为普通方法（非箭头字段），调用方需以「方法调用」形式使用
+   *
    * @param onStoreChange - 变更回调函数
    * @returns 取消订阅的函数
    */
-  subscribeRender = (onStoreChange: () => void): (() => void) => {
-    this.renderListeners.add(onStoreChange);
+  subscribeRender(onStoreChange: () => void): () => void {
+    this._inst().renderListeners.add(onStoreChange);
     return () => {
-      this.renderListeners.delete(onStoreChange);
+      this._inst().renderListeners.delete(onStoreChange);
     };
-  };
+  }
 
   /**
    * 渲染树版本快照（配合 subscribeRender 使用）
    *
    * @returns 当前渲染树版本号
    */
-  getRenderSnapshot = (): number => {
-    return this.renderVersion;
-  };
+  getRenderSnapshot(): number {
+    return this._inst().renderVersion;
+  }
 
   // =========================================================================
   // 渲染树
@@ -1665,7 +1729,7 @@ export class NexusEngine implements IFormEngine {
    * @returns 渲染树节点数组
    */
   getRenderTree(): RenderTreeNode[] {
-    return this.renderTree;
+    return this._inst().renderTree;
   }
 
   // =========================================================================
@@ -1733,7 +1797,7 @@ export class NexusEngine implements IFormEngine {
   registerOnFieldValueChange(
     callback: (path: string, value: unknown) => void,
   ): void {
-    this.onFieldValueChangeCallback = callback;
+    this._inst().onFieldValueChangeCallback = callback;
   }
 
   /**
@@ -1749,11 +1813,11 @@ export class NexusEngine implements IFormEngine {
       formData: Record<string, unknown>,
     ) => string[] | Promise<string[]>,
   ): void {
-    const list = this.fieldValidators.get(path) ?? [];
+    const list = this._inst().fieldValidators.get(path) ?? [];
     // 同一字段重复注册同一函数引用时去重，避免组件/插件重复注册累积错误
     if (!list.some((fn) => fn === validator)) {
       list.push(validator);
-      this.fieldValidators.set(path, list);
+      this._inst().fieldValidators.set(path, list);
     }
   }
 
@@ -1774,15 +1838,15 @@ export class NexusEngine implements IFormEngine {
       formData: Record<string, unknown>,
     ) => string[] | Promise<string[]>,
   ): void {
-    const list = this.fieldValidators.get(path);
+    const list = this._inst().fieldValidators.get(path);
     if (!list) {
       return;
     }
     const next = list.filter((fn) => fn !== validator);
     if (next.length > 0) {
-      this.fieldValidators.set(path, next);
+      this._inst().fieldValidators.set(path, next);
     } else {
-      this.fieldValidators.delete(path);
+      this._inst().fieldValidators.delete(path);
     }
   }
 
@@ -1800,7 +1864,7 @@ export class NexusEngine implements IFormEngine {
       ) => string[] | Promise<string[]>
     >
   > {
-    return this.fieldValidators;
+    return this._inst().fieldValidators;
   }
 
   /**
@@ -1881,24 +1945,31 @@ export class NexusEngine implements IFormEngine {
    * 销毁引擎实例，清理所有内部状态和订阅
    */
   destroy(): void {
-    this.fieldStates.clear();
-    this.fieldVersions.clear();
-    this.fieldListeners.clear();
-    this.globalListeners.clear();
-    this.dependencyGraph.clear();
-    this.validateExprFields.clear();
-    this.renderTree = [];
-    this.schema = null;
-    this.initialValues = undefined;
+    // 清空全部实例（同一引擎的多个表单实例一起销毁）
+    for (const inst of this.instances.values()) {
+      inst.fieldStates.clear();
+      inst.fieldVersions.clear();
+      inst.fieldListeners.clear();
+      inst.globalListeners.clear();
+      inst.renderListeners.clear();
+      inst.dependencyGraph.clear();
+      inst.validateExprFields.clear();
+      inst.renderTree = [];
+      inst.schema = null;
+      inst.initialValues = undefined;
+      inst.pendingValues = undefined;
+      inst.fieldValidators.clear();
+      inst.formDataCache = null;
+      inst.formDataDirty = true;
+    }
+    this.instances.clear();
+    this.currentInstanceId = 'default';
     this.plugins = [];
     this.customValidators.clear();
     this.widgetRegistry.clear();
     this.layoutRegistry.clear();
     this.fieldWrapper = undefined;
     this.widgetMetas = {};
-    this.fieldValidators.clear();
-    this.formDataCache = null;
-    this.formDataDirty = true;
     // 从注册表注销 + 清理跨表单联动订阅
     if (this.formId) {
       this.registry.unregister(this.formId);
@@ -1959,7 +2030,7 @@ export class NexusEngine implements IFormEngine {
     // 复用单份 formData 快照（与 runReactionsForSource 一致，AGENTS.md §3.1），
     // 避免每个 reaction 都重新构建一次 formData，O(n) 表达式字段的 init 可降 10x+
     const formData = this.getFormDataInternal();
-    for (const [path, state] of this.fieldStates) {
+    for (const [path, state] of this._inst().fieldStates) {
       if (state.reactions) {
         for (const reaction of state.reactions) {
           // 跨表单 reaction 由源表单变化触发，不在此处初始执行
@@ -1994,7 +2065,7 @@ export class NexusEngine implements IFormEngine {
         continue;
       }
       processed.add(current);
-      const dependents = this.dependencyGraph.getDependentsRef(current);
+      const dependents = this._inst().dependencyGraph.getDependentsRef(current);
       if (dependents.size === 0) {
         return;
       }
@@ -2003,7 +2074,7 @@ export class NexusEngine implements IFormEngine {
       const formData = this.getFormDataInternal();
 
       for (const targetPath of dependents) {
-        const state = this.fieldStates.get(targetPath);
+        const state = this._inst().fieldStates.get(targetPath);
         if (!state) {
           continue;
         }
@@ -2020,7 +2091,7 @@ export class NexusEngine implements IFormEngine {
         }
 
         // 跨字段 validate 表达式依赖：依赖字段变化时实时重校验目标字段
-        if (this.validateExprFields.has(targetPath)) {
+        if (this._inst().validateExprFields.has(targetPath)) {
           this.validateFieldRealtime(targetPath, state);
           // 错误变化需按路径通知，否则精准订阅的组件无法感知重校验结果
           this.notifyField(targetPath);
@@ -2053,7 +2124,7 @@ export class NexusEngine implements IFormEngine {
     const dependValues =
       dependValuesOverride ??
       reaction.dependencies.map((dep) => this.getFieldValue(dep));
-    const targetState = this.fieldStates.get(targetPath);
+    const targetState = this._inst().fieldStates.get(targetPath);
     if (!targetState) {
       return;
     }
@@ -2193,7 +2264,7 @@ export class NexusEngine implements IFormEngine {
       );
       return () => {};
     }
-    if (!this.fieldStates.has(targetPath)) {
+    if (!this._inst().fieldStates.has(targetPath)) {
       console.warn(
         `[NexusEngine] linkForm: target field not found: ${targetPath}（请先 init 本表单）`,
       );
@@ -2259,7 +2330,7 @@ export class NexusEngine implements IFormEngine {
     this.crossFormUnsubscribers.clear();
     this.crossFormConnections.clear();
 
-    for (const [targetPath, state] of this.fieldStates) {
+    for (const [targetPath, state] of this._inst().fieldStates) {
       if (!state.reactions) {
         continue;
       }
@@ -2360,7 +2431,7 @@ export class NexusEngine implements IFormEngine {
     dependValues: unknown[],
     formData?: Record<string, unknown>,
   ): void {
-    const state = this.fieldStates.get(path);
+    const state = this._inst().fieldStates.get(path);
     if (!state) {
       return;
     }
@@ -2451,7 +2522,7 @@ export class NexusEngine implements IFormEngine {
     dependValues: unknown[],
     formData?: Record<string, unknown>,
   ): void {
-    const state = this.fieldStates.get(path);
+    const state = this._inst().fieldStates.get(path);
     if (!state) {
       return;
     }
@@ -2539,7 +2610,7 @@ export class NexusEngine implements IFormEngine {
    * @param arrayPath - 数组字段路径
    */
   private syncArrayItemStates(arrayPath: string): void {
-    const state = this.fieldStates.get(arrayPath);
+    const state = this._inst().fieldStates.get(arrayPath);
     if (!state) {
       return;
     }
@@ -2551,13 +2622,13 @@ export class NexusEngine implements IFormEngine {
     // 移除该数组旧的项子字段状态（防止长度变化后残留）
     const prefix = `${arrayPath}[`;
     const stale: string[] = [];
-    for (const key of this.fieldStates.keys()) {
+    for (const key of this._inst().fieldStates.keys()) {
       if (key.startsWith(prefix)) {
         stale.push(key);
       }
     }
     for (const key of stale) {
-      this.fieldStates.delete(key);
+      this._inst().fieldStates.delete(key);
     }
 
     // 依据当前数组值重建项子字段状态
@@ -2568,7 +2639,7 @@ export class NexusEngine implements IFormEngine {
         const obj = (item ?? {}) as Record<string, unknown>;
         for (const [itemKey, itemNode] of Object.entries(items.properties)) {
           const sub = itemNode as DataFieldSchema;
-          this.fieldStates.set(
+          this._inst().fieldStates.set(
             `${itemPath}.${itemKey}`,
             SchemaParser.createArrayItemState(
               `${itemPath}.${itemKey}`,
@@ -2583,7 +2654,7 @@ export class NexusEngine implements IFormEngine {
     } else {
       arr.forEach((item, index) => {
         const itemPath = `${arrayPath}[${index}]`;
-        this.fieldStates.set(
+        this._inst().fieldStates.set(
           itemPath,
           SchemaParser.createArrayItemState(
             itemPath,
@@ -2597,7 +2668,7 @@ export class NexusEngine implements IFormEngine {
     }
 
     // 通知被重建的项子字段订阅者（同步其版本号）
-    for (const key of this.fieldStates.keys()) {
+    for (const key of this._inst().fieldStates.keys()) {
       if (key.startsWith(prefix)) {
         this.notifyField(key);
       }
@@ -2709,7 +2780,10 @@ export class NexusEngine implements IFormEngine {
    * @param path - 字段路径
    */
   private bumpFieldVersion(path: string): void {
-    this.fieldVersions.set(path, (this.fieldVersions.get(path) ?? 0) + 1);
+    this._inst().fieldVersions.set(
+      path,
+      (this._inst().fieldVersions.get(path) ?? 0) + 1,
+    );
   }
 
   /**
@@ -2723,7 +2797,7 @@ export class NexusEngine implements IFormEngine {
    */
   private notifyField(path: string): void {
     this.bumpFieldVersion(path);
-    const listeners = this.fieldListeners.get(path);
+    const listeners = this._inst().fieldListeners.get(path);
     if (listeners) {
       for (const listener of listeners) {
         listener();
@@ -2735,7 +2809,7 @@ export class NexusEngine implements IFormEngine {
    * 通知所有全局监听器（表单任意变化时触发）
    */
   private notifyAll(): void {
-    for (const listener of this.globalListeners) {
+    for (const listener of this._inst().globalListeners) {
       listener();
     }
   }
@@ -2750,9 +2824,9 @@ export class NexusEngine implements IFormEngine {
    * 用于 useSyncExternalStore 的快照比对
    */
   private bump(): void {
-    this.version++;
-    this.renderVersion++;
-    for (const listener of this.renderListeners) {
+    this._inst().version++;
+    this._inst().renderVersion++;
+    for (const listener of this._inst().renderListeners) {
       listener();
     }
   }
@@ -2764,6 +2838,6 @@ export class NexusEngine implements IFormEngine {
    * 触发 NexusForm 重渲染（各字段通过字段级版本精准订阅）
    */
   private bumpStore(): void {
-    this.version++;
+    this._inst().version++;
   }
 }

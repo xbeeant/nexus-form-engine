@@ -226,12 +226,18 @@ describe('NexusForm', () => {
     }
     const { container } = render(<PreSetForm />);
     expect(
-      (container.querySelector('input[data-testid="input-username"]') as HTMLInputElement)
-        .value,
+      (
+        container.querySelector(
+          'input[data-testid="input-username"]',
+        ) as HTMLInputElement
+      ).value,
     ).toBe('提前赋值');
     expect(
-      (container.querySelector('input[data-testid="input-profile.city"]') as HTMLInputElement)
-        .value,
+      (
+        container.querySelector(
+          'input[data-testid="input-profile.city"]',
+        ) as HTMLInputElement
+      ).value,
     ).toBe('上海');
   });
 });

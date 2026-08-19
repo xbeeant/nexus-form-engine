@@ -75,7 +75,7 @@ export function useFieldValidator(
   validator: FieldValidator,
   options?: UseFieldValidatorOptions,
 ): void {
-  const { engine } = useNexusContext();
+  const { engine, instanceId } = useNexusContext();
 
   // 用 ref 保存最新 validator/options，避免外部 inline 函数导致每次渲染重注册
   const validatorRef = useRef(validator);
@@ -92,12 +92,13 @@ export function useFieldValidator(
       return;
     }
     const current = validatorRef.current;
-    form.registerValidator(path, current);
+    // 按当前实例注册，避免多实例时校验器串到其他表单
+    form.registerValidator(path, current, instanceId);
     return () => {
-      form.unregisterValidator(path, current);
+      form.unregisterValidator(path, current, instanceId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, path, ...(deps ?? [])]);
+  }, [form, path, instanceId, ...(deps ?? [])]);
 
   // 订阅依赖字段变化 → 实时重校验目标字段（跨字段联动）
   useEffect(() => {
