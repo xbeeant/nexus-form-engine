@@ -6,10 +6,17 @@
 import { globSync, readFileSync } from 'node:fs';
 import { extname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import Sonda from 'sonda/vite';
 import type { PluginOption, UserConfig } from 'vite';
-import dts from 'vite-plugin-dts';
 import { libInjectCss } from 'vite-plugin-lib-inject-css';
+
+// 构建期插件经「非字面量动态 import」加载：
+// 避免裸 tsc / IDE 在非 bundler 解析模式下对子路径 exports（sonda/vite、
+// vite-plugin-dts）静态解析失败（TS1259/TS2307）；运行时由 bun/vite 按
+// package.json exports 正常解析。
+const SondaPluginPath = 'sonda/vite';
+const DtsPluginPath = 'vite-plugin-dts';
+const Sonda = (await import(SondaPluginPath)).default as () => PluginOption;
+const dts = (await import(DtsPluginPath)).default as (options?: Record<string, unknown>) => PluginOption;
 
 /** 构建格式：es（默认）/ cjs / umd */
 export type ViteLibFormat = 'es' | 'cjs' | 'umd';
