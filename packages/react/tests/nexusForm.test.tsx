@@ -196,4 +196,42 @@ describe('NexusForm', () => {
     ).not.toBeNull();
     expect(container.querySelector('[data-testid="input-detail"]')).toBeNull();
   });
+
+  it('表单渲染前调用 setValues：init 后字段值生效', async () => {
+    function PreSetForm() {
+      const [form] = useForm();
+      holder.form = form;
+      // 模拟「先 setValues 后渲染」：渲染期间同步执行，先于 NexusForm 的 init effect
+      form.setValues({ username: '提前赋值', 'profile.city': '上海' });
+      return (
+        <NexusForm
+          form={form}
+          schema={
+            {
+              type: 'object',
+              properties: {
+                username: { type: 'string', widget: 'input' },
+                profile: {
+                  type: 'object',
+                  properties: {
+                    city: { type: 'string', widget: 'input' },
+                  },
+                },
+              },
+            } as never
+          }
+          widgets={{ input: StubInput }}
+        />
+      );
+    }
+    const { container } = render(<PreSetForm />);
+    expect(
+      (container.querySelector('input[data-testid="input-username"]') as HTMLInputElement)
+        .value,
+    ).toBe('提前赋值');
+    expect(
+      (container.querySelector('input[data-testid="input-profile.city"]') as HTMLInputElement)
+        .value,
+    ).toBe('上海');
+  });
 });

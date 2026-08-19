@@ -207,6 +207,12 @@ export class NexusEngine implements IFormEngine {
    * value = 上次触发的依赖值快照；源字段值未变化时跳过（防止循环联动）
    */
   private crossFormLastDeps: Map<string, unknown[]> = new Map();
+  /**
+   * init() 之前由 setFieldValue / setFieldValues 写入的缓冲值（表单未渲染时调用）
+   * 引擎尚未初始化（schema 为 null）时值无法落到字段，先暂存，
+   * init() 时合并为 initialValues（显式赋值优先于 initialValues / 草稿）
+   */
+  private pendingValues: Record<string, unknown> | undefined;
 
   /**
    * 创建引擎实例
@@ -260,6 +266,15 @@ export class NexusEngine implements IFormEngine {
    */
   init(schema: NexusSchema, initialValues?: Record<string, unknown>): void {
     this.schema = schema;
+    // 合并 init 之前缓冲的 setFieldValue/setFieldValues：显式赋值优先于 initialValues / 草稿
+    // 缓冲值为点路径键（如 'profile.city'），经 setNestedValue 转为嵌套结构供 Parser 读取
+    if (this.pendingValues) {
+      initialValues = { ...(initialValues ?? {}) };
+      for (const [path, value] of Object.entries(this.pendingValues)) {
+        setNestedValue(initialValues, path, value);
+      }
+      this.pendingValues = undefined;
+    }
     // 浅拷贝保存初始值快照：reset() 时恢复 schema 级初始状态（含 hidden/disabled/props 默认值）
     this.initialValues = initialValues ? { ...initialValues } : undefined;
     this.fieldStates.clear();
@@ -338,6 +353,15 @@ export class NexusEngine implements IFormEngine {
    * @param value - 新值
    */
   setFieldValue(path: string, value: unknown): void {
+    // 引擎尚未初始化（schema 为 null）：缓冲待 init() 时应用，
+    // 避免表单渲染前的 setValues 被 init 重置导致页面字段无值
+    if (!this.schema) {
+      this.pendingValues = {
+        ...(this.pendingValues ?? {}),
+        [path]: value,
+      };
+      return;
+    }
     const state = this.fieldStates.get(path);
     if (!state) {
       console.warn(`[NexusEngine] Field not found: ${path}`);
@@ -362,6 +386,11 @@ export class NexusEngine implements IFormEngine {
    * @param values - 转换后的数据对象，键为数据路径
    */
   setFieldValues(values: Record<string, unknown>): void {
+    // 引擎尚未初始化（schema 为 null）：缓冲待 init() 时应用
+    if (!this.schema) {
+      this.pendingValues = { ...(this.pendingValues ?? {}), ...values };
+      return;
+    }
     // values 是转换后的数据格式，根据 bind 反向解析到字段
     const changedPaths: string[] = [];
 
