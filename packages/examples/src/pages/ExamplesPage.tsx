@@ -41,45 +41,39 @@ export default function ExamplesPage() {
 
   // 注册外部校验逻辑
   useEffect(() => {
-    // 同步校验：用户名不能包含 "admin"
-    form.registerValidator('username', (value) => {
+    // 同步校验：商品名称不能包含 "测试"/"test"/"admin"
+    form.registerValidator('name', (value) => {
       const v = String(value ?? '');
-      if (v && /admin/i.test(v)) {
-        return ['用户名不能包含 "admin"'];
+      if (v && /(测试|test|admin)/i.test(v)) {
+        return ['商品名称不能包含 "测试" / "test" / "admin"'];
       }
       return [];
     });
 
-    // 同步校验：年龄范围
-    form.registerValidator('age', (value) => {
+    // 同步校验：售价范围，且不得高于市场价
+    form.registerValidator('price', (value, formData) => {
       const n = Number(value);
-      if (value !== undefined && value !== '' && (n < 18 || n > 120)) {
-        return ['年龄需在 18-120 之间'];
+      if (value !== undefined && value !== '' && (n < 0 || n > 100000)) {
+        return ['售价需在 0-100000 之间'];
       }
-      return [];
-    });
-
-    // 跨字段校验：密码和确认密码一致性（示例）
-    form.registerValidator('password', (value, formData) => {
-      const pwd = String(value ?? '');
-      const confirm = String(
-        (formData as Record<string, unknown>)?.confirmPassword ?? '',
+      const market = Number(
+        (formData as Record<string, unknown>)?.marketPrice ?? 0,
       );
-      if (pwd && confirm && pwd !== confirm) {
-        return ['两次输入的密码不一致'];
+      if (value !== undefined && value !== '' && market > 0 && n > market) {
+        return ['售价不得高于市场价'];
       }
       return [];
     });
 
-    // 异步校验：检查用户名是否已被占用（模拟）
-    form.registerValidator('username', async (value) => {
+    // 异步校验：检查品牌名是否已被占用（模拟）
+    form.registerValidator('name', async (value) => {
       const v = String(value ?? '');
       if (!v || v.length < 3) {
         return [];
       }
       await new Promise((r) => setTimeout(r, 300));
       const taken = ['root', 'admin', 'system'].includes(v.toLowerCase());
-      return taken ? [`用户名 "${v}" 已被占用`] : [];
+      return taken ? [`商品名 "${v}" 已被占用`] : [];
     });
   }, [form]);
 
@@ -99,8 +93,14 @@ export default function ExamplesPage() {
               使用示例
             </Typography.Title>
             <Paragraph type='secondary'>
-              覆盖 9 种 widget + 10 种 layout + reactions 联动 + 计算字段 +
-              字段级校验约束（min/pattern）+ 数据对象 + registerValidator
+              场景：新品发布（商品上架）。覆盖全部默认 widget（input / password /
+              select / radio / checkbox / switch / rate / slider / number / date /
+              time / dateRange / timeRange / color / urlInput / treeSelect /
+              cascader / autoComplete / multiSelect / checkboxes / mentions /
+              segmented / transfer / image / file / html / list / simpleList /
+              tableList）+ 全部布局（card / grid / tabs / collapse / steps / flex /
+              divider / space）+ reactions 联动 + 计算字段 + 校验 + 数据对象 +
+              registerValidator
             </Paragraph>
           </div>
           <Segmented
@@ -129,8 +129,8 @@ export default function ExamplesPage() {
             ]}
           />
           <Typography.Text type='secondary' style={{ fontSize: 12 }}>
-            「促销与计算」卡片演示 visible/required 别名联动与计算字段（单价 ×
-            数量 = 总额）
+            「促销配置」卡片演示 visible/required 联动（勾选秒杀/优惠券显示对应字段）
+            与计算字段（售价 × 折扣 = 折后价）
           </Typography.Text>
         </Space>
 
@@ -172,12 +172,11 @@ export default function ExamplesPage() {
                     size='small'
                     onClick={() =>
                       console.log(
-                        'getValueByPath("username"): ' +
-                          form.getValueByPath('username'),
+                        `getValueByPath("name"): ${form.getValueByPath('name')}`,
                       )
                     }
                   >
-                    读取 username 值
+                    读取商品名称
                   </Button>
                   <Button
                     size='small'
@@ -208,16 +207,16 @@ export default function ExamplesPage() {
                   <Button
                     size='small'
                     onClick={() =>
-                      form.setValueByPath('username', 'zhangsan_new')
+                      form.setValueByPath('name', 'Nexus 智能手表 X2')
                     }
                   >
-                    设置 username
+                    设置商品名称
                   </Button>
                   <Button
                     size='small'
                     onClick={() =>
-                      form.setSchemaByPath('username', {
-                        title: '用户名（已修改）',
+                      form.setSchemaByPath('name', {
+                        title: '商品名称（已修改）',
                       })
                     }
                   >
@@ -226,10 +225,7 @@ export default function ExamplesPage() {
                   <Button
                     size='small'
                     onClick={async () => {
-                      const errors = await form.validateFields([
-                        'username',
-                        'password',
-                      ]);
+                      const errors = await form.validateFields(['name', 'price']);
                       console.error('校验结果:', Object.fromEntries(errors));
                     }}
                   >
@@ -237,9 +233,9 @@ export default function ExamplesPage() {
                   </Button>
                 </Space>
                 <Typography.Text type='secondary' style={{ fontSize: 12 }}>
-                  <b>registerValidator</b> 演示：用户名含 "admin" 报错 / 含
-                  "root" 或 "system" 报错 / 年龄 18-120 /
-                  密码一致性校验（提交时触发）
+                  <b>registerValidator</b> 演示：商品名含 "测试"/"test"/"admin"
+                  报错 / 异步占用检查（root/admin/system）/ 售价 0-100000 且不得
+                  高于市场价
                 </Typography.Text>
               </Space>
             </Card>
@@ -256,27 +252,35 @@ export default function ExamplesPage() {
               }
               removeHiddenData={removeHidden}
               watch={{
-                username: (value, allValues) => {
-                  console.log('watch username', value, allValues);
+                name: (value, allValues) => {
+                  console.log('watch name', value, allValues);
                 },
-                age: (value) => {
-                  console.log('watch age', value);
+                price: (value) => {
+                  console.log('watch price', value);
                 },
                 '#': (allValues) => {
                   console.log('watch all', allValues);
                 },
               }}
               initialValues={{
-                username: 'zhangsan',
-                contactMethod: 'phone',
-                gender: 'male',
-                city: '杭州',
-                subscribe: true,
+                name: 'Nexus 智能手表 X2',
+                brand: 'Nexus 科技',
+                category: 'digital/phone',
+                region: ['zhejiang', 'hangzhou'],
+                currency: 'CNY',
+                tags: ['新品', '包邮'],
+                features: ['正品保障', '极速发货'],
+                status: 'draft',
+                channel: 'pc',
+                price: 399,
+                marketPrice: 499,
+                discount: 80,
+                stock: 200,
+                safeStock: 50,
+                recommend: true,
                 notify: false,
-                publicProfile: true,
-                debugMode: false,
-                bio: '热爱开源的全栈工程师',
-                profile: { website: 'https://zhangsan.dev', score: 1200 },
+                agree: true,
+                profile: { website: 'https://nexus.dev', score: 98 },
               }}
               onFinish={async (data) => {
                 setSubmitted(data);

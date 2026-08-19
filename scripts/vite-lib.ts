@@ -36,6 +36,10 @@ export function workspaceAliases(): Record<string, string> {
     '@xbeeant/form-engine': resolve(workspaceRoot, 'packages/core/src'),
     '@xbeeant/form-engine-react': resolve(workspaceRoot, 'packages/react/src'),
     '@xbeeant/form-engine-ui': resolve(workspaceRoot, 'packages/ui/src'),
+    '@xbeeant/form-engine-devtools': resolve(
+      workspaceRoot,
+      'packages/devtools/src',
+    ),
     '@xbeeant/form-engine-designer': resolve(
       workspaceRoot,
       'packages/designer/src',
