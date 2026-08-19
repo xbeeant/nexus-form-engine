@@ -1,8 +1,6 @@
 import { render } from '@testing-library/react';
+import { NexusFormProvider, useForm } from '@xbeeant/form-engine-react';
 import { describe, expect, it } from 'vitest';
-
-import { NexusFormProvider } from '@xbeeant/form-engine-react';
-import { useForm } from '@xbeeant/form-engine-react';
 import { FieldWrapper, type FieldWrapperProps } from '../src/widgets/_shared';
 
 function renderWrapper(
@@ -69,7 +67,10 @@ describe('FieldWrapper（ui 层字段包裹）', () => {
   });
 
   it('表单级 label=false 同样跳过 Form.Item', () => {
-    const { container } = renderWrapper({ title: '无标签字段' }, { label: false });
+    const { container } = renderWrapper(
+      { title: '无标签字段' },
+      { label: false },
+    );
     expect(container.querySelector('.ant-form-item')).toBeNull();
   });
 });

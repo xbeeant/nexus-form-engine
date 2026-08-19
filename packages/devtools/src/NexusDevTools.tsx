@@ -24,10 +24,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   DEVTOOLS_PLUGIN_NAME,
+  type DevToolsEvent,
   DevToolsEventPlugin,
   EVENT_COLORS,
   EVENT_LABELS,
-  type DevToolsEvent,
 } from './timeline';
 
 export interface NexusDevToolsProps {

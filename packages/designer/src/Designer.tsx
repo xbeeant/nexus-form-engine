@@ -14,7 +14,7 @@ import {
   Space,
   Typography,
 } from 'antd';
-import { useMemo, useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Canvas } from './Canvas';
 import './Designer.css';
 import { layoutCatalog, widgetCatalog } from './catalog';

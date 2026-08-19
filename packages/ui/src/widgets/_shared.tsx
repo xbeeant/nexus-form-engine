@@ -4,20 +4,16 @@ import type {
   NexusFormInstance,
 } from '@xbeeant/form-engine';
 import { toBoolean } from '@xbeeant/form-engine/utils/schema-helper';
-import {
-  NexusContext,
-  useFormConfig,
-} from '@xbeeant/form-engine-react';
+import { NexusContext, useFormConfig } from '@xbeeant/form-engine-react';
 import { ConfigProvider, Form } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { useContext } from 'react';
-import React from 'react';
+import React, { useContext } from 'react';
 
 import {
+  type NexusLocaleBundle,
   resolveAntdLocale,
   resolveNexusLocale,
-  type NexusLocaleBundle,
 } from '../locales';
 
 // 支持按 format 模板解析（如 'YYYY年MM月DD日'），默认解析无法识别此类自定义格式
@@ -180,14 +176,20 @@ function renderReadOnlyValue(
     // 基础值数组（multiSelect / checkboxes / simpleList 字符串项）：顿号拼接
     if (value.every((item) => isPrimitive(item))) {
       return (
-        <>{value.map((item) => renderScalarLabel(item, mapped, bundle)).join('、')}</>
+        <>
+          {value
+            .map((item) => renderScalarLabel(item, mapped, bundle))
+            .join('、')}
+        </>
       );
     }
     // 对象数组（tableList / list）：逐项渲染为键值块
     return (
       <div className='flex flex-col gap-1'>
         {value.map((item, index) => (
-          <div key={index}>{renderReadOnlyValue(item, mapped, bundle, depth + 1)}</div>
+          <div key={index}>
+            {renderReadOnlyValue(item, mapped, bundle, depth + 1)}
+          </div>
         ))}
       </div>
     );

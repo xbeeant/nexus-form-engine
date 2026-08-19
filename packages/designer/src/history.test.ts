@@ -1,6 +1,5 @@
-import { describe, expect, it } from 'vitest';
-
 import type { NexusSchema } from '@xbeeant/form-engine';
+import { describe, expect, it } from 'vitest';
 import { COALESCE_MS, HISTORY_LIMIT, SchemaHistory } from './history';
 
 const schema = (props: Record<string, unknown>): NexusSchema =>

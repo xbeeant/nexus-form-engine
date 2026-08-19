@@ -125,9 +125,7 @@ export const timeRangeWidget = ({
     // antd 6 TimePicker 已不支持 readOnly，统一回退文本展示
     const range =
       Array.isArray(value) && value.length === 2
-        ? (value as unknown[])
-            .filter((v) => v !== '' && v != null)
-            .join(' ~ ')
+        ? (value as unknown[]).filter((v) => v !== '' && v != null).join(' ~ ')
         : value;
     return <ReadOnlyDisplay value={range} />;
   }

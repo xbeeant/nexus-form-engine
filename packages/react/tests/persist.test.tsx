@@ -83,7 +83,9 @@ describe('NexusForm persist（草稿持久化）', () => {
     );
     const input = container.querySelector('input') as HTMLInputElement;
     expect(input.value).toBe('草稿用户');
-    expect(holder.form!._getEngine().getFieldValue('username')).toBe('草稿用户');
+    expect(holder.form!._getEngine().getFieldValue('username')).toBe(
+      '草稿用户',
+    );
   });
 
   it('无草稿时不影响 initialValues 行为', async () => {
@@ -102,9 +104,9 @@ describe('NexusForm persist（草稿持久化）', () => {
       );
     }
     const { container } = render(<WithInitial />);
-    expect(
-      (container.querySelector('input') as HTMLInputElement).value,
-    ).toBe('初始值');
+    expect((container.querySelector('input') as HTMLInputElement).value).toBe(
+      '初始值',
+    );
   });
 
   it('提交成功后清除草稿', async () => {
@@ -181,7 +183,9 @@ describe('NexusForm persist（草稿持久化）', () => {
       );
     }
     const { container } = render(<Toggleable />);
-    const toggle = container.querySelector('button[type="button"]') as HTMLButtonElement;
+    const toggle = container.querySelector(
+      'button[type="button"]',
+    ) as HTMLButtonElement;
     fireEvent.click(toggle);
     const input = container.querySelector('input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '动态开启' } });
@@ -190,5 +194,32 @@ describe('NexusForm persist（草稿持久化）', () => {
     expect(JSON.parse(localStorage.getItem('draft-7')!)).toEqual({
       username: '动态开启',
     });
+  });
+
+  it('未配置 persist 时提交不受影响（不读取存储、不抛错）', async () => {
+    const onFinish = vi.fn();
+    const setItemSpy = vi.spyOn(window.localStorage, 'setItem');
+    function NoPersist() {
+      const [form] = useForm();
+      holder.form = form;
+      return (
+        <NexusForm
+          form={form}
+          schema={schema as never}
+          footer={false}
+          widgets={{ input: StubInput }}
+          onFinish={onFinish}
+        >
+          <button type='submit'>提交</button>
+        </NexusForm>
+      );
+    }
+    const { container } = render(<NoPersist />);
+    fireEvent.submit(container.querySelector('form')!);
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(onFinish).toHaveBeenCalled();
+    expect(setItemSpy).not.toHaveBeenCalled();
+    setItemSpy.mockRestore();
   });
 });

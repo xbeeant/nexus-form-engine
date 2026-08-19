@@ -5,11 +5,11 @@
 
 import { Layout, Menu, Segmented, Typography } from 'antd';
 import { useMemo, useState } from 'react';
+import { MainArea } from '../../site/MainArea';
 import { widgetDocs } from '../registry';
 import type { DocGroup } from '../types';
 import { DemoCard } from './DemoCard';
 import { PropsTable } from './PropsTable';
-import { MainArea } from '../../site/MainArea';
 
 const { Sider, Content } = Layout;
 
@@ -53,84 +53,84 @@ export function WidgetDocsPage() {
           overflow: 'hidden',
         }}
       >
-      <Sider
-        width={200}
-        theme='light'
-        style={{
-          borderRight: '1px solid #f0f0f0',
-          height: '100%',
-          minHeight: 0,
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#d9d9d9 transparent',
-        }}
-      >
-        <Menu
-          mode='inline'
-          selectedKeys={[doc.id]}
-          defaultOpenKeys={GROUP_ORDER}
-          items={menuItems}
-          onClick={({ key }) => setSelectedId(key)}
-          style={{ borderInlineEnd: 'none' }}
-        />
-      </Sider>
-
-      <Content
-        style={{
-          padding: '32px 48px 64px',
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          height: '100%',
-          minWidth: 0,
-          minHeight: 0,
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#d9d9d9 transparent',
-        }}
-      >
-        <div
+        <Sider
+          width={200}
+          theme='light'
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            flexWrap: 'wrap',
-            gap: 12,
+            borderRight: '1px solid #f0f0f0',
+            height: '100%',
+            minHeight: 0,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#d9d9d9 transparent',
           }}
         >
-          <Typography.Title level={2} style={{ marginBottom: 4 }}>
-            {doc.title}{' '}
-            <Typography.Text type='secondary' style={{ fontWeight: 400 }}>
-              {doc.english}
-            </Typography.Text>
-          </Typography.Title>
-          <Segmented
-            value={readOnly ? 'readonly' : 'edit'}
-            onChange={(v) => setReadOnly(v === 'readonly')}
-            options={[
-              { label: '编辑', value: 'edit' },
-              { label: '只读', value: 'readonly' },
-            ]}
+          <Menu
+            mode='inline'
+            selectedKeys={[doc.id]}
+            defaultOpenKeys={GROUP_ORDER}
+            items={menuItems}
+            onClick={({ key }) => setSelectedId(key)}
+            style={{ borderInlineEnd: 'none' }}
           />
-        </div>
-        <Typography.Paragraph type='secondary' style={{ maxWidth: 720 }}>
-          {doc.description}
-        </Typography.Paragraph>
-        {readOnly && (
-          <Typography.Paragraph type='secondary' style={{ fontSize: 12 }}>
-            当前为只读模式：本页所有示例表单均以文本展示，切换回「编辑」可继续操作
+        </Sider>
+
+        <Content
+          style={{
+            padding: '32px 48px 64px',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            height: '100%',
+            minWidth: 0,
+            minHeight: 0,
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#d9d9d9 transparent',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              flexWrap: 'wrap',
+              gap: 12,
+            }}
+          >
+            <Typography.Title level={2} style={{ marginBottom: 4 }}>
+              {doc.title}{' '}
+              <Typography.Text type='secondary' style={{ fontWeight: 400 }}>
+                {doc.english}
+              </Typography.Text>
+            </Typography.Title>
+            <Segmented
+              value={readOnly ? 'readonly' : 'edit'}
+              onChange={(v) => setReadOnly(v === 'readonly')}
+              options={[
+                { label: '编辑', value: 'edit' },
+                { label: '只读', value: 'readonly' },
+              ]}
+            />
+          </div>
+          <Typography.Paragraph type='secondary' style={{ maxWidth: 720 }}>
+            {doc.description}
           </Typography.Paragraph>
-        )}
+          {readOnly && (
+            <Typography.Paragraph type='secondary' style={{ fontSize: 12 }}>
+              当前为只读模式：本页所有示例表单均以文本展示，切换回「编辑」可继续操作
+            </Typography.Paragraph>
+          )}
 
-        {doc.demos.map((demo, index) => (
-          <DemoCard
-            key={`${doc.id}-demo-${index}`}
-            demo={demo}
-            readOnly={readOnly}
-          />
-        ))}
+          {doc.demos.map((demo, index) => (
+            <DemoCard
+              key={`${doc.id}-demo-${index}`}
+              demo={demo}
+              readOnly={readOnly}
+            />
+          ))}
 
-        <PropsTable doc={doc} />
-      </Content>
+          <PropsTable doc={doc} />
+        </Content>
       </Layout>
     </MainArea>
   );

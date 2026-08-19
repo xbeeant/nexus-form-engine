@@ -1,7 +1,6 @@
 import { render } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-
 import { NexusForm, useForm } from '@xbeeant/form-engine-react';
+import { describe, expect, it } from 'vitest';
 import { registerAntdUI } from '../src';
 import { ReadOnlyDisplay } from '../src/widgets/_shared';
 

@@ -29,7 +29,9 @@ function getStorage(
   }
   try {
     const target =
-      storage === 'sessionStorage' ? window.sessionStorage : window.localStorage;
+      storage === 'sessionStorage'
+        ? window.sessionStorage
+        : window.localStorage;
     // 隐私模式下访问可能抛错，统一降级为不持久化
     target.setItem('__nexus_persist_probe__', '1');
     target.removeItem('__nexus_persist_probe__');

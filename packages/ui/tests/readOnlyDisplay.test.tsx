@@ -35,9 +35,7 @@ describe('ReadOnlyDisplay（只读文本回退）', () => {
   });
 
   it('基础值数组用顿号拼接', () => {
-    expect(
-      textOf(<ReadOnlyDisplay value={['a', 'b', 'c']} />),
-    ).toBe('a、b、c');
+    expect(textOf(<ReadOnlyDisplay value={['a', 'b', 'c']} />)).toBe('a、b、c');
   });
 
   it('空数组渲染占位符', () => {

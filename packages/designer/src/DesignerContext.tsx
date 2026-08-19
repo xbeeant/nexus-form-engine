@@ -17,6 +17,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { SchemaHistory } from './history';
 import {
   addChildToSchema,
   moveNodeInSchema,
@@ -24,7 +25,6 @@ import {
   renameNodeInSchema,
   updateNodeWithNesting,
 } from './schemaUtils';
-import { SchemaHistory } from './history';
 import type { CatalogItem, DesignerMode, FieldDef } from './types';
 
 /** 设计器内部状态 */
@@ -92,7 +92,7 @@ export function DesignerProvider({
   const [mode, setMode] = useState<DesignerMode>('design');
   const historyRef = useRef(new SchemaHistory());
   // 历史栈版本：驱动 canUndo/canRedo 的消费方重渲染
-  const [historyVersion, setHistoryVersion] = useState(0);
+  const [_historyVersion, setHistoryVersion] = useState(0);
 
   // 写入 schema 并同步通知外部；历史记录由 SchemaHistory 统一管理
   const emit = useCallback(
@@ -189,7 +189,7 @@ export function DesignerProvider({
       setSchema,
       selectNode,
       setMode,
-addNode,
+      addNode,
       removeNode,
       updateNode,
       moveNode,
@@ -208,7 +208,6 @@ addNode,
       fields,
       widgetCatalog,
       layoutCatalog,
-      historyVersion,
       setSchema,
       addNode,
       removeNode,
@@ -217,6 +216,7 @@ addNode,
       renameNode,
       undo,
       redo,
+      selectNode,
     ],
   );
 

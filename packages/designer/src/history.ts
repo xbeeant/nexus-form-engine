@@ -113,7 +113,12 @@ export class SchemaHistory {
     }
     this.past = [
       ...this.past,
-      { schema: entry.schema, kind: entry.kind, path: entry.path, time: Date.now() },
+      {
+        schema: entry.schema,
+        kind: entry.kind,
+        path: entry.path,
+        time: Date.now(),
+      },
     ];
     return entry.schema;
   }

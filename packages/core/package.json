@@ -29,15 +29,8 @@
     },
     "./package.json": "./package.json"
   },
-  "files": [
-    "dist",
-    "src",
-    "README.md",
-    "!**/*.map"
-  ],
-  "sideEffects": [
-    "**/*.css"
-  ],
+  "files": ["dist", "src", "README.md", "!**/*.map"],
+  "sideEffects": ["**/*.css"],
   "scripts": {
     "build": "npm run build:es && npm run build:cjs && npm run build:umd",
     "prepublishOnly": "npm run build",

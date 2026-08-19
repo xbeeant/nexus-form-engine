@@ -78,7 +78,9 @@ describe('NexusForm', () => {
     expect(inputs).toHaveLength(2);
     expect((inputs[0] as HTMLInputElement).value).toBe('zhangsan');
     expect((inputs[1] as HTMLInputElement).value).toBe('18');
-    expect(container.querySelector('[data-nexus-field="username"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-nexus-field="username"]'),
+    ).not.toBeNull();
   });
 
   it('输入触发 onChange → 引擎状态更新 → 字段精准重渲染', () => {
@@ -157,9 +159,7 @@ describe('NexusForm', () => {
   });
 
   it('表单级 readOnly 透传给所有 widget', () => {
-    const { container } = render(
-      <TestForm schema={simpleSchema} readOnly />,
-    );
+    const { container } = render(<TestForm schema={simpleSchema} readOnly />);
     const inputs = container.querySelectorAll('input');
     expect(inputs).toHaveLength(2);
     for (const input of inputs) {
@@ -194,8 +194,6 @@ describe('NexusForm', () => {
     expect(
       container.querySelector('[data-nexus-hidden="detail"]'),
     ).not.toBeNull();
-    expect(
-      container.querySelector('[data-testid="input-detail"]'),
-    ).toBeNull();
+    expect(container.querySelector('[data-testid="input-detail"]')).toBeNull();
   });
 });

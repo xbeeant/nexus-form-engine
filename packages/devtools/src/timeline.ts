@@ -116,11 +116,7 @@ export class DevToolsEventPlugin implements NexusPlugin {
     this.events = [];
   }
 
-  private push(
-    type: DevToolsEventType,
-    path?: string,
-    detail?: unknown,
-  ): void {
+  private push(type: DevToolsEventType, path?: string, detail?: unknown): void {
     if (this.options.isPaused?.()) {
       return;
     }

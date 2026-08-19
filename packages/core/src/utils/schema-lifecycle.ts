@@ -12,13 +12,13 @@
 // - 数组 items 子字段：属于数组项作用域，不参与收集（数组整体是一个字段）
 // ============================================================================
 
+import type { SchemaNode } from '../types/schema';
 import {
   isDataArray,
   isDataField,
   isDataObject,
   isLayoutNode,
 } from './schema-helper';
-import type { SchemaNode } from '../types/schema';
 
 /** 数据字段路径（含 path 与字段节点） */
 export interface SchemaFieldEntry {
@@ -190,10 +190,7 @@ function diffTopLevelProps(
   next: SchemaNode,
 ): string[] | undefined {
   const changed: string[] = [];
-  const allKeys = new Set([
-    ...Object.keys(prev),
-    ...Object.keys(next),
-  ]);
+  const allKeys = new Set([...Object.keys(prev), ...Object.keys(next)]);
   for (const key of allKeys) {
     const a = (prev as Record<string, unknown>)[key];
     const b = (next as Record<string, unknown>)[key];

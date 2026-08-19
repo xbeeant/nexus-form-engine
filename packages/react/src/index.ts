@@ -10,7 +10,6 @@ export { NexusField } from './components/NexusField';
 export type { NexusFormConfig } from './components/NexusForm';
 export { NexusForm } from './components/NexusForm';
 export { NexusFormProvider } from './components/NexusFormProvider';
-export { NexusContext } from './contexts/NexusContext';
 export { NexusLayout } from './components/NexusLayout';
 export { NexusObject } from './components/NexusObject';
 export type { FieldInheritValue } from './contexts/FieldInheritContext';
@@ -19,6 +18,7 @@ export type { GridContextValue } from './contexts/GridContext';
 export { GridContext } from './contexts/GridContext';
 export type { LayoutConfigContextValue } from './contexts/LayoutConfigContext';
 export { LayoutConfigContext } from './contexts/LayoutConfigContext';
+export { NexusContext } from './contexts/NexusContext';
 
 export { useEngine } from './hooks/useEngine';
 export { useFieldState } from './hooks/useFieldState';

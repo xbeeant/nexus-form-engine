@@ -65,120 +65,121 @@ export default function ExtensionsPage() {
   return (
     <MainArea>
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: '0 16px 48px' }}>
-      <Title level={2}>扩展介绍</Title>
-      <Paragraph type='secondary'>
-        引擎不内置任何 UI 组件，全部通过 <code>registerWidgets</code> /{' '}
-        <code>registerLayouts</code> 注入。下方是{' '}
-        <code>@xbeeant/form-engine-ui</code> 基于 Ant Design
-        提供的开箱即用组件库。
-      </Paragraph>
+        <Title level={2}>扩展介绍</Title>
+        <Paragraph type='secondary'>
+          引擎不内置任何 UI 组件，全部通过 <code>registerWidgets</code> /{' '}
+          <code>registerLayouts</code> 注入。下方是{' '}
+          <code>@xbeeant/form-engine-ui</code> 基于 Ant Design
+          提供的开箱即用组件库。
+        </Paragraph>
 
-      {/* ── Widget 组件库 ── */}
-      <Title level={3} style={{ marginTop: 24 }}>
-        Widget 组件库（{widgetCatalog.length} 个）
-      </Title>
-      <Row gutter={[12, 12]}>
-        {widgetCatalog.map((w) => (
-          <Col xs={12} sm={8} md={6} key={w.widget}>
-            <Card size='small' hoverable style={{ height: '100%' }}>
+        {/* ── Widget 组件库 ── */}
+        <Title level={3} style={{ marginTop: 24 }}>
+          Widget 组件库（{widgetCatalog.length} 个）
+        </Title>
+        <Row gutter={[12, 12]}>
+          {widgetCatalog.map((w) => (
+            <Col xs={12} sm={8} md={6} key={w.widget}>
+              <Card size='small' hoverable style={{ height: '100%' }}>
+                <Space>
+                  <span style={{ fontSize: 20 }}>{w.icon}</span>
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{w.label}</div>
+                    <code style={{ fontSize: 11, color: '#8c8c8c' }}>
+                      {w.widget}
+                    </code>
+                  </div>
+                </Space>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+
+        {/* ── 布局组件库 ── */}
+        <Title level={3} style={{ marginTop: 32 }}>
+          布局组件库（{layoutCatalog.length} 个）
+        </Title>
+        <Row gutter={[12, 12]}>
+          {layoutCatalog.map((l) => (
+            <Col xs={12} sm={8} md={6} key={l.layoutType}>
+              <Card size='small' hoverable style={{ height: '100%' }}>
+                <Space>
+                  <span style={{ fontSize: 20 }}>{l.icon}</span>
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{l.label}</div>
+                    <code style={{ fontSize: 11, color: '#8c8c8c' }}>
+                      {l.layoutType}
+                    </code>
+                  </div>
+                </Space>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+
+        {/* ── 插件系统 ── */}
+        <Title level={3} style={{ marginTop: 32 }}>
+          插件系统
+        </Title>
+        <Paragraph>
+          Core 通过 <code>engine.use(plugin)</code> 扩展能力，插件可拦截{' '}
+          <code>init / setFieldValue / validate / arrayOperation</code>{' '}
+          等生命周期钩子。
+        </Paragraph>
+        {plugins.map((p) => (
+          <Card
+            key={p.name}
+            size='small'
+            style={{ marginBottom: 16 }}
+            title={
               <Space>
-                <span style={{ fontSize: 20 }}>{w.icon}</span>
-                <div>
-                  <div style={{ fontWeight: 500 }}>{w.label}</div>
-                  <code style={{ fontSize: 11, color: '#8c8c8c' }}>
-                    {w.widget}
-                  </code>
-                </div>
+                <code>{p.name}</code>
+                <Tag color='blue'>核心内置</Tag>
               </Space>
-            </Card>
-          </Col>
+            }
+            extra={<code style={{ fontSize: 11 }}>{p.file}</code>}
+          >
+            <Paragraph style={{ marginBottom: 12 }}>{p.desc}</Paragraph>
+            <CodeBlock lang='ts' title={p.name} code={p.example} />
+          </Card>
         ))}
-      </Row>
 
-      {/* ── 布局组件库 ── */}
-      <Title level={3} style={{ marginTop: 32 }}>
-        布局组件库（{layoutCatalog.length} 个）
-      </Title>
-      <Row gutter={[12, 12]}>
-        {layoutCatalog.map((l) => (
-          <Col xs={12} sm={8} md={6} key={l.layoutType}>
-            <Card size='small' hoverable style={{ height: '100%' }}>
-              <Space>
-                <span style={{ fontSize: 20 }}>{l.icon}</span>
-                <div>
-                  <div style={{ fontWeight: 500 }}>{l.label}</div>
-                  <code style={{ fontSize: 11, color: '#8c8c8c' }}>
-                    {l.layoutType}
-                  </code>
-                </div>
-              </Space>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-
-      {/* ── 插件系统 ── */}
-      <Title level={3} style={{ marginTop: 32 }}>
-        插件系统
-      </Title>
-      <Paragraph>
-        Core 通过 <code>engine.use(plugin)</code> 扩展能力，插件可拦截{' '}
-        <code>init / setFieldValue / validate / arrayOperation</code>{' '}
-        等生命周期钩子。
-      </Paragraph>
-      {plugins.map((p) => (
-        <Card
-          key={p.name}
-          size='small'
+        {/* ── 自定义 Widget ── */}
+        <Title level={3} style={{ marginTop: 32 }}>
+          自定义 Widget
+        </Title>
+        <Paragraph>
+          自定义 widget 只需导出裸组件——Form.Item 包裹（label、错误、必填、
+          布局）由 NexusForm 渲染层通过 <code>FieldWrapper</code> 默认完成，
+          <code>label: false</code> 时跳过包裹。 详细规范见
+          <Text type='secondary'> packages/ui/docs/custom-widget-guide.md</Text>
+          。
+        </Paragraph>
+        <Collapse
           style={{ marginBottom: 16 }}
-          title={
-            <Space>
-              <code>{p.name}</code>
-              <Tag color='blue'>核心内置</Tag>
-            </Space>
-          }
-          extra={<code style={{ fontSize: 11 }}>{p.file}</code>}
-        >
-          <Paragraph style={{ marginBottom: 12 }}>{p.desc}</Paragraph>
-          <CodeBlock lang='ts' title={p.name} code={p.example} />
-        </Card>
-      ))}
-
-      {/* ── 自定义 Widget ── */}
-      <Title level={3} style={{ marginTop: 32 }}>
-        自定义 Widget
-      </Title>
-      <Paragraph>
-        自定义 widget 只需导出裸组件——Form.Item 包裹（label、错误、必填、
-        布局）由 NexusForm 渲染层通过 <code>FieldWrapper</code> 默认完成，
-        <code>label: false</code> 时跳过包裹。 详细规范见
-        <Text type='secondary'> packages/ui/docs/custom-widget-guide.md</Text>。
-      </Paragraph>
-      <Collapse
-        style={{ marginBottom: 16 }}
-        items={[
-          {
-            key: 'steps',
-            label: '实现步骤',
-            children: (
-              <Space direction='vertical'>
-                {customWidgetSteps.map((s, i) => (
-                  <Text key={s.title}>
-                    <Tag color='geekblue'>{i + 1}</Tag> {s.title} —{' '}
-                    <Text type='secondary'>{s.desc}</Text>
-                  </Text>
-                ))}
-              </Space>
-            ),
-          },
-          {
-            key: 'example',
-            label: '示例代码',
-            children: (
-              <CodeBlock
-                lang='tsx'
-                title='自定义 MyInput Widget'
-                code={`import { Input } from 'antd';
+          items={[
+            {
+              key: 'steps',
+              label: '实现步骤',
+              children: (
+                <Space direction='vertical'>
+                  {customWidgetSteps.map((s, i) => (
+                    <Text key={s.title}>
+                      <Tag color='geekblue'>{i + 1}</Tag> {s.title} —{' '}
+                      <Text type='secondary'>{s.desc}</Text>
+                    </Text>
+                  ))}
+                </Space>
+              ),
+            },
+            {
+              key: 'example',
+              label: '示例代码',
+              children: (
+                <CodeBlock
+                  lang='tsx'
+                  title='自定义 MyInput Widget'
+                  code={`import { Input } from 'antd';
 import type { WidgetProps } from '@xbeeant/form-engine-ui';
 
 type MyInputProps = WidgetProps & {
@@ -205,20 +206,20 @@ export const antdWidgets = {
   myInput,
 };
 // schema 中直接使用：{ "type": "string", "widget": "myInput", "title": "自定义输入" }`}
-              />
-            ),
-          },
-        ]}
-      />
+                />
+              ),
+            },
+          ]}
+        />
 
-      {/* ── 注册一览 ── */}
-      <Title level={3} style={{ marginTop: 32 }}>
-        一键注册
-      </Title>
-      <CodeBlock
-        lang='ts'
-        title='registerAntdUI'
-        code={`// ui 包提供一键注册函数：widgets + layouts + FieldWrapper
+        {/* ── 注册一览 ── */}
+        <Title level={3} style={{ marginTop: 32 }}>
+          一键注册
+        </Title>
+        <CodeBlock
+          lang='ts'
+          title='registerAntdUI'
+          code={`// ui 包提供一键注册函数：widgets + layouts + FieldWrapper
 export function registerAntdUI(engine: NexusEngine): void {
   engine.registerFieldWrapper(FieldWrapper); // 渲染层默认包裹所有 widget
   engine.registerWidgets(antdWidgets);
@@ -228,7 +229,7 @@ export function registerAntdUI(engine: NexusEngine): void {
 // 也可按需注册
 engine.registerWidgets({ input: MyInput, select: MySelect });
 engine.registerLayouts({ card: MyCard, grid: MyGrid });`}
-      />
+        />
       </div>
     </MainArea>
   );

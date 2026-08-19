@@ -106,6 +106,18 @@ export {
   setNestedValue,
   toBoolean,
 } from './utils/schema-helper';
+/** Schema 生命周期工具（字段收集 / 初始值提取 / 变更对比 / 值迁移） */
+export {
+  diffSchemas,
+  getInitialValues,
+  getPathValue,
+  getSchemaFieldPaths,
+  migrateValues,
+  type SchemaDiff,
+  type SchemaDiffKind,
+  type SchemaFieldEntry,
+  setPathValue,
+} from './utils/schema-lifecycle';
 /** Schema序列化/反序列化工具 */
 export {
   compress,
@@ -117,15 +129,3 @@ export {
   serialize,
   sizeOf,
 } from './utils/schema-serializer';
-/** Schema 生命周期工具（字段收集 / 初始值提取 / 变更对比 / 值迁移） */
-export {
-  diffSchemas,
-  getInitialValues,
-  getPathValue,
-  getSchemaFieldPaths,
-  migrateValues,
-  setPathValue,
-  type SchemaDiff,
-  type SchemaDiffKind,
-  type SchemaFieldEntry,
-} from './utils/schema-lifecycle';

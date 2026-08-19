@@ -7,14 +7,13 @@ import {
   useRef,
   useSyncExternalStore,
 } from 'react';
-
-import { renderTreeNode } from '../utils/renderTreeNode';
 import {
   clearPersisted,
   loadPersisted,
-  savePersisted,
   type PersistOptions,
+  savePersisted,
 } from '../utils/persist';
+import { renderTreeNode } from '../utils/renderTreeNode';
 import type { FormController } from './FormController';
 import { NexusFormProvider } from './NexusFormProvider';
 
@@ -249,10 +248,10 @@ export function NexusForm({
   const onFinishFailedRef =
     useRef<(errors: Map<string, string[]>) => void>(noop);
   onFinishRef.current = (data) => {
-    // 提交成功后清除草稿（clearOnSubmit !== false）
+    // persist 未配置时不参与提交流程；配置且 clearOnSubmit !== false 时清除草稿
     const options = persistRef.current;
-    if (options?.clearOnSubmit !== false) {
-      clearPersisted(options!);
+    if (options && options.clearOnSubmit !== false) {
+      clearPersisted(options);
     }
     return onFinish?.(data);
   };

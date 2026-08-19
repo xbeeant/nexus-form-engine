@@ -39,7 +39,14 @@ describe('getSchemaFieldPaths（数据字段收集）', () => {
   it('收集叶子字段/嵌套对象/数组，布局节点 Key 不进路径', () => {
     const paths = getSchemaFieldPaths(baseSchema as never);
     expect(paths.sort()).toEqual(
-      ['name', 'profile', 'profile.age', 'profile.website', 'tags', 'phone'].sort(),
+      [
+        'name',
+        'profile',
+        'profile.age',
+        'profile.website',
+        'tags',
+        'phone',
+      ].sort(),
     );
   });
 });
@@ -89,7 +96,12 @@ describe('diffSchemas（Schema 变更对比）', () => {
   const changedSchema = {
     type: 'object',
     properties: {
-      name: { type: 'string', widget: 'input', title: '姓名（改）', maxLength: 20 },
+      name: {
+        type: 'string',
+        widget: 'input',
+        title: '姓名（改）',
+        maxLength: 20,
+      },
       profile: {
         type: 'object',
         properties: {
@@ -108,7 +120,10 @@ describe('diffSchemas（Schema 变更对比）', () => {
   it('识别 removed / modified / added', () => {
     const diffs = diffSchemas(baseSchema as never, changedSchema as never);
     const byKind = (kind: string) =>
-      diffs.filter((d) => d.kind === kind).map((d) => d.path).sort();
+      diffs
+        .filter((d) => d.kind === kind)
+        .map((d) => d.path)
+        .sort();
 
     expect(byKind('removed')).toEqual(['phone', 'profile.website']);
     expect(byKind('added')).toEqual(['company']);

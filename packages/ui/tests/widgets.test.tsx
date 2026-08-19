@@ -1,9 +1,8 @@
-import { render, waitFor } from '@testing-library/react';
-import { fireEvent } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, waitFor } from '@testing-library/react';
+import type { FormController } from '@xbeeant/form-engine-react';
 
 import { NexusForm, useForm } from '@xbeeant/form-engine-react';
-import type { FormController } from '@xbeeant/form-engine-react';
+import { describe, expect, it } from 'vitest';
 import { registerAntdUI } from '../src';
 
 function renderForm(schema: unknown, props: Record<string, unknown> = {}) {
