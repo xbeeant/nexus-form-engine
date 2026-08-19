@@ -4,10 +4,17 @@
 // 指标：引擎初始化 / React 首帧渲染 / 单字段更新 / 批量更新 / 依赖传播 / 全量校验
 // ============================================================================
 
-import { useForm } from '@xbeeant/form-engine-react';
-import { NexusForm } from '@xbeeant/form-engine-react';
+import { NexusForm, useForm } from '@xbeeant/form-engine-react';
 import { registerAntdUI } from '@xbeeant/form-engine-ui';
-import { Alert, Button, Card, InputNumber, Segmented, Space, Typography } from 'antd';
+import {
+  Alert,
+  Button,
+  Card,
+  InputNumber,
+  Segmented,
+  Space,
+  Typography,
+} from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { MainArea } from '../site/MainArea';
 
@@ -21,7 +28,7 @@ const PRESETS = [100, 500, 1000, 2000] as const;
 
 function generateBenchmarkSchema(count: number) {
   const properties: Record<string, unknown> = {};
-  // 联动源：前 200 个字段的 requiredOn 依赖此字段（测试 O(k) 传播）
+  // 联动源：前 200 个字段的 required 依赖此字段（测试 O(k) 传播）
   properties.trigger = {
     type: 'string',
     widget: 'select',
@@ -34,10 +41,13 @@ function generateBenchmarkSchema(count: number) {
       type: 'string',
       widget: i % 10 === 0 ? 'select' : 'input',
       title: `字段 ${i}`,
-      ...(i % 10 === 0 ? { enum: ['A', 'B', 'C', 'D'], enumNames: ['选项 A', '选项 B', '选项 C', '选项 D'] } : {}),
-      ...(i < 200
-        ? { requiredOn: '{{ formData.trigger === "B" }}' }
+      ...(i % 10 === 0
+        ? {
+            enum: ['A', 'B', 'C', 'D'],
+            enumNames: ['选项 A', '选项 B', '选项 C', '选项 D'],
+          }
         : {}),
+      ...(i < 200 ? { required: '{{ formData.trigger === "B" }}' } : {}),
     };
   }
   return { type: 'object', properties };
@@ -46,7 +56,9 @@ function generateBenchmarkSchema(count: number) {
 export default function BenchmarkPage() {
   const [form] = useForm();
   const [fieldCount, setFieldCount] = useState(1000);
-  const [schema, setSchema] = useState<ReturnType<typeof generateBenchmarkSchema> | null>(null);
+  const [schema, setSchema] = useState<ReturnType<
+    typeof generateBenchmarkSchema
+  > | null>(null);
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [rendering, setRendering] = useState(false);
   const [fieldDomCount, setFieldDomCount] = useState(0);
@@ -99,7 +111,7 @@ export default function BenchmarkPage() {
 
   const handlePropagation = () => {
     const engine = form._getEngine();
-    run('依赖传播（trigger → 200 个 requiredOn 依赖字段）', () => {
+    run('依赖传播（trigger → 200 个 required 依赖字段）', () => {
       engine.setFieldValue('trigger', 'B');
     });
   };
@@ -108,7 +120,10 @@ export default function BenchmarkPage() {
     const t0 = performance.now();
     await form.validateFields();
     const duration = performance.now() - t0;
-    setMetrics((prev) => [...prev, { label: '全量校验（validateFields）', duration }]);
+    setMetrics((prev) => [
+      ...prev,
+      { label: '全量校验（validateFields）', duration },
+    ]);
   };
 
   return (
@@ -143,7 +158,10 @@ export default function BenchmarkPage() {
               disabled={!schema}
               onClick={() => {
                 form.resetFields();
-                setMetrics((prev) => [...prev, { label: 'resetFields', duration: 0 }]);
+                setMetrics((prev) => [
+                  ...prev,
+                  { label: 'resetFields', duration: 0 },
+                ]);
               }}
             >
               重置
@@ -159,7 +177,10 @@ export default function BenchmarkPage() {
               title={`耗时指标（ms，仅供参考，数值越小越好）${rendering ? ' · 渲染中…' : ''}`}
             >
               {metrics.map((m, i) => (
-                <div key={i} style={{ display: 'flex', gap: 8, padding: '2px 0' }}>
+                <div
+                  key={i}
+                  style={{ display: 'flex', gap: 8, padding: '2px 0' }}
+                >
                   <span style={{ width: 320, flexShrink: 0 }}>{m.label}</span>
                   <Typography.Text strong style={{ width: 100 }}>
                     {m.duration.toFixed(2)} ms
@@ -205,7 +226,10 @@ export default function BenchmarkPage() {
                 const duration = performance.now() - mountedAtRef.current;
                 setMetrics((prev) => [
                   ...prev,
-                  { label: 'React 首帧渲染（NexusForm 挂载 → onMount）', duration },
+                  {
+                    label: 'React 首帧渲染（NexusForm 挂载 → onMount）',
+                    duration,
+                  },
                 ]);
                 setFieldDomCount(
                   document.querySelectorAll('[data-nexus-field]').length,

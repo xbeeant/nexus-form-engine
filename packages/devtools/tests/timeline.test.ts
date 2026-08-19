@@ -9,7 +9,7 @@ const schema = {
     province: {
       type: 'string',
       widget: 'input',
-      requiredOn: "{{ formData.country === 'CN' }}",
+      required: "{{ formData.country === 'CN' }}",
     },
     country: { type: 'string', widget: 'input' },
     tags: { type: 'array', widget: 'list', items: { type: 'string' } },
@@ -32,7 +32,7 @@ describe('DevToolsEventPlugin（事件时间线采集）', () => {
     engine.setFieldValue('country', 'CN');
     expect(collected).toContain('value:country');
 
-    // requiredOn 联动触发国家字段自身的校验
+    // required 联动触发国家字段自身的校验
     engine.validateField('province');
     expect(collected.some((e) => e.startsWith('validate-field:province'))).toBe(
       true,

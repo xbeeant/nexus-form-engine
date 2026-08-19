@@ -6,9 +6,8 @@
 //  3. 事件时间线：init/值变更/校验/数组操作全记录
 // ============================================================================
 
-import { useForm } from '@xbeeant/form-engine-react';
-import { NexusForm } from '@xbeeant/form-engine-react';
 import { NexusDevTools } from '@xbeeant/form-engine-devtools';
+import { NexusForm, useForm } from '@xbeeant/form-engine-react';
 import { registerAntdUI } from '@xbeeant/form-engine-ui';
 import { Alert, Card, Typography } from 'antd';
 import { useEffect } from 'react';
@@ -28,7 +27,7 @@ const devSchema = {
       type: 'string',
       widget: 'input',
       title: '省份',
-      requiredOn: "{{ formData.country === 'CN' }}",
+      required: "{{ formData.country === 'CN' }}",
     },
     amount: {
       type: 'number',

@@ -86,8 +86,8 @@ const DATA_KEYS = new Set([
 ]);
 
 /**
- * 可自动转 _autoExpr reaction 的状态字段（正负两向别名）
- * 负向（hidden）：条件成立 → 隐藏；
+ * 可自动转 _autoExpr reaction 的状态字段
+ * 条件成立 → 状态生效
  */
 const REACTION_EXPR_FIELDS = [
   'required',
@@ -95,18 +95,6 @@ const REACTION_EXPR_FIELDS = [
   'readOnly',
   'hidden',
 ] as const;
-
-/**
- * 正向别名 → 负向状态字段映射（amis 语义）
- * - requiredOn / disabledOn / readOnlyOn：条件成立 → 该状态生效（语义同负向）
- * - visibleOn：条件成立 → 可见，与 hidden 相反，表达式取反
- */
-const REACTION_EXPR_ALIASES: Record<string, string> = {
-  requiredOn: 'required',
-  disabledOn: 'disabled',
-  readOnlyOn: 'readOnly',
-  visibleOn: 'hidden',
-};
 
 function extractLayoutProps(
   node: Record<string, unknown>,
@@ -337,10 +325,6 @@ export function collectExpressionReactions(node: {
   disabled?: unknown;
   readOnly?: unknown;
   hidden?: unknown;
-  requiredOn?: unknown;
-  disabledOn?: unknown;
-  readOnlyOn?: unknown;
-  visibleOn?: unknown;
   dependencies?: string[];
   reactions?: Reaction[];
 }): void {
@@ -367,20 +351,6 @@ export function collectExpressionReactions(node: {
     const val = node[field];
     if (typeof val === 'string') {
       applyExpression(field, val);
-    }
-  }
-
-  // 正向别名：requiredOn/disabledOn/readOnlyOn 同语义；
-  // visibleOn 与 hidden 语义相反，表达式取反后应用
-  for (const [alias, target] of Object.entries(REACTION_EXPR_ALIASES)) {
-    const val = (node as Record<string, unknown>)[alias];
-    if (typeof val === 'string') {
-      applyExpression(
-        target,
-        target === 'hidden'
-          ? `{{ !(${val.replace(/^\{\{|\}\}$/g, '').trim()}) }}`
-          : val,
-      );
     }
   }
 
