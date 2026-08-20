@@ -1,0 +1,4 @@
+# bun test 根目录运行配置：react / ui 包的组件测试依赖 jsdom 环境。
+# vitest（lerna run test）各包自带环境配置；bun 原生 test 需在此预加载 DOM。
+[test]
+preload = ["./scripts/bun-test-preload.ts"]

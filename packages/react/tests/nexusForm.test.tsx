@@ -256,10 +256,9 @@ describe('NexusForm', () => {
       );
     }
     const { container } = render(<WatchForm />);
-    fireEvent.change(
-      container.querySelector('input') as HTMLInputElement,
-      { target: { value: 'lisi' } },
-    );
+    fireEvent.change(container.querySelector('input') as HTMLInputElement, {
+      target: { value: 'lisi' },
+    });
     expect(onValuesChange).toHaveBeenCalledTimes(1);
     const [changedValue, allValues, changedPath] = onValuesChange.mock.calls[0];
     expect(changedValue).toBe('lisi');
@@ -274,10 +273,9 @@ describe('NexusForm', () => {
     holder.form!.reloadRemoteData('username');
     expect(engine.getRemoteDataVersion('username')).toBe(1);
     // 值不受影响
-    fireEvent.change(
-      container.querySelector('input') as HTMLInputElement,
-      { target: { value: 'x' } },
-    );
+    fireEvent.change(container.querySelector('input') as HTMLInputElement, {
+      target: { value: 'x' },
+    });
     expect(holder.form!._getEngine().getFieldValue('username')).toBe('x');
   });
 
@@ -298,7 +296,9 @@ describe('NexusForm', () => {
     const filtered = form.getValues(undefined, { omitNil: true });
     expect(filtered).toEqual({});
     form.setValueByPath('city', '上海');
-    expect(form.getValues(undefined, { omitNil: true })).toEqual({ city: '上海' });
+    expect(form.getValues(undefined, { omitNil: true })).toEqual({
+      city: '上海',
+    });
   });
 
   it('submit submitting 状态：全流程（校验 + onFinish）期间为 true', async () => {
@@ -328,10 +328,12 @@ describe('NexusForm', () => {
     const unsubscribe = form.onSubmittingChange(() => listenerCalls++);
 
     const submitPromise = form.submit();
-    // 校验是异步（微任务）：等待 submitting 置位
-    await vi.waitFor(() => {
-      expect(form.getSubmitting()).toBe(true);
-    });
+    // 校验是异步（微任务）：等待 submitting 置位（轮询方式兼容 vitest / bun 双运行器）
+    const deadline = Date.now() + 2000;
+    while (Date.now() < deadline && !form.getSubmitting()) {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    expect(form.getSubmitting()).toBe(true);
     resolveFinish();
     await submitPromise;
     expect(form.getSubmitting()).toBe(false);
