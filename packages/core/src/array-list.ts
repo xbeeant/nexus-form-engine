@@ -195,7 +195,12 @@ export class ArrayOperationsPlugin implements NexusPlugin {
     let result: Array<unknown> | undefined;
 
     for (const op of operations) {
-      result = this.apply(path, op);
+      const next = this.apply(path, op);
+      if (next === undefined) {
+        // 操作被约束拦截（如 maxItems 已满）：中止剩余操作，返回已生效结果
+        return result;
+      }
+      result = next;
     }
 
     return result;
@@ -239,6 +244,7 @@ export class ArrayOperationsPlugin implements NexusPlugin {
     }
 
     const arr = state.value as unknown[];
+    const { min, max } = state.meta;
     let result: Array<unknown>;
 
     switch (operation) {
@@ -247,10 +253,24 @@ export class ArrayOperationsPlugin implements NexusPlugin {
           console.warn(`[ArrayOperationsPlugin] push operation requires value`);
           return undefined;
         }
+        // minItems/maxItems 约束（DataArraySchema 对齐 rjsf / formily）
+        if (max !== undefined && arr.length >= max) {
+          console.warn(
+            `[ArrayOperationsPlugin] push blocked: maxItems(${max}) reached`,
+          );
+          return undefined;
+        }
         result = [...arr, options.value];
         break;
       }
       case 'pop': {
+        // minItems 约束：不允许低于最小项数
+        if (min !== undefined && arr.length <= min) {
+          console.warn(
+            `[ArrayOperationsPlugin] pop blocked: minItems(${min}) reached`,
+          );
+          return undefined;
+        }
         result = arr.slice(0, -1);
         break;
       }
@@ -259,6 +279,13 @@ export class ArrayOperationsPlugin implements NexusPlugin {
         if (index === undefined || index < 0 || index >= arr.length) {
           console.warn(
             `[ArrayOperationsPlugin] Invalid index for remove: ${index}`,
+          );
+          return undefined;
+        }
+        // minItems 约束：不允许低于最小项数
+        if (min !== undefined && arr.length <= min) {
+          console.warn(
+            `[ArrayOperationsPlugin] remove blocked: minItems(${min}) reached`,
           );
           return undefined;
         }
@@ -287,6 +314,13 @@ export class ArrayOperationsPlugin implements NexusPlugin {
         if (index === undefined || index < 0 || index > arr.length) {
           console.warn(
             `[ArrayOperationsPlugin] Invalid index for insert: ${index}`,
+          );
+          return undefined;
+        }
+        // minItems/maxItems 约束（DataArraySchema 对齐 rjsf / formily）
+        if (max !== undefined && arr.length >= max) {
+          console.warn(
+            `[ArrayOperationsPlugin] insert blocked: maxItems(${max}) reached`,
           );
           return undefined;
         }

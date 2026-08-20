@@ -60,6 +60,8 @@ export const multiSelectWidgetWithRemote = ({
   const { options, loading } = useRemoteOptions(
     path || 'multiSelect',
     remoteData,
+    undefined,
+    rest.remoteVersion as number | undefined,
   );
 
   const finalLoading = externalLoading || loading;

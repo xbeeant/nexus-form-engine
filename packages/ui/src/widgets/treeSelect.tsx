@@ -527,6 +527,19 @@ export function TreeSelectWidget(props: WidgetProps & TreeSelectConfig) {
     loadData();
   }, [loadData, _paramsStr]);
 
+  // reloadRemoteData 触发时强制重载（跳过 loadedRef 守卫，x-render reloadRemoteData 对齐）
+  const reloadToken = rest.remoteVersion as number | undefined;
+  const lastReloadToken = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (reloadToken === undefined || reloadToken === lastReloadToken.current) {
+      return;
+    }
+    lastReloadToken.current = reloadToken;
+    loadedRef.current = true;
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadToken, loadData]);
+
   // ── 远程搜索 ──
   const handleSearch = useCallback(
     async (searchText: string) => {

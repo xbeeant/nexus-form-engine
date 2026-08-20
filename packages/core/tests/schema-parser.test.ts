@@ -122,6 +122,31 @@ describe('SchemaParser', () => {
       expect(layoutTypes).toContain('space');
     });
 
+    it('passThrough 布局节点：Key 不进入 formData 路径（白名单扩展）', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          pt: {
+            type: 'passThrough',
+            properties: {
+              name: { type: 'string', widget: 'input' },
+            },
+          },
+        },
+      };
+
+      const { fieldStates, renderTree } = SchemaParser.parse(schema);
+
+      // passThrough 属于布局容器白名单：Key 被丢弃，子字段进入根路径
+      expect(fieldStates.has('pt')).toBe(false);
+      expect(fieldStates.has('name')).toBe(true);
+
+      const layoutTypes = renderTree
+        .filter((n) => n.type !== 'field' && n.type !== 'object')
+        .map((n) => n.type);
+      expect(layoutTypes).toContain('passThrough');
+    });
+
     it('空串 widget 的 object 视为数据对象容器（子表单特例仅限非空 widget）', () => {
       const schema: NexusSchema = {
         type: 'object',

@@ -165,6 +165,8 @@ export interface ReactionStatePatch {
   loading?: ExpressionOr<boolean>;
   title?: ExpressionOr<string>;
   description?: ExpressionOr<string>;
+  /** 字段标题旁的气泡提示（动态设置，对齐 title/description） */
+  tooltip?: ExpressionOr<string>;
   props?: Record<string, ExpressionOr<unknown>>;
 }
 
@@ -319,6 +321,11 @@ export interface BaseSchemaNode {
   title?: string;
   /** 字段描述 */
   description?: string;
+  /**
+   * 字段标题旁的气泡提示（antd ProForm / Formily x-decorator 对齐）
+   * 静态字符串直接展示；表达式（{{ ... }}）请通过 reactions 的 fulfill.state.tooltip 动态设置
+   */
+  tooltip?: ExpressionOr<string>;
   /** 必填，支持布尔值或表达式（如 {{ formData.xxx == 'yyy' }}） */
   required?: ExpressionOr<boolean>;
   /** 校验规则列表 */
@@ -690,6 +697,8 @@ export interface FieldState {
     type?: DataType;
     rules: ValidationRule[];
     description?: string;
+    /** 标题旁的气泡提示（antd Form.Item tooltip） */
+    tooltip?: string;
     placeholder?: string;
     enum?: Array<string | number>;
     enumNames?: Array<string>;
@@ -1000,8 +1009,11 @@ export interface FormEngine extends ReadonlyFormEngine {
   getFormData(): Record<string, unknown>;
   /** 获取隐藏字段的值 */
   getHiddenValues(): Record<string, unknown>;
-  /** 执行完整校验 */
-  validate(paths?: string[]): Promise<Map<string, string[]>>;
+  /** 执行完整校验（validateFirst: 首个字段校验失败即短路，formily 对齐） */
+  validate(
+    paths?: string[],
+    options?: { validateFirst?: boolean },
+  ): Promise<Map<string, string[]>>;
   /** 重置表单 */
   reset(): void;
   /** 获取单个字段的错误 */
@@ -1020,6 +1032,18 @@ export interface FormEngine extends ReadonlyFormEngine {
   isFieldTouched(path: string): boolean;
   /** 字段是否脏（当前值 ≠ 初始值，深比较） */
   isFieldDirty(path: string): boolean;
+  /**
+   * 获取远程选项数据的版本号（x-render reloadRemoteData 对齐）
+   * 字段调用 reloadRemoteData 后 +1；widget 可作为 useRemoteOptions 的重取信号
+   */
+  getRemoteDataVersion(path: string): number;
+  /**
+   * 重载远程选项数据（x-render reloadRemoteData 对齐）
+   * - 传入 path：仅重载该字段的远程数据
+   * - 不传：重载全部远程数据字段
+   * 会 bump 目标字段版本触发组件重渲染，widget 据此重新请求
+   */
+  reloadRemoteData(path?: string): void;
   /** 手动设置字段错误 */
   setErrorFields(errors: Array<{ path: string; errors: string[] }>): void;
   /** 移除指定字段的错误 */
@@ -1129,8 +1153,25 @@ export interface ArrayOperationOptions {
  * 不依赖 Engine 内部实现，保持松耦合
  */
 export interface NexusFormInstance {
-  /** 触发表单提交（校验 + onFinish），提交数据不包含 hidden 字段 */
-  submit(): Promise<void>;
+  /**
+   * 触发表单提交（校验 + onFinish），提交数据不包含 hidden 字段
+   * @param options - validateFirst: 首个字段校验失败即短路（formily 对齐）
+   * @param options - omitNil: 提交前递归移除空值（undefined/null/''，ProForm omitNil 对齐）
+   */
+  submit(options?: {
+    validateFirst?: boolean;
+    omitNil?: boolean;
+  }): Promise<void>;
+  /**
+   * 是否正在提交中（校验 + onFinish 全流程，formily submitting 对齐）
+   * 供 UI 展示提交 loading 状态
+   */
+  getSubmitting(): boolean;
+  /**
+   * 订阅提交状态变化（返回取消订阅函数）
+   * 配合 useSyncExternalStore 使用：subscribe + getSubmitting 快照
+   */
+  onSubmittingChange(callback: () => void): () => void;
   /** 重置表单到初始值 */
   resetFields(): void;
   /** 手动设置字段错误 */
@@ -1147,8 +1188,12 @@ export interface NexusFormInstance {
    * 获取表单数据（不含 hidden 字段）
    * - 无参数：返回所有可见字段数据
    * - 传入路径数组：返回指定路径的数据
+   * - omitNil: 递归移除空值（undefined/null/''，ProForm omitNil 对齐）
    */
-  getValues(paths?: string[]): Record<string, unknown>;
+  getValues(
+    paths?: string[],
+    options?: { omitNil?: boolean },
+  ): Record<string, unknown>;
   /** 获取隐藏字段的值 */
   getHiddenValues(): Record<string, unknown>;
   /** 获取所有字段值（含 hidden） */
@@ -1165,10 +1210,18 @@ export interface NexusFormInstance {
   getFieldError(path: string): string[];
   /** 获取所有有错误的字段 */
   getFieldsError(): Map<string, string[]>;
-  /** 校验字段（可指定路径） */
-  validateFields(paths?: string[]): Promise<Map<string, string[]>>;
+  /** 校验字段（可指定路径；validateFirst: 首个失败字段即短路） */
+  validateFields(
+    paths?: string[],
+    options?: { validateFirst?: boolean },
+  ): Promise<Map<string, string[]>>;
   /** 获取单个字段的状态 */
   getFieldState(path: string): FieldState | undefined;
+  /**
+   * 重载远程选项数据（x-render reloadRemoteData 对齐）
+   * 传入 path 仅重载该字段；缺省重载全部远程数据字段
+   */
+  reloadRemoteData(path?: string): void;
   /**
    * 注册字段校验逻辑
    * @param path 字段路径（如 'username'）

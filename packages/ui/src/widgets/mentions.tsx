@@ -72,7 +72,12 @@ export const mentionsWidgetWithRemote = ({
   rows,
   ...rest
 }: WidgetProps & { remoteData?: any }) => {
-  const { options, loading } = useRemoteOptions(path || 'mentions', remoteData);
+  const { options, loading } = useRemoteOptions(
+    path || 'mentions',
+    remoteData,
+    undefined,
+    rest.remoteVersion as number | undefined,
+  );
 
   const finalLoading = externalLoading || loading;
 

@@ -159,6 +159,7 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
     label: state.meta.label,
     title: state.meta.title,
     description: state.meta.description,
+    tooltip: state.meta.tooltip,
     errors: state.errors,
     required: state.required,
     extra: state.meta.extra,
@@ -182,6 +183,8 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
     form,
     dependValues,
     items: state.meta.items,
+    // 远程选项数据版本：reloadRemoteData 后变化，widget 据此跳过缓存重新请求
+    remoteVersion: engine.getRemoteDataVersion(dataPath),
     ...state.props,
   };
 

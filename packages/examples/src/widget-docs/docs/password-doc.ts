@@ -26,8 +26,8 @@ export const passwordDoc: WidgetDoc = {
             title: '登录密码',
             placeholder: '请输入密码',
             required: true,
-            maxLength: 20,
-            props: { visibilityToggle: true, allowClear: true },
+            max: 20,
+            props: { visibilityToggle: true, allowClear: true, maxLength: 20 },
           },
           oldPassword: {
             type: 'string',

@@ -5,6 +5,7 @@ export { useFieldValue } from './useFieldValue';
 export { useForm } from './useForm';
 export { useFormConfig } from './useFormConfig';
 export { useFormData } from './useFormData';
+export { useFormSubmitting } from './useFormSubmitting';
 export { useWatch } from './useWatch';
 export { useWatchAll } from './useWatchAll';
 export { useWatchMultiple } from './useWatchMultiple';

@@ -10,10 +10,13 @@
 ## 特性
 
 - 📋 **统一 Schema**：一份 JSON 同时描述数据字段与布局结构，兼容 x-render 语法（`hidden` / `validate` / `bind` / `enum` / `displayType` 等）
-- 🔗 **Reactions 联动**：结构化 `reactions` 数组声明依赖、条件与状态/Schema 补丁，支持 `when` / `fulfill` / `otherwise`
-- 🧩 **插件系统**：异步校验（防抖/超时/并行）、数组操作（push/pop/insert/move）等能力通过 `engine.use()` 注入
-- ✅ **多维校验**：内置规则（required/min/max/pattern）、表达式校验、自定义 validator、跨字段校验
-- 🔀 **数据绑定**：`bind` 支持路径重映射（`"user.name"`）、数组拆分（`["a.b", "c.d"]`）与 `false`（不提交）
+- 🔗 **Reactions 联动**：结构化 `reactions` 数组声明依赖、条件与状态/Schema 补丁，支持 `when` / `fulfill` / `otherwise`，`tooltip` / `title` / `description` 均可动态联动
+- 🧩 **插件系统**：异步校验（防抖/超时/并行）、数组操作（push/pop/insert/move + minItems/maxItems 约束）等能力通过 `engine.use()` 注入
+- ✅ **多维校验**：内置规则（required/min/max/pattern）、表达式校验、自定义 validator、跨字段校验、`validateFirst` 短路
+- 🔀 **数据绑定**：`bind` 支持路径重映射（`"user.name"`）、数组拆分（`["a.b", "c.d"]`）与 `false`（不提交）；提交支持 `omitNil` 空值过滤
+- 🔄 **远程选项**：`remoteData` 异步加载 + `reloadRemoteData()` 手动重载
+- 📡 **值变化回调**：`onValuesChange` 标准回调（changedValue, allValues, changedPath）
+- ⏳ **提交状态**：`getSubmitting()` / `useFormSubmitting` 展示提交 loading
 - 🎯 **精准订阅**：React 渲染层基于 `useSyncExternalStore` 按字段路径精准订阅，避免全局重渲染
 - 🎨 **UI 无关渲染**：Renderer 层通过 `registerWidgets` / `registerLayouts` 注入组件，`core` 层不做任何 UI 假设
 - 🛠 **Schema 设计器**：内置可视化设计器（Canvas / Palette / PropertyPanel），支持拖拽布局与 JSON 编辑
@@ -129,7 +132,7 @@ AI / 开发者解析 Schema 时，依据以下规则判定节点类型：
 | `type` 为布局类型且无 `widget` | 布局容器 | ❌ Key 不进入路径 |
 | `type` 为面板类型 | 布局面板 | ❌ Key 不进入路径 |
 
-- **布局类型白名单**：`card`、`tabs`、`grid`、`flex`、`steps`、`collapse`、`divider`、`void`
+- **布局类型白名单**：`card`、`tabs`、`grid`、`flex`、`space`、`steps`、`collapse`、`divider`、`void`、`passThrough`
 - **面板类型白名单**：`tabPane`、`step`、`collapsePanel`
 
 > 示例：`card.properties` 下定义的字段路径为 `formData.fieldName`，**不会**变成 `formData.card.fieldName`。
@@ -182,16 +185,18 @@ engine.registerLayouts({ card: MyCard });
 
 | 方法 | 说明 |
 | :--- | :--- |
-| `submit()` | 校验 + 提交，回调 `onFinish` / `onFinishFailed` |
-| `getValues(paths?)` | 获取可见字段数据（不含 hidden） |
+| `submit(options?)` | 校验 + 提交，回调 `onFinish` / `onFinishFailed`；`options.validateFirst` 首个失败字段短路，`options.omitNil` 递归移除空值 |
+| `getValues(paths?, options?)` | 获取可见字段数据（不含 hidden）；`options.omitNil` 递归移除空值 |
 | `getAllValues()` | 获取全部字段数据（含 hidden） |
 | `getHiddenValues()` | 仅获取 hidden 字段数据 |
 | `setValueByPath(path, value)` | 按路径设置单个字段值 |
 | `setValues(values)` | 批量设置字段值（按 bind 反向解析） |
 | `setSchemaByPath(path, patch)` | 动态更新 Schema 节点 |
-| `validateFields(paths?)` | 校验指定字段 |
+| `validateFields(paths?, options?)` | 校验指定字段；`options.validateFirst` 短路 |
 | `registerValidator(path, fn)` | 注册字段级校验器（支持异步） |
 | `resetFields()` | 重置表单到初始状态 |
+| `reloadRemoteData(path?)` | 重载远程选项数据（缺省重载全部，x-render 对齐） |
+| `getSubmitting()` / `onSubmittingChange(cb)` | 提交中状态（formily submitting 对齐，配 `useFormSubmitting` Hook） |
 
 ### Watch Hooks
 

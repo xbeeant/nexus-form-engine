@@ -123,6 +123,10 @@ interface EngineInstanceState {
   /** formData 缓存与脏标记 */
   formDataCache: Record<string, unknown> | null;
   formDataDirty: boolean;
+  /** 远程选项数据版本（字段路径 → 版本；reloadRemoteData 递增，x-render 对齐） */
+  remoteVersions: Map<string, number>;
+  /** 远程选项数据全局版本（reloadRemoteData() 无 path 时递增，作用于全部字段） */
+  remoteGlobalVersion: number;
 }
 
 /**
@@ -170,6 +174,8 @@ export class NexusEngine implements IFormEngine {
         renderListeners: new Set(),
         formDataCache: null,
         formDataDirty: true,
+        remoteVersions: new Map(),
+        remoteGlobalVersion: 0,
       };
       this.instances.set(this.currentInstanceId, inst);
     }
@@ -1172,7 +1178,10 @@ export class NexusEngine implements IFormEngine {
    * @param paths - 可选，指定需要校验的字段路径列表
    * @returns 校验结果 Map，key 为字段路径，value 为错误消息数组
    */
-  async validate(paths?: string[]): Promise<Map<string, string[]>> {
+  async validate(
+    paths?: string[],
+    options?: { validateFirst?: boolean },
+  ): Promise<Map<string, string[]>> {
     const results = new Map<string, string[]>();
     const targetPaths = paths || Array.from(this._inst().fieldStates.keys());
 
@@ -1256,6 +1265,12 @@ export class NexusEngine implements IFormEngine {
 
       // 按路径通知：精准订阅（subscribeField）的组件才能感知错误状态刷新
       this.notifyField(path);
+
+      // validateFirst（formily 对齐）：出现首个失败字段即短路，
+      // 不再校验剩余字段（已校验字段的错误已写入状态）
+      if (options?.validateFirst && errors.length > 0) {
+        break;
+      }
     }
 
     // 插件通知：校验完成回调
@@ -1488,6 +1503,54 @@ export class NexusEngine implements IFormEngine {
    */
   isFieldDirty(path: string): boolean {
     return this._inst().fieldStates.get(path)?.dirty ?? false;
+  }
+
+  /**
+   * 获取远程选项数据的版本号（x-render reloadRemoteData 对齐）
+   *
+   * 字段调用 reloadRemoteData(path) 后其版本 +1；未单独重载过的字段回退到
+   * 全局版本（reloadRemoteData() 无参时递增）。widget 层的 useRemoteOptions
+   * 把该版本作为重取信号，版本变化即跳过缓存重新请求。
+   *
+   * @param path - 字段路径
+   * @returns 当前远程数据版本号
+   */
+  getRemoteDataVersion(path: string): number {
+    const inst = this._inst();
+    return inst.remoteVersions.get(path) ?? inst.remoteGlobalVersion;
+  }
+
+  /**
+   * 重载远程选项数据（x-render reloadRemoteData 对齐）
+   *
+   * 仅递增远程版本 + 定向通知字段订阅者，不修改任何字段值：
+   * - 传入 path：仅该字段的远程数据失效（版本 +1）
+   * - 不传：全部字段的远程数据失效（全局版本 +1）
+   *
+   * 字段版本 bump 触发 NexusField 重渲染，widget 读取新的 remoteVersion
+   * 后跳过缓存重新请求（见 ui 层 useRemoteOptions / WithRemote 组件）。
+   *
+   * @param path - 可选字段路径；缺省时重载全部远程数据字段
+   */
+  reloadRemoteData(path?: string): void {
+    const inst = this._inst();
+    if (path !== undefined) {
+      // 严格递增：保证本次定向重载后的版本 > 全局版本与历史版本
+      // （否则全局重载后的定向重载会返回相同版本，widget 无法感知变化）
+      inst.remoteVersions.set(
+        path,
+        Math.max(
+          inst.remoteGlobalVersion + 1,
+          (inst.remoteVersions.get(path) ?? 0) + 1,
+        ),
+      );
+      this.notifyField(path);
+    } else {
+      inst.remoteGlobalVersion++;
+      for (const fieldPath of inst.fieldStates.keys()) {
+        this.notifyField(fieldPath);
+      }
+    }
   }
 
   /**
@@ -2483,6 +2546,17 @@ export class NexusEngine implements IFormEngine {
     // 处理字段标题
     if (patch.title !== undefined) {
       state.meta.title = this.resolveValue(patch.title, context) as string;
+    }
+    // 处理字段描述
+    if (patch.description !== undefined) {
+      state.meta.description = this.resolveValue(
+        patch.description,
+        context,
+      ) as string;
+    }
+    // 处理标题旁气泡提示
+    if (patch.tooltip !== undefined) {
+      state.meta.tooltip = this.resolveValue(patch.tooltip, context) as string;
     }
     // 处理自定义属性
     if (patch.props) {

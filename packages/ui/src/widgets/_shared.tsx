@@ -33,6 +33,8 @@ export interface WidgetProps<T = Record<string, any>> {
   required?: boolean;
   title?: string;
   description?: string;
+  /** 标题旁的气泡提示（antd Form.Item tooltip，对齐 ProForm） */
+  tooltip?: string;
   errors?: string[];
   /** 是否显示 label（默认 true；字段级覆盖表单级，见 FieldState.meta.label） */
   label?: boolean;
@@ -51,6 +53,8 @@ export interface WidgetProps<T = Record<string, any>> {
   form?: NexusFormInstance;
   /** 依赖字段的值映射（key 为字段路径，value 为字段值） */
   dependValues?: Record<string, unknown>;
+  /** 远程选项数据版本：engine.reloadRemoteData() 后递增，widget 据此跳过缓存重新请求 */
+  remoteVersion?: number;
   /** 数组节点的 items 定义（DataArraySchema.items），供 list/simpleList/tableList widget 渲染每一项 */
   items?: DataFieldSchema | DataObjectSchema;
   [key: string]: unknown;
@@ -295,6 +299,7 @@ export function useFormItem(props: WidgetProps): UseFormItemResult {
         help={formItemHelp}
         validateStatus={formItemStatus}
         extra={props.extra}
+        tooltip={props.tooltip}
         style={Object.keys(mergedStyle).length > 0 ? mergedStyle : undefined}
         labelCol={formItemProps.labelCol}
         wrapperCol={formItemProps.wrapperCol}
@@ -335,6 +340,8 @@ export interface FieldWrapperProps {
   label?: boolean;
   title?: string;
   description?: string;
+  /** 标题旁的气泡提示（antd Form.Item tooltip） */
+  tooltip?: string;
   errors?: string[];
   required?: boolean;
   extra?: string;
@@ -377,6 +384,7 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
     // Form.Item 消费的元数据需从 rest 中剥离，避免透传到底层 antd 控件：
     //  - required: 会让 <input required> 触发浏览器原生校验，拦截 submit 导致自定义校验不执行
     //  - errors / title / description: 作为未知属性渲染到 DOM，产生 React 警告
+    //  - tooltip: Form.Item 消费（标题旁气泡），透传到底层控件会渲染到 DOM
     //  - dependValues / dataPath / path: 引擎内部 props，透传到 antd 控件会
     //    渲染到 DOM 触发 "React does not recognize" 警告（剥除后显式传给 render，
     //    自定义 widget 仍可通过 props.dataPath / props.dependValues 访问）
@@ -392,6 +400,7 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
       errors,
       title,
       description,
+      tooltip,
       value,
       onChange,
       disabled,
@@ -486,13 +495,15 @@ export function getNestedValue(obj: unknown, path: string): unknown {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// useRemoteOptions — 远程数据加载 Hook（支持缓存与动态 params）
+// useRemoteOptions — 远程数据加载 Hook（支持缓存、动态 params 与手动重载）
+// reloadToken：engine.reloadRemoteData() 后的远程版本号，变化时跳过缓存重新请求
 // ────────────────────────────────────────────────────────────────────────────
 
 export function useRemoteOptions(
   path: string,
   config: RemoteDataConfig | undefined,
   getFormData?: () => Record<string, unknown>,
+  reloadToken?: number,
 ): { options: ReturnType<typeof mapOptions>; loading: boolean } {
   const cache = React.useRef<
     Map<string, { data: unknown[]; timestamp: number }>
@@ -501,6 +512,12 @@ export function useRemoteOptions(
   const [options, setOptions] = React.useState<ReturnType<typeof mapOptions>>(
     [],
   );
+  // reloadToken 变化（engine.reloadRemoteData 触发）时使缓存失效
+  const lastReloadToken = React.useRef<number | undefined>(undefined);
+  if (reloadToken !== lastReloadToken.current) {
+    lastReloadToken.current = reloadToken;
+    cache.current.clear();
+  }
 
   const fetchOptions = React.useCallback(async () => {
     if (!config) {
@@ -558,9 +575,10 @@ export function useRemoteOptions(
     }
   }, [config, path, getFormData]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadToken 是手动重载触发信号（engine.reloadRemoteData 后变化，缓存已在上方清空）
   React.useEffect(() => {
     fetchOptions();
-  }, [fetchOptions]);
+  }, [fetchOptions, reloadToken]);
 
   return { options, loading };
 }

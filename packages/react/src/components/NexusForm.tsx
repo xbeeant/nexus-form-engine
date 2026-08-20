@@ -17,6 +17,7 @@ import {
 import { renderTreeNode } from '../utils/renderTreeNode';
 import type { FormController } from './FormController';
 import { NexusFormProvider } from './NexusFormProvider';
+import { useFormSubmitting } from '../hooks/useFormSubmitting';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Form 布局配置
@@ -90,11 +91,26 @@ export interface NexusFormProps {
     ) => void;
   };
   /**
+   * 表单值变化回调（x-render onValuesChange 对齐）
+   * 任意字段值变化时触发，参数为 (changedValue, allValues, changedPath)
+   * 与 watch: { '#': fn } 语义等价，但作为标准回调 API 提供
+   */
+  onValuesChange?: (
+    changedValue: unknown,
+    allValues: Record<string, unknown>,
+    changedPath: string,
+  ) => void;
+  /**
    * 提交时是否移除 hidden 字段数据，默认 true
    * - true: submit/getValues 不包含 hidden 字段
    * - false: submit/getValues 包含所有字段（含 hidden）
    */
   removeHiddenData?: boolean;
+  /**
+   * 提交时递归移除空值（undefined/null/''，ProForm omitNil 对齐）
+   * 与 form.submit({ omitNil: true }) / form.getValues(paths, { omitNil: true }) 等价
+   */
+  omitNil?: boolean;
   /** 表单语言标识（如 'zh-CN' / 'en-US'，ui 层消费：antd locale + 内置文案） */
   locale?: string;
   /**
@@ -149,7 +165,9 @@ export function NexusForm({
   readOnly,
   column,
   watch,
+  onValuesChange,
   removeHiddenData = true,
+  omitNil = false,
   locale,
   persist,
 }: NexusFormProps) {
@@ -280,10 +298,19 @@ export function NexusForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, instanceKey]);
 
-  // watch / removeHiddenData 变化时单独同步（不重置其他绑定）
+  // watch / removeHiddenData / onValuesChange 变化时单独同步（不重置其他绑定）
+  // onValuesChange 经 ref 持有：回调内容变化不重建订阅，仅内部引用更新
+  const onValuesChangeRef = useRef(onValuesChange);
+  onValuesChangeRef.current = onValuesChange;
   useEffect(() => {
-    form._syncConfig(instanceKey, { removeHiddenData, watch });
-  }, [form, instanceKey, removeHiddenData, watch]);
+    form._syncConfig(instanceKey, {
+      removeHiddenData,
+      omitNil,
+      watch,
+      onValuesChange: (changedValue, allValues, changedPath) =>
+        onValuesChangeRef.current?.(changedValue, allValues, changedPath),
+    });
+  }, [form, instanceKey, removeHiddenData, omitNil, watch]);
 
   // 渲染树版本订阅：仅 Schema 结构变化（init/setSchema/reset）时重算 renderTree。
   // 字段值/错误等数据变化只 bump store 版本（useFormData 消费），
@@ -311,11 +338,14 @@ export function NexusForm({
   }, [form]);
 
   // footer 渲染
+  const submitting = useFormSubmitting(form);
   let footerNode: ReactNode = null;
   if (footer === true) {
     footerNode = (
       <div className='mt-4'>
-        <button type='submit'>提交</button>{' '}
+        <button type='submit' disabled={submitting}>
+          {submitting ? '提交中...' : '提交'}
+        </button>{' '}
         <button type='button' onClick={handleReset}>
           重置
         </button>

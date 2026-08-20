@@ -25,7 +25,7 @@ AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/u
 | 4th | 非数据节点且有 `properties` | **布局容器/面板** | ❌ Key **不**进入路径 | `{ "type": "card", "properties": {...} }` |
 
 > ⚠️ **`isDataArray` 必须先于 `isDataField` 判断**：`{ type: "array", widget: "list", items: {...} }` 同时满足两者，必须优先识别为 DataArray（`SchemaParser.ts:179`）。
-> **布局容器白名单** (`LAYOUT_CONTAINER_TYPES`): `card`, `tabs`, `grid`, `flex`, `steps`, `collapse`, `divider`, `void`
+> **布局容器白名单** (`LAYOUT_CONTAINER_TYPES`): `card`, `tabs`, `grid`, `flex`, `space`, `steps`, `collapse`, `divider`, `void`, `passThrough`
 > **布局面板白名单** (`LAYOUT_PANE_TYPES`): `tabPane`, `step`, `collapsePanel`
 > 面板类型优雅降级：未注册的面板直接在父容器内平铺渲染。
 
@@ -51,7 +51,7 @@ AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/u
   - `dependencies: string[]` — **允许相对路径**，`resolveReactionScopes` 从目标字段最内层作用域向上逐级解析（如 `address.city` 内 `dependencies: ["province"]` → `"address.province"`）；`_autoExpr` 的依赖均为根级绝对路径，不做作用域解析
   - `when: Expression` — 条件成立执行 `fulfill`，否则执行 `otherwise`
   - `fulfill` / `otherwise`：`{ state?: ReactionStatePatch, schema?: ReactionSchemaPatch }`
-    - `state` 补丁：`value/visible/hidden/disabled/readOnly/required/loading/title/description/props.*`
+    - `state` 补丁：`value/visible/hidden/disabled/readOnly/required/loading/title/description/tooltip/props.*`
     - `schema` 补丁：点路径 → 值/表达式（`props.options` 等支持多级），**仅运行时覆盖，不持久化回 Schema**
 - **上下文变量白名单**: 仅 `$deps`、`$self`、`$form`、`$index`、`formData`、`rootValue`（`ExpressionSandbox`）。
 - **validate 表达式依赖**: `validate: { key: "{{ ... }}" }` 生成的规则携带 `_validateExpr`，其 `formData.xxx` 依赖被提取进依赖图，依赖字段变化时**实时重校验**目标字段（`validateExprFields`）。
@@ -111,7 +111,12 @@ AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/u
 - **必须**使用 `useSyncExternalStore` + `engine.subscribeField(path)` + `getFieldVersion(path)` 按路径精准订阅单字段（`useFieldValue` / `useFieldState`）。
 - **严禁**在 Renderer 层解析 Schema 或计算路径，**必须**直接消费 Core 输出的 `RenderTree`（`engine.getRenderTree()`，配合全局 version 快照）。
 - **隐藏字段处理**: `visible: false` 时渲染 `display: none` 占位符（`data-nexus-hidden`）**严禁**从 DOM 移除（防止栅格塌陷）；仅当布局节点配置 `removeHidden: true`（经 `LayoutConfigContext` 透传）才完全移除。
-- `FormController` 是 API 层（`useForm()` 创建）：`submit/resetFields/setValues/setValueByPath/getValues/getAllValues/getHiddenValues/validateFields/registerValidator/setSchema/setSchemaByPath/scrollToPath/getFieldError/...`；`submit` 失败自动滚动聚焦第一个错误字段。
+- `FormController` 是 API 层（`useForm()` 创建）：`submit(options?)/resetFields/setValues/setValueByPath/getValues(paths?, options?)/getAllValues/getHiddenValues/validateFields(paths?, options?)/registerValidator/setSchema/setSchemaByPath/scrollToPath/getFieldError/reloadRemoteData/getSubmitting/onSubmittingChange/...`；`submit` 失败自动滚动聚焦第一个错误字段。
+  - `submit({ validateFirst })` / `validateFields(paths, { validateFirst })` — 首个失败字段短路（formily 对齐）
+  - `submit({ omitNil })` / `getValues(paths, { omitNil })` / `NexusForm` prop `omitNil` — 递归移除空值（undefined/null/''，ProForm 对齐）
+  - `reloadRemoteData(path?)` — 远程选项重载：Engine 递增远程版本（`getRemoteDataVersion`）并 bump 字段版本，`NexusField` 透传 `remoteVersion`，ui 层 `useRemoteOptions` 以此跳过缓存重取
+  - `getSubmitting()/onSubmittingChange(cb)` + `useFormSubmitting` — 提交中状态（含异步 onFinish 全流程）
+- `onValuesChange(changedValue, allValues, changedPath)` — `NexusForm` 标准值变更回调（与 `watch: '#'` 同路径分发，按实例独立）。
 - 表单布局配置（`displayType/labelWidth/colon/column/readOnly` 等）优先级：组件 props > Schema 顶层 > 默认值。
 
 ---

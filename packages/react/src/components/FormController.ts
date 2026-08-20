@@ -4,6 +4,7 @@ import type {
   NexusSchema,
 } from '@xbeeant/form-engine';
 import { AsyncValidatorPlugin, NexusEngine } from '@xbeeant/form-engine';
+import { omitNilDeep } from '../utils/omitNil';
 
 /** 已被某个 FormController 占用为「首个挂载视图」的引擎宿主（防止多 form 共享宿主时抢占 default 实例） */
 const claimedHosts = new WeakSet<NexusEngine>();
@@ -20,6 +21,10 @@ const claimedHosts = new WeakSet<NexusEngine>();
  */
 export class FormController implements NexusFormInstance {
   private engine: NexusEngine;
+  /** 提交中状态（校验 + onFinish 全流程，formily submitting 对齐） */
+  private submitting = false;
+  /** 提交状态监听器（供 useSyncExternalStore 消费） */
+  private submittingListeners = new Set<() => void>();
   /** 实例标识（内部）→ 实例视图引擎（同一 form 挂载的多个 NexusForm 各自独立） */
   private views: Map<string, NexusEngine> = new Map();
   /** 实例标识 → 该实例的 DOM / 回调绑定（onFinish/onFinishFailed 按实例独立） */
@@ -33,11 +38,12 @@ export class FormController implements NexusFormInstance {
       getOnFinishFailed: () => (errors: Map<string, string[]>) => void;
     }
   > = new Map();
-  /** 实例标识 → watch / removeHiddenData 配置（按实例独立） */
+  /** 实例标识 → watch / removeHiddenData / onValuesChange / omitNil 配置（按实例独立） */
   private instanceConfigs: Map<
     string,
     {
       removeHiddenData: boolean;
+      omitNil: boolean;
       watchers: Map<
         string,
         (value: unknown, allValues: Record<string, unknown>) => void
@@ -47,6 +53,14 @@ export class FormController implements NexusFormInstance {
             value: Record<string, unknown>,
             allValues: Record<string, unknown>,
             changedPath?: string,
+          ) => void)
+        | null;
+      /** x-render 对齐：值变更回调（changedValue, allValues, changedPath） */
+      onValuesChange:
+        | ((
+            changedValue: unknown,
+            allValues: Record<string, unknown>,
+            changedPath: string,
           ) => void)
         | null;
     }
@@ -87,8 +101,10 @@ export class FormController implements NexusFormInstance {
       this.views.set(instanceId, view);
       this.instanceConfigs.set(instanceId, {
         removeHiddenData: true,
+        omitNil: false,
         watchers: new Map(),
         globalWatcher: null,
+        onValuesChange: null,
       });
     }
     return view;
@@ -130,11 +146,13 @@ export class FormController implements NexusFormInstance {
     );
   }
 
-  /** 内部：同步 watch / removeHiddenData 配置（由 NexusForm 在它们变化时按实例调用） */
-  _syncConfig(
+  /** 内部：同步 watch / removeHiddenData / onValuesChange 配置（由 NexusForm 在它们变化时按实例调用） */
+_syncConfig(
     instanceId: string,
     config: {
       removeHiddenData?: boolean;
+      /** 提交/取值时递归移除空值（undefined/null/''，ProForm omitNil 对齐） */
+      omitNil?: boolean;
       watch?: {
         [path: string]: (
           value: unknown,
@@ -142,15 +160,28 @@ export class FormController implements NexusFormInstance {
           changedPath?: string,
         ) => void;
       };
+      onValuesChange?: (
+        changedValue: unknown,
+        allValues: Record<string, unknown>,
+        changedPath: string,
+      ) => void;
     },
   ): void {
     const cfg = this.instanceConfigs.get(instanceId) ?? {
       removeHiddenData: true,
+      omitNil: false,
       watchers: new Map(),
       globalWatcher: null,
+      onValuesChange: null,
     };
     if (config.removeHiddenData !== undefined) {
       cfg.removeHiddenData = config.removeHiddenData;
+    }
+    if (config.omitNil !== undefined) {
+      cfg.omitNil = config.omitNil;
+    }
+    if (config.onValuesChange !== undefined) {
+      cfg.onValuesChange = config.onValuesChange;
     }
     if (config.watch) {
       cfg.watchers.clear();
@@ -181,6 +212,10 @@ export class FormController implements NexusFormInstance {
     if (cfg.globalWatcher) {
       cfg.globalWatcher(globalData, globalData, path);
     }
+    // x-render 对齐：onValuesChange（changedValue, allValues, changedPath）
+    if (cfg.onValuesChange) {
+      cfg.onValuesChange(value, globalData, path);
+    }
     // 路径匹配的 watcher
     const fn = cfg.watchers.get(path);
     if (fn) {
@@ -201,7 +236,45 @@ export class FormController implements NexusFormInstance {
     return this.engine;
   }
 
-  async submit(): Promise<void> {
+  async submit(options?: {
+    validateFirst?: boolean;
+    omitNil?: boolean;
+  }): Promise<void> {
+    this.setSubmitting(true);
+    try {
+      await this.runSubmit(options);
+    } finally {
+      this.setSubmitting(false);
+    }
+  }
+
+  /** 提交中状态（formily submitting 对齐，供提交按钮 loading） */
+  getSubmitting(): boolean {
+    return this.submitting;
+  }
+
+  /** 订阅提交状态变化（返回取消订阅函数，供 useSyncExternalStore 使用） */
+  onSubmittingChange(callback: () => void): () => void {
+    this.submittingListeners.add(callback);
+    return () => {
+      this.submittingListeners.delete(callback);
+    };
+  }
+
+  private setSubmitting(value: boolean): void {
+    if (this.submitting === value) {
+      return;
+    }
+    this.submitting = value;
+    for (const listener of this.submittingListeners) {
+      listener();
+    }
+  }
+
+  private async runSubmit(options?: {
+    validateFirst?: boolean;
+    omitNil?: boolean;
+  }): Promise<void> {
     const views = this.resolveViews();
     // 汇总校验：任一实例失败即阻止提交
     const allErrors = new Map<string, string[]>();
@@ -215,7 +288,9 @@ export class FormController implements NexusFormInstance {
         }
       | undefined;
     for (const view of views) {
-      const errors = await view.validate();
+      const errors = await view.validate(undefined, {
+        validateFirst: options?.validateFirst,
+      });
       if (errors.size > 0) {
         for (const [path, messages] of errors) {
           allErrors.set(path, messages);
@@ -234,17 +309,24 @@ export class FormController implements NexusFormInstance {
       const id = this.findInstanceId(view);
       const cfg = this.instanceConfigs.get(id) ?? {
         removeHiddenData: true,
+        omitNil: false,
         watchers: new Map(),
         globalWatcher: null,
+        onValuesChange: null,
       };
       const formData = cfg.removeHiddenData
         ? view.getFormData()
         : view.getAllFormData();
-      const allowed = await view.submit(formData);
+      // omitNil（ProForm 对齐）：提交前递归移除空值
+      const shouldOmitNil = options?.omitNil ?? cfg.omitNil ?? false;
+      const finalData = (
+        shouldOmitNil ? omitNilDeep(formData) : formData
+      ) as Record<string, unknown>;
+      const allowed = await view.submit(finalData);
       if (!allowed) {
         continue;
       }
-      await this.instanceBindings.get(id)?.getOnFinish()?.(formData);
+      await this.instanceBindings.get(id)?.getOnFinish()?.(finalData);
     }
   }
 
@@ -333,10 +415,19 @@ export class FormController implements NexusFormInstance {
     }
   }
 
-  getValues(paths?: string[]): Record<string, unknown> {
+  getValues(
+    paths?: string[],
+    options?: { omitNil?: boolean },
+  ): Record<string, unknown> {
     const merged: Record<string, unknown> = {};
     for (const view of this.resolveViews()) {
-      Object.assign(merged, view.getFormData(paths));
+      const data = view.getFormData(paths);
+      // omitNil（ProForm 对齐）：递归移除空值
+      if (options?.omitNil) {
+        Object.assign(merged, omitNilDeep(data) as Record<string, unknown>);
+      } else {
+        Object.assign(merged, data);
+      }
     }
     return merged;
   }
@@ -448,23 +539,26 @@ export class FormController implements NexusFormInstance {
     return merged;
   }
 
-  validateFields(paths?: string[]): Promise<Map<string, string[]>> {
+  validateFields(
+    paths?: string[],
+    options?: { validateFirst?: boolean },
+  ): Promise<Map<string, string[]>> {
     const views = this.resolveViews();
     if (views.length === 1) {
-      return views[0].validate(paths);
+      return views[0].validate(paths, options);
     }
     // 多实例：并行校验并合并错误
-    return Promise.all(views.map((view) => view.validate(paths))).then(
-      (results) => {
-        const merged = new Map<string, string[]>();
-        for (const result of results) {
-          for (const [path, messages] of result) {
-            merged.set(path, messages);
-          }
+    return Promise.all(
+      views.map((view) => view.validate(paths, options)),
+    ).then((results) => {
+      const merged = new Map<string, string[]>();
+      for (const result of results) {
+        for (const [path, messages] of result) {
+          merged.set(path, messages);
         }
-        return merged;
-      },
-    );
+      }
+      return merged;
+    });
   }
 
   getFieldState(path: string): FieldState | undefined {
@@ -475,5 +569,16 @@ export class FormController implements NexusFormInstance {
       }
     }
     return undefined;
+  }
+
+  /**
+   * 重载远程选项数据（x-render reloadRemoteData 对齐）
+   * 传入 path 仅重载该字段的远程数据；缺省时重载全部远程数据字段。
+   * 作用于全部实例视图。
+   */
+  reloadRemoteData(path?: string): void {
+    for (const view of this.resolveViews()) {
+      view.reloadRemoteData(path);
+    }
   }
 }

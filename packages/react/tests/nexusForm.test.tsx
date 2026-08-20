@@ -1,5 +1,5 @@
 import { fireEvent, render } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { FormController } from '../src/components/FormController';
 import { NexusForm } from '../src/components/NexusForm';
@@ -239,5 +239,104 @@ describe('NexusForm', () => {
         ) as HTMLInputElement
       ).value,
     ).toBe('上海');
+  });
+
+  it('onValuesChange 回调：值变化时触发（changedValue, allValues, changedPath）', () => {
+    const onValuesChange = vi.fn();
+    function WatchForm() {
+      const [form] = useForm();
+      holder.form = form;
+      return (
+        <NexusForm
+          form={form}
+          schema={simpleSchema as never}
+          widgets={{ input: StubInput }}
+          onValuesChange={onValuesChange}
+        />
+      );
+    }
+    const { container } = render(<WatchForm />);
+    fireEvent.change(
+      container.querySelector('input') as HTMLInputElement,
+      { target: { value: 'lisi' } },
+    );
+    expect(onValuesChange).toHaveBeenCalledTimes(1);
+    const [changedValue, allValues, changedPath] = onValuesChange.mock.calls[0];
+    expect(changedValue).toBe('lisi');
+    expect(allValues).toMatchObject({ username: 'lisi' });
+    expect(changedPath).toBe('username');
+  });
+
+  it('reloadRemoteData：FormController 聚合转发到引擎远程版本', () => {
+    const { container } = render(<TestForm schema={simpleSchema} />);
+    const engine = holder.form!._getEngine();
+    expect(engine.getRemoteDataVersion('username')).toBe(0);
+    holder.form!.reloadRemoteData('username');
+    expect(engine.getRemoteDataVersion('username')).toBe(1);
+    // 值不受影响
+    fireEvent.change(
+      container.querySelector('input') as HTMLInputElement,
+      { target: { value: 'x' } },
+    );
+    expect(holder.form!._getEngine().getFieldValue('username')).toBe('x');
+  });
+
+  it('getValues omitNil：递归移除空值（ProForm 对齐）', () => {
+    render(
+      <TestForm
+        schema={{
+          type: 'object',
+          properties: {
+            name: { type: 'string', widget: 'input' },
+            city: { type: 'string', widget: 'input' },
+          },
+        }}
+      />,
+    );
+    const form = holder.form!;
+    expect(form.getValues()).toEqual({ name: '', city: '' });
+    const filtered = form.getValues(undefined, { omitNil: true });
+    expect(filtered).toEqual({});
+    form.setValueByPath('city', '上海');
+    expect(form.getValues(undefined, { omitNil: true })).toEqual({ city: '上海' });
+  });
+
+  it('submit submitting 状态：全流程（校验 + onFinish）期间为 true', async () => {
+    let resolveFinish: (v: undefined) => void = () => {};
+    const finishPromise = new Promise<void>((resolve) => {
+      resolveFinish = resolve;
+    });
+    const onFinish = vi.fn(() => finishPromise);
+
+    function SubmitForm() {
+      const [form] = useForm();
+      holder.form = form;
+      return (
+        <NexusForm
+          form={form}
+          schema={simpleSchema as never}
+          widgets={{ input: StubInput }}
+          onFinish={onFinish}
+        />
+      );
+    }
+    render(<SubmitForm />);
+    const form = holder.form!;
+    expect(form.getSubmitting()).toBe(false);
+
+    let listenerCalls = 0;
+    const unsubscribe = form.onSubmittingChange(() => listenerCalls++);
+
+    const submitPromise = form.submit();
+    // 校验是异步（微任务）：等待 submitting 置位
+    await vi.waitFor(() => {
+      expect(form.getSubmitting()).toBe(true);
+    });
+    resolveFinish();
+    await submitPromise;
+    expect(form.getSubmitting()).toBe(false);
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    expect(listenerCalls).toBeGreaterThanOrEqual(2);
+    unsubscribe();
   });
 });

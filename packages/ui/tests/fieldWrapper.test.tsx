@@ -60,6 +60,18 @@ describe('FieldWrapper（ui 层字段包裹）', () => {
     expect(extra!.textContent).toContain('至少 8 位');
   });
 
+  it('tooltip 渲染标题旁气泡图标（ProForm 对齐）', () => {
+    const { container } = renderWrapper({
+      title: '手机号',
+      tooltip: '仅支持中国大陆号码',
+    });
+    // antd Form.Item tooltip 渲染为 label 旁的 ? 图标
+    const tooltipIcon = container.querySelector(
+      '.ant-form-item-tooltip .anticon-question-circle',
+    );
+    expect(tooltipIcon).not.toBeNull();
+  });
+
   it('label=false 时不包裹 Form.Item，裸渲染控件', () => {
     const { container } = renderWrapper({ title: '无标签字段', label: false });
     expect(container.querySelector('.ant-form-item')).toBeNull();

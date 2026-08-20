@@ -54,7 +54,12 @@ export const selectWidgetWithRemote = ({
   path,
   ...rest
 }: WidgetProps & { remoteData?: any }) => {
-  const { options, loading } = useRemoteOptions(path || 'select', remoteData);
+  const { options, loading } = useRemoteOptions(
+    path || 'select',
+    remoteData,
+    undefined,
+    rest.remoteVersion as number | undefined,
+  );
 
   const finalLoading = externalLoading || loading;
 

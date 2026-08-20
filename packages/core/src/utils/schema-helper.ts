@@ -31,6 +31,7 @@ export const LAYOUT_CONTAINER_TYPES: ReadonlySet<LayoutContainerType> = new Set(
     'collapse',
     'divider',
     'void',
+    'passThrough',
   ],
 );
 

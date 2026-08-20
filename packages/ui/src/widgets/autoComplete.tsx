@@ -77,6 +77,8 @@ export const autoCompleteWidgetWithRemote = ({
   const { options, loading } = useRemoteOptions(
     path || 'autocomplete',
     remoteData,
+    undefined,
+    rest.remoteVersion as number | undefined,
   );
 
   const finalLoading = externalLoading || loading;

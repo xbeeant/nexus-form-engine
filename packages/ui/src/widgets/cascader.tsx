@@ -159,6 +159,8 @@ export const cascaderWidgetWithRemote = ({
   const { options: remoteOptions, loading } = useRemoteOptions(
     _p || 'cascader',
     remoteData,
+    undefined,
+    rest.remoteVersion as number | undefined,
   );
 
   let dataSource: DefaultOptionType[] = [];

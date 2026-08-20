@@ -27,6 +27,7 @@ export { useFieldValue } from './hooks/useFieldValue';
 export { useForm } from './hooks/useForm';
 export { useFormConfig } from './hooks/useFormConfig';
 export { useFormData } from './hooks/useFormData';
+export { useFormSubmitting } from './hooks/useFormSubmitting';
 export { useWatch } from './hooks/useWatch';
 export { useWatchAll } from './hooks/useWatchAll';
 export { useWatchMultiple } from './hooks/useWatchMultiple';

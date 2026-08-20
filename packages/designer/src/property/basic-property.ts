@@ -31,6 +31,12 @@ export const commonPropertyFields: Record<string, SchemaNode> = {
     type: 'string',
     title: '额外说明（extra）',
   },
+  tooltip: {
+    widget: 'input',
+    type: 'string',
+    title: '气泡提示（tooltip）',
+    placeholder: '悬停 label 展示的提示文案',
+  },
   // ── 状态控制 ────────────────────────────────────────────────────────────
   disabled: {
     widget: 'propertyExpr',

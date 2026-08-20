@@ -524,4 +524,11 @@ export const layoutCatalog: CatalogItem[] = [
     layoutType: 'space',
     createNode: () => ({ type: 'space', properties: {} }),
   },
+  {
+    label: '透传容器',
+    icon: '📶',
+    category: 'layout',
+    layoutType: 'passThrough',
+    createNode: () => ({ type: 'passThrough', properties: {} }),
+  },
 ];
