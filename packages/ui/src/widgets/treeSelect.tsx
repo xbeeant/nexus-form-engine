@@ -398,12 +398,28 @@ export function TreeSelectWidget(props: WidgetProps & TreeSelectConfig) {
     }
   }
 
+  // 解析 treeData（schema 中常以 JSON 字符串形式编写，如 JSON.stringify 的产物）
+  let treeDataValue: unknown = rest.treeData;
+  if (typeof treeDataValue === 'string' && treeDataValue.trim()) {
+    try {
+      const parsed = JSON.parse(treeDataValue) as unknown;
+      if (Array.isArray(parsed)) {
+        treeDataValue = parsed;
+      }
+    } catch {
+      treeDataValue = [];
+    }
+  }
+  const staticTreeData: DefaultOptionType[] = Array.isArray(treeDataValue)
+    ? (treeDataValue as DefaultOptionType[])
+    : [];
+
   // ── 从 rest 提取配置 ──
   const cfg = {
     request: rest.request,
     url: rest.url,
     params: paramsValue as Record<string, unknown> | undefined,
-    treeData: rest.treeData,
+    treeData: staticTreeData,
     searchUrl: rest.searchUrl,
     searchKey: rest.searchKey || 'keyword',
     parentKey: rest.parentKey || 'pid',
@@ -478,7 +494,7 @@ export function TreeSelectWidget(props: WidgetProps & TreeSelectConfig) {
         } finally {
           setFetching(false);
         }
-      } else if (c.treeData) {
+      } else if (c.treeData && c.treeData.length > 0) {
         setTreeData(c.treeData);
         if (c.autoExpand) {
           setExpandedKeys(

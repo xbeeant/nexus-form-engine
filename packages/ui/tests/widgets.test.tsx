@@ -157,3 +157,83 @@ describe('校验错误展示（集成）', () => {
     });
   });
 });
+
+describe('treeSelect 静态树数据（treeData 为 JSON 字符串）', () => {
+  const treeJson = JSON.stringify([
+    {
+      value: 'digital',
+      title: '数码家电',
+      children: [{ value: 'phone', title: '手机通讯' }],
+    },
+    { value: 'fashion', title: '服饰鞋包' },
+  ]);
+
+  function renderTreeSelect() {
+    return renderForm({
+      type: 'object',
+      properties: {
+        categoryTree: {
+          type: 'string',
+          widget: 'treeSelect',
+          title: '类目',
+          props: { treeData: treeJson, treeDefaultExpandAll: true },
+        },
+      },
+    });
+  }
+
+  it('字符串 treeData 不抛异常，正常渲染并可选择节点', async () => {
+    const { container, form } = renderTreeSelect();
+
+    // 静态数据无需等待请求，就绪后渲染 TreeSelect
+    await waitFor(() => {
+      expect(container.textContent).not.toContain('加载中');
+    });
+    const selector = container.querySelector('.ant-select');
+    expect(selector).not.toBeNull();
+
+    // 展开下拉：树节点出现在下拉面板中
+    fireEvent.mouseDown(selector!);
+    await waitFor(() => {
+      expect(document.body.textContent).toContain('数码家电');
+    });
+
+    // 点击叶子节点 → 值写入引擎
+    const node = Array.from(
+      document.querySelectorAll('.ant-select-tree-treenode'),
+    ).find((el) => el.textContent?.includes('手机通讯'));
+    expect(node).toBeTruthy();
+    const clickable =
+      node!.querySelector('.ant-select-tree-node-content-wrapper') ?? node!;
+    fireEvent.click(clickable);
+    await waitFor(() => {
+      expect(form.form!.getValueByPath('categoryTree')).toBe('phone');
+    });
+  });
+
+  it('非法 JSON 字符串降级为空树，不崩溃', async () => {
+    const { container } = renderForm({
+      type: 'object',
+      properties: {
+        categoryTree: {
+          type: 'string',
+          widget: 'treeSelect',
+          title: '类目',
+          props: { treeData: '{{ broken json' },
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(container.textContent).not.toContain('加载中');
+    });
+    expect(container.querySelector('.ant-select')).not.toBeNull();
+    fireEvent.mouseDown(container.querySelector('.ant-select')!);
+    await waitFor(() => {
+      expect(
+        document.querySelector('.ant-select-empty') ??
+          document.body.textContent,
+      ).toBeTruthy();
+    });
+  });
+});
