@@ -5,15 +5,23 @@ import type {
 } from '@xbeeant/form-engine';
 import { AsyncValidatorPlugin, NexusEngine } from '@xbeeant/form-engine';
 
+/** 已被某个 FormController 占用为「首个挂载视图」的引擎宿主（防止多 form 共享宿主时抢占 default 实例） */
+const claimedHosts = new WeakSet<NexusEngine>();
+
 /**
- * FormController — 包裹 Engine，暴露 Form 实例 API
+ * FormController — 包裹引擎宿主，暴露 Form 实例 API
+ *
+ * 一个 form 可承载多个 NexusForm 挂载（每个挂载一份 schema，schema 与状态互相独立）。
+ * 实例标识由 NexusForm 内部生成（React useId），用户侧不感知任何 instanceId：
+ * - 同一 form 引用 = 同一引擎宿主：插件/组件注册/跨表单联动等引擎级能力共享
+ * - 每个 NexusForm 挂载自动获得独立实例：schema/值/校验/订阅互不影响
+ * - form 的 API（getValues/setValues/submit/resetFields...）聚合作用于全部实例
+ * - 引擎本身是独立实体，可单独创建或跨 form 复用（useForm(formId, engine)）
  */
 export class FormController implements NexusFormInstance {
   private engine: NexusEngine;
-  /** 实例标识 → 实例视图引擎（同一 form 可挂载多个不同 schema 的 NexusForm） */
+  /** 实例标识（内部）→ 实例视图引擎（同一 form 挂载的多个 NexusForm 各自独立） */
   private views: Map<string, NexusEngine> = new Map();
-  /** 未显式指定 instanceId 时自动分配序号（nexus-1/nexus-2/...） */
-  private nextAutoInstanceId = 1;
   /** 实例标识 → 该实例的 DOM / 回调绑定（onFinish/onFinishFailed 按实例独立） */
   private instanceBindings: Map<
     string,
@@ -58,20 +66,26 @@ export class FormController implements NexusFormInstance {
    * 获取（或创建）指定实例的引擎视图
    *
    * 同一 form 挂载多个 NexusForm 时各自独立：schema/值/订阅互不影响。
-   * - 显式 instanceId：使用指定实例
-   * - 未指定：首个 NexusForm 使用 'default' 实例（与直接使用 engine 的场景兼容），
-   *   其余自动分配 nexus-N
+   * 实例标识由 NexusForm 内部分配（React useId），用户不感知。
    *
-   * @param instanceId - 可选实例标识
+   * @param instanceId - 实例标识（内部）
    * @returns 定向到该实例的引擎视图
    */
-  _useInstance(instanceId?: string): NexusEngine {
-    const resolvedId = this._acquireInstanceId(instanceId);
-    let view = this.views.get(resolvedId);
+  _useInstance(instanceId: string): NexusEngine {
+    let view = this.views.get(instanceId);
     if (!view) {
-      view = this.engine.instance(resolvedId);
-      this.views.set(resolvedId, view);
-      this.instanceConfigs.set(resolvedId, {
+      // 首个挂载复用宿主引擎（default 实例）：渲染前对 form 的 API 调用
+      // （setValues/setSchema 等）落在宿主，挂载后即可见。
+      // 宿主被占用（其他 form 复用同一外部引擎）时不再抢占，改创建独立视图，
+      // 保证不同 form 共享宿主时实例状态互不影响。
+      if (this.views.size === 0 && !claimedHosts.has(this.engine)) {
+        claimedHosts.add(this.engine);
+        view = this.engine;
+      } else {
+        view = this.engine.instance(instanceId);
+      }
+      this.views.set(instanceId, view);
+      this.instanceConfigs.set(instanceId, {
         removeHiddenData: true,
         watchers: new Map(),
         globalWatcher: null,
@@ -81,26 +95,9 @@ export class FormController implements NexusFormInstance {
   }
 
   /**
-   * 解析实例标识（不创建视图，供 NexusForm 同步 engine 与绑定所用 id）
-   * - 显式 instanceId 原样返回
-   * - 未指定：首个 NexusForm 用 'default'，其余自动分配 nexus-N
+   * 内部：解析方法作用的目标实例视图（聚合全部实例，无实例时回退宿主引擎）
    */
-  _acquireInstanceId(instanceId?: string): string {
-    if (instanceId !== undefined) {
-      return instanceId;
-    }
-    if (this.views.size === 0) {
-      return 'default';
-    }
-    return `nexus-${this.nextAutoInstanceId++}`;
-  }
-
-  /** 内部：解析方法作用的目标实例视图（未指定时作用于全部实例，无实例时回退根引擎） */
-  private resolveViews(instanceId?: string): NexusEngine[] {
-    if (instanceId !== undefined) {
-      const view = this.views.get(instanceId);
-      return view ? [view] : [];
-    }
+  private resolveViews(): NexusEngine[] {
     const views = Array.from(this.views.values());
     return views.length > 0 ? views : [this.engine];
   }
@@ -113,6 +110,7 @@ export class FormController implements NexusFormInstance {
 
   /**
    * 内部：绑定实例 DOM + 回调 getter（由 NexusForm 在挂载时按实例调用）
+   * 回调以 getter 传入：submit 时读取最新闭包，而非绑定时刻的快照
    */
   _bind(
     instanceId: string,
@@ -190,20 +188,21 @@ export class FormController implements NexusFormInstance {
     }
   }
 
-  /** 内部：获取 Engine 实例 */
+  /** 内部：获取引擎宿主实例 */
   _getEngine(): NexusEngine {
     return this.engine;
   }
 
   /**
-   * 获取底层 Engine 实例（用于跨表单联动：linkForm / setFormId 等）
+   * 获取底层引擎宿主实例（用于跨表单联动：linkForm / setFormId / registerAntdUI 等；
+   * 宿主上的组件/插件注册对全部实例生效）
    */
   getEngine(): NexusEngine {
     return this.engine;
   }
 
-  async submit(instanceId?: string): Promise<void> {
-    const views = this.resolveViews(instanceId);
+  async submit(): Promise<void> {
+    const views = this.resolveViews();
     // 汇总校验：任一实例失败即阻止提交
     const allErrors = new Map<string, string[]>();
     let failedBinding:
@@ -298,76 +297,75 @@ export class FormController implements NexusFormInstance {
     requestAnimationFrame(focus);
   }
 
-  resetFields(instanceId?: string): void {
-    for (const view of this.resolveViews(instanceId)) {
+  resetFields(): void {
+    for (const view of this.resolveViews()) {
       view.reset();
     }
   }
 
-  setErrorFields(
-    errors: Array<{ path: string; errors: string[] }>,
-    instanceId?: string,
-  ): void {
-    for (const view of this.resolveViews(instanceId)) {
+  setErrorFields(errors: Array<{ path: string; errors: string[] }>): void {
+    for (const view of this.resolveViews()) {
       view.setErrorFields(errors);
     }
   }
 
-  setValues(values: Record<string, unknown>, instanceId?: string): void {
-    for (const view of this.resolveViews(instanceId)) {
+  setValues(values: Record<string, unknown>): void {
+    for (const view of this.resolveViews()) {
       view.setFieldValues(values);
     }
   }
 
-  setValueByPath(path: string, value: unknown, instanceId?: string): void {
-    for (const view of this.resolveViews(instanceId)) {
+  setValueByPath(path: string, value: unknown): void {
+    for (const view of this.resolveViews()) {
       view.setFieldValue(path, value);
     }
   }
 
-  setSchemaByPath(
-    path: string,
-    patch: Record<string, unknown>,
-    instanceId?: string,
-  ): void {
-    for (const view of this.resolveViews(instanceId)) {
+  setSchemaByPath(path: string, patch: Record<string, unknown>): void {
+    for (const view of this.resolveViews()) {
       view.setSchemaByPath(path, patch);
     }
   }
 
-  setSchema(schema: NexusSchema, instanceId?: string): void {
-    for (const view of this.resolveViews(instanceId)) {
+  setSchema(schema: NexusSchema): void {
+    for (const view of this.resolveViews()) {
       view.setSchema(schema);
     }
   }
 
-  getValues(paths?: string[], instanceId?: string): Record<string, unknown> {
+  getValues(paths?: string[]): Record<string, unknown> {
     const merged: Record<string, unknown> = {};
-    for (const view of this.resolveViews(instanceId)) {
+    for (const view of this.resolveViews()) {
       Object.assign(merged, view.getFormData(paths));
     }
     return merged;
   }
 
-  getHiddenValues(instanceId?: string): Record<string, unknown> {
+  getHiddenValues(): Record<string, unknown> {
     const merged: Record<string, unknown> = {};
-    for (const view of this.resolveViews(instanceId)) {
+    for (const view of this.resolveViews()) {
       Object.assign(merged, view.getHiddenValues());
     }
     return merged;
   }
 
   /** 获取所有字段值（含 hidden） */
-  getAllValues(instanceId?: string): Record<string, unknown> {
+  getAllValues(): Record<string, unknown> {
     const merged: Record<string, unknown> = {};
-    for (const view of this.resolveViews(instanceId)) {
+    for (const view of this.resolveViews()) {
       Object.assign(merged, view.getAllFormData());
     }
     return merged;
   }
 
-  getValueByPath(path: string, instanceId?: string): unknown {
-    return this.resolveViews(instanceId)[0]?.getFieldValue(path);
+  getValueByPath(path: string): unknown {
+    for (const view of this.resolveViews()) {
+      const value = view.getFieldValue(path);
+      if (value !== undefined) {
+        return value;
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -381,10 +379,9 @@ export class FormController implements NexusFormInstance {
       value: unknown,
       formData: Record<string, unknown>,
     ) => string[] | Promise<string[]>,
-    instanceId?: string,
   ): void {
-    // 注册到 Engine（validate 与 实时校验 统一由 Engine 执行）
-    for (const view of this.resolveViews(instanceId)) {
+    // 注册到各实例引擎（validate 与 实时校验 统一由 Engine 执行）
+    for (const view of this.resolveViews()) {
       view.registerFieldValidator(path, validator);
     }
   }
@@ -399,9 +396,8 @@ export class FormController implements NexusFormInstance {
       value: unknown,
       formData: Record<string, unknown>,
     ) => string[] | Promise<string[]>,
-    instanceId?: string,
   ): void {
-    for (const view of this.resolveViews(instanceId)) {
+    for (const view of this.resolveViews()) {
       view.unregisterFieldValidator(path, validator);
     }
   }
@@ -410,37 +406,41 @@ export class FormController implements NexusFormInstance {
    * 实时重校验指定字段（同步）
    * 供 widget 组件内部状态变化（非字段值变化）时主动刷新错误态
    */
-  revalidateField(path: string, instanceId?: string): void {
-    for (const view of this.resolveViews(instanceId)) {
+  revalidateField(path: string): void {
+    for (const view of this.resolveViews()) {
       view.validateField(path, { trigger: 'change' });
     }
   }
 
-  getSchema(instanceId?: string): NexusSchema | null {
-    return this.resolveViews(instanceId)[0]?.getSchema() ?? null;
+  getSchema(): NexusSchema | null {
+    return this.resolveViews()[0]?.getSchema() ?? null;
   }
 
-  removeErrorField(path: string, instanceId?: string): void {
-    for (const view of this.resolveViews(instanceId)) {
+  removeErrorField(path: string): void {
+    for (const view of this.resolveViews()) {
       view.removeErrorField(path);
     }
   }
 
-  scrollToPath(path: string, instanceId?: string): void {
-    const formEl = instanceId
-      ? (this.instanceBindings.get(instanceId)?.formEl ?? null)
-      : this.getPrimaryFormEl();
+  scrollToPath(path: string): void {
+    const formEl = this.getPrimaryFormEl();
     const el = formEl?.querySelector(`[data-nexus-field="${path}"]`);
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
-  getFieldError(path: string, instanceId?: string): string[] {
-    return this.resolveViews(instanceId)[0]?.getFieldError(path) ?? [];
+  getFieldError(path: string): string[] {
+    for (const view of this.resolveViews()) {
+      const errors = view.getFieldError(path);
+      if (errors.length > 0) {
+        return errors;
+      }
+    }
+    return [];
   }
 
-  getFieldsError(instanceId?: string): Map<string, string[]> {
+  getFieldsError(): Map<string, string[]> {
     const merged = new Map<string, string[]>();
-    for (const view of this.resolveViews(instanceId)) {
+    for (const view of this.resolveViews()) {
       for (const [path, messages] of view.getFieldsError()) {
         merged.set(path, messages);
       }
@@ -448,11 +448,8 @@ export class FormController implements NexusFormInstance {
     return merged;
   }
 
-  validateFields(
-    paths?: string[],
-    instanceId?: string,
-  ): Promise<Map<string, string[]>> {
-    const views = this.resolveViews(instanceId);
+  validateFields(paths?: string[]): Promise<Map<string, string[]>> {
+    const views = this.resolveViews();
     if (views.length === 1) {
       return views[0].validate(paths);
     }
@@ -470,7 +467,13 @@ export class FormController implements NexusFormInstance {
     );
   }
 
-  getFieldState(path: string, instanceId?: string): FieldState | undefined {
-    return this.resolveViews(instanceId)[0]?.getFieldState(path);
+  getFieldState(path: string): FieldState | undefined {
+    for (const view of this.resolveViews()) {
+      const state = view.getFieldState(path);
+      if (state) {
+        return state;
+      }
+    }
+    return undefined;
   }
 }

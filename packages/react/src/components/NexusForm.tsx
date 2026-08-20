@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode, SubmitEvent } from 'react';
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useSyncExternalStore,
@@ -41,16 +42,14 @@ export interface NexusFormConfig {
 }
 
 export interface NexusFormProps {
-  /** Form 实例，由 useForm() 创建 */
+  /**
+   * Form 实例，由 useForm() 创建。同一 form 引用 = 同一引擎宿主（组件/插件注册共享）；
+   * 每个 NexusForm 挂载自动获得独立实例（schema/值/订阅互不影响），
+   * form 的 API（getValues/setValues/submit...）聚合作用于全部实例。
+   */
   form: FormController;
   /** Schema 定义 */
   schema?: NexusSchema;
-  /**
-   * 实例标识（同一 form 可挂载多个不同 schema 的 NexusForm，互不影响）
-   * - 缺省时首个 NexusForm 使用 'default' 实例，其余自动分配（nexus-1/nexus-2/...）
-   * - 同一 instanceId 的多个 NexusForm 共享同一实例的 schema/值/订阅
-   */
-  instanceId?: string;
   /** 初始值 */
   initialValues?: Record<string, unknown>;
   /** 额外注册的 widget（与已注册的合并） */
@@ -153,18 +152,15 @@ export function NexusForm({
   removeHiddenData = true,
   locale,
   persist,
-  instanceId,
 }: NexusFormProps) {
-  // 实例视图引擎：同一 form 挂载多个 NexusForm 时各自独立
-  // （schema/值/订阅互不影响）；hooks 消费 context 中的视图引擎自动定向到实例
-  const resolvedInstanceId = useMemo(
-    () => form._acquireInstanceId(instanceId),
-    [form, instanceId],
-  );
-  const engine = useMemo(
-    () => form._useInstance(resolvedInstanceId),
-    [form, resolvedInstanceId],
-  );
+  // 实例视图引擎：同一 form 挂载的每个 NexusForm 自动获得独立实例
+  // （schema/值/订阅互不影响）；实例标识由 useId 内部生成，用户不感知 instanceId。
+  // 同一 form = 同一引擎宿主（组件/插件注册共享），不同 schema = 不同实例状态。
+  const instanceKey = useId();
+  const engine = useMemo(() => form._useInstance(instanceKey), [
+    form,
+    instanceKey,
+  ]);
   const formElRef = useRef<HTMLFormElement | null>(null);
   // persist 配置经 ref 持有：保存回调不随配置对象变化重建订阅
   const persistRef = useRef<PersistOptions | undefined>(persist);
@@ -276,18 +272,18 @@ export function NexusForm({
   // 只在挂载时绑定一次：传入「稳定的 getter」，让 FormController 在 submit 时读取最新回调
   useEffect(() => {
     form._bind(
-      resolvedInstanceId,
+      instanceKey,
       formElRef.current,
       () => onFinishRef.current,
       () => onFinishFailedRef.current,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, resolvedInstanceId]);
+  }, [form, instanceKey]);
 
   // watch / removeHiddenData 变化时单独同步（不重置其他绑定）
   useEffect(() => {
-    form._syncConfig(resolvedInstanceId, { removeHiddenData, watch });
-  }, [form, resolvedInstanceId, removeHiddenData, watch]);
+    form._syncConfig(instanceKey, { removeHiddenData, watch });
+  }, [form, instanceKey, removeHiddenData, watch]);
 
   // 渲染树版本订阅：仅 Schema 结构变化（init/setSchema/reset）时重算 renderTree。
   // 字段值/错误等数据变化只 bump store 版本（useFormData 消费），
@@ -372,12 +368,7 @@ export function NexusForm({
   );
 
   return (
-    <NexusFormProvider
-      engine={engine}
-      config={formConfig}
-      form={form}
-      instanceId={resolvedInstanceId}
-    >
+    <NexusFormProvider engine={engine} config={formConfig} form={form}>
       <form
         ref={formElRef}
         onSubmit={handleSubmit}

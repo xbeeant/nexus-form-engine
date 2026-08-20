@@ -836,7 +836,7 @@ export interface EngineHooks {
    * 异步校验器插件通过该钩子接管防抖/超时/并行的异步校验调度
    *
    * @param path - 字段路径
-   * @param engine - 发起校验的引擎实例（多实例场景下为定向到目标实例的视图）
+   * @param engine - 发起校验的引擎（字段所属引擎，一引擎一份 schema/状态）
    */
   onValidateField?: (path: string, engine: NexusEngine) => void;
   /**
@@ -1180,7 +1180,6 @@ export interface NexusFormInstance {
       value: unknown,
       formData: Record<string, unknown>,
     ) => string[] | Promise<string[]>,
-    instanceId?: string,
   ): void;
   /**
    * 注销字段校验逻辑（按函数引用移除）
@@ -1192,7 +1191,6 @@ export interface NexusFormInstance {
       value: unknown,
       formData: Record<string, unknown>,
     ) => string[] | Promise<string[]>,
-    instanceId?: string,
   ): void;
   /**
    * 实时重校验指定字段（同步，触发 trigger='change'/无 trigger 的规则与已注册校验器）

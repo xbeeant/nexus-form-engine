@@ -1,7 +1,10 @@
 /**
- * 多实例测试：同一 NexusEngine 承载多个独立表单实例（engine.instance(id) 视图）
+ * 多实例测试
  *
- * 覆盖：schema/值/订阅/校验/重置的实例隔离，引擎级能力（插件/组件）共享
+ * 实例路由（engine.instance(id) 视图）是引擎的内部机制，由 FormController
+ * 按 NexusForm 挂载自动分配实例标识——用户侧不感知任何 instanceId。
+ * 覆盖：不同实例的 schema/值/订阅/校验/重置隔离，引擎级能力（插件/组件）共享，
+ * 以及不同引擎（不同 useForm()）之间的完全独立。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -23,7 +26,7 @@ const schemaB: NexusSchema = {
   },
 };
 
-describe('多实例（engine.instance）', () => {
+describe('同一引擎宿主的多实例（engine.instance 视图）', () => {
   it('不同实例的 schema 与值互不影响', () => {
     const engine = new NexusEngine();
     const a = engine.instance('a');
@@ -40,7 +43,7 @@ describe('多实例（engine.instance）', () => {
     expect(b.getFormData()).toEqual({ city: '北京' });
   });
 
-  it('根引擎（default 实例）与视图实例隔离', () => {
+  it('宿主引擎（default 实例）与视图实例隔离', () => {
     const engine = new NexusEngine();
     engine.init(schemaA, { name: '默认' });
     const view = engine.instance('other');
@@ -49,8 +52,6 @@ describe('多实例（engine.instance）', () => {
     expect(engine.getFieldValue('name')).toBe('默认');
     expect(engine.getFieldValue('city')).toBeUndefined();
     expect(view.getFieldValue('city')).toBe('上海');
-    expect(engine.getInstanceIds()).toContain('default');
-    expect(engine.getInstanceIds()).toContain('other');
   });
 
   it('实例 A 的值变更不触发实例 B 的订阅', () => {
@@ -119,7 +120,7 @@ describe('多实例（engine.instance）', () => {
     expect(b.getFieldError('name')).toEqual([]);
   });
 
-  it('视图与根引擎共享字段状态（同实例不同视图语义等价）', () => {
+  it('视图与宿主共享字段状态（同实例标识不同视图语义等价）', () => {
     const engine = new NexusEngine();
     const a1 = engine.instance('a');
     const a2 = engine.instance('a');
@@ -127,5 +128,26 @@ describe('多实例（engine.instance）', () => {
     expect(a2.getFieldValue('name')).toBe('共享');
     a2.setFieldValue('name', '更新');
     expect(a1.getFieldValue('name')).toBe('更新');
+  });
+});
+
+describe('不同引擎（不同 useForm()）', () => {
+  it('不同引擎的 schema 与值互不影响', () => {
+    const a = new NexusEngine();
+    const b = new NexusEngine();
+
+    a.init(schemaA, { name: '张三' });
+    b.init(schemaB, { city: '北京' });
+
+    expect(a.getFormData()).toEqual({ name: '张三' });
+    expect(b.getFormData()).toEqual({ city: '北京' });
+  });
+
+  it('插件按引擎注册，互不共享', () => {
+    const a = new NexusEngine();
+    const b = new NexusEngine();
+    a.use(new AsyncValidatorPlugin(a));
+    expect(a.hasPlugin('async-validator')).toBe(true);
+    expect(b.hasPlugin('async-validator')).toBe(false);
   });
 });

@@ -74,11 +74,12 @@ function interpolateMessage(
 }
 
 /**
- * 单个表单实例的完整状态（同一 NexusEngine 可承载多个独立实例）
+ * 单个表单实例的完整状态
  *
- * 引擎级能力（插件/组件注册/跨表单联动/表达式沙箱/消息模板）在 NexusEngine 上共享，
- * 实例级状态（schema/字段/渲染树/依赖图/订阅/版本/缓存）全部收敛到此对象，
- * 保证多个 NexusForm 使用同一 form 时 schema 与数据互不影响。
+ * 引擎级能力（插件/组件注册/跨表单联动/表达式沙箱/消息模板）在 NexusEngine 宿主上共享，
+ * 实例级状态（schema/字段/渲染树/依赖图/订阅/版本/缓存）按实例收敛到此对象。
+ * 一个引擎宿主可承载多个独立实例（每个 NexusForm 挂载一份 schema），
+ * 实例标识由上层（FormController）内部分配，用户不感知。
  */
 interface EngineInstanceState {
   /** 本实例当前加载的 Schema 定义 */
@@ -140,11 +141,11 @@ interface EngineInstanceState {
  * - 插件系统扩展
  */
 export class NexusEngine implements IFormEngine {
-  // ── 多实例状态（同一 engine 挂载多个表单，schema/值/订阅互相独立）──
+  // ── 实例状态（同一引擎宿主可承载多个独立实例，schema/值/订阅互相独立）──
 
-  /** 实例标识 → 实例状态（每份 schema 一份实例状态） */
+  /** 实例标识 → 实例状态（每份 schema 一份实例状态；标识由上层内部分配） */
   private instances: Map<string, EngineInstanceState> = new Map();
-  /** 当前实例标识：根引擎为 'default'，instance() 视图覆盖该值定向到目标实例 */
+  /** 当前实例标识：宿主引擎为 'default'，instance() 视图覆盖该值定向到目标实例 */
   private currentInstanceId = 'default';
 
   /** 解析当前实例状态（视图引擎经 currentInstanceId 定向） */
@@ -176,28 +177,20 @@ export class NexusEngine implements IFormEngine {
   }
 
   /**
-   * 获取指定实例的引擎视图（同一引擎上的独立表单实例）
+   * 获取指定实例的引擎视图（内部 API：由 FormController 按挂载分配实例标识）
    *
-   * 视图与根引擎共享插件/组件注册/跨表单联动等引擎级能力，
+   * 视图与宿主引擎共享插件/组件注册/跨表单联动等引擎级能力，
    * 但 schema、字段状态、订阅与版本各自独立：
    * - 通过视图调用 init/setFieldValue/subscribe 等仅作用于该实例
-   * - 未指定 instanceId 的 NexusForm 使用根引擎（'default' 实例）
-   * - 同一实例多次调用 instance(id) 返回不同视图对象（语义等价）
+   * - 同一实例标识多次调用 instance(id) 返回不同视图对象（语义等价）
    *
-   * @param instanceId - 实例标识
+   * @param instanceId - 实例标识（上层内部分配，用户不感知）
    * @returns 定向到该实例的引擎视图
    */
   instance(instanceId: string): NexusEngine {
     const view = Object.create(this) as NexusEngine;
     view.currentInstanceId = instanceId;
     return view;
-  }
-
-  /**
-   * 获取已创建的全部实例标识
-   */
-  getInstanceIds(): string[] {
-    return Array.from(this.instances.keys());
   }
 
   // ── 表达式沙箱 ──
@@ -1945,7 +1938,7 @@ export class NexusEngine implements IFormEngine {
    * 销毁引擎实例，清理所有内部状态和订阅
    */
   destroy(): void {
-    // 清空全部实例（同一引擎的多个表单实例一起销毁）
+    // 清空全部实例（同一引擎宿主的多个表单实例一起销毁）
     for (const inst of this.instances.values()) {
       inst.fieldStates.clear();
       inst.fieldVersions.clear();

@@ -30,8 +30,6 @@ interface NexusContextValue {
   engine: NexusEngine;
   config: NexusFormConfig;
   form: FormController;
-  /** 当前 NexusForm 的实例标识（多实例场景下用于按实例寻址 form API） */
-  instanceId: string;
 }
 
 export const NexusContext = createContext<NexusContextValue | null>(null);

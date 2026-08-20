@@ -71,8 +71,7 @@ export class AsyncValidatorPlugin implements NexusPlugin {
       this.engine = engine;
     },
     onValidateField: (path: string, engine: NexusEngine) => {
-      // 多实例场景：使用发起校验的引擎视图（定向到目标实例），
-      // 保证异步校验结果写回正确的实例
+      // 发起校验的引擎即字段所属引擎，异步校验结果写回同一引擎
       this.schedule(path, engine ?? this.engine);
     },
   };
@@ -188,7 +187,7 @@ export class AsyncValidatorPlugin implements NexusPlugin {
    * 防抖窗口内同一字段再次变更会清除前一个定时器，以最后一次为准
    *
    * @param path - 字段路径
-   * @param engine - 目标实例引擎（多实例场景下为实例视图）
+   * @param engine - 字段所属引擎（一引擎一份 schema/状态）
    */
   private schedule(path: string, engine: NexusEngine): void {
     const state = engine.getFieldState(path);

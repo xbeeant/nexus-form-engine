@@ -31,7 +31,7 @@ function buildTree(): Root {
       { type: 'page', name: '性能压测', url: '/benchmark' },
       { type: 'page', name: '开发工具', url: '/devtools' },
       { type: 'page', name: '多表单联动', url: '/multi-form' },
-      { type: 'page', name: '单 form 多实例', url: '/multi-instance' },
+      { type: 'page', name: '同一 form 多 schema', url: '/multi-instance' },
       { type: 'page', name: '组件文档', url: '/widget-docs' },
       { type: 'page', name: '组件内校验', url: '/widget-validation' },
       { type: 'page', name: '高级组件', url: '/advanced-widgets' },
