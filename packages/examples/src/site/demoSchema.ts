@@ -266,7 +266,9 @@ export const demoSchema: NexusSchema = {
           reactions: [
             {
               dependencies: ['price', 'discount'],
-              fulfill: { state: { value: '{{ Math.round($deps[0] * $deps[1]) / 100 }}' } },
+              fulfill: {
+                state: { value: '{{ Math.round($deps[0] * $deps[1]) / 100 }}' },
+              },
             },
           ],
         },

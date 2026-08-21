@@ -9,8 +9,10 @@
     "dev": "lerna run dev",
     "clean": "lerna clean",
     "format": "bunx --bun @biomejs/biome format --write .",
-    "lint": "bunx --bun @biomejs/biome lint .",
-    "prettier": "bunx --bun @biomejs/biome check --write --unsafe .",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "lint:fix:unsafe": "biome check --write --unsafe .",
+    "prettier": "biome check --write .",
     "test": "lerna run test"
   },
   "devDependencies": {

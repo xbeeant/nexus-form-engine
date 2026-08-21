@@ -18,7 +18,7 @@ export const autoCompleteSchema = {
 };
 
 // ── 远程数据版 ──────────────────────────────────────────────────────────────
-export const autoCompleteRemoteSchema = {
+export const remoteAutoCompleteSchema = {
   allowClear: { type: 'boolean', widget: 'switch', title: '允许清除' },
   defaultActiveFirstOption: {
     type: 'boolean',

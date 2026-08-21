@@ -41,7 +41,7 @@ export const multiSelectWidget = ({
 };
 
 // 远程数据版本
-export const multiSelectWidgetWithRemote = ({
+export const remoteMultiSelectWidget = ({
   value,
   onChange,
   options: _opt,

@@ -147,7 +147,7 @@ export class FormController implements NexusFormInstance {
   }
 
   /** 内部：同步 watch / removeHiddenData / onValuesChange 配置（由 NexusForm 在它们变化时按实例调用） */
-_syncConfig(
+  _syncConfig(
     instanceId: string,
     config: {
       removeHiddenData?: boolean;
@@ -548,17 +548,17 @@ _syncConfig(
       return views[0].validate(paths, options);
     }
     // 多实例：并行校验并合并错误
-    return Promise.all(
-      views.map((view) => view.validate(paths, options)),
-    ).then((results) => {
-      const merged = new Map<string, string[]>();
-      for (const result of results) {
-        for (const [path, messages] of result) {
-          merged.set(path, messages);
+    return Promise.all(views.map((view) => view.validate(paths, options))).then(
+      (results) => {
+        const merged = new Map<string, string[]>();
+        for (const result of results) {
+          for (const [path, messages] of result) {
+            merged.set(path, messages);
+          }
         }
-      }
-      return merged;
-    });
+        return merged;
+      },
+    );
   }
 
   getFieldState(path: string): FieldState | undefined {

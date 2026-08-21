@@ -55,10 +55,10 @@ export const widgetCatalog: CatalogItem[] = [
     label: '下拉选择（远程）',
     icon: '📡',
     category: 'widget',
-    widget: 'selectWithRemote',
+    widget: 'remoteSelect',
     createNode: () => ({
       type: 'string',
-      widget: 'selectWithRemote',
+      widget: 'remoteSelect',
       title: '下拉选择（远程）',
       remoteData: {
         url: '/api/options',
@@ -122,10 +122,10 @@ export const widgetCatalog: CatalogItem[] = [
     label: '多选下拉（远程）',
     icon: '📡',
     category: 'widget',
-    widget: 'multiSelectWithRemote',
+    widget: 'remoteMultiSelect',
     createNode: () => ({
       type: 'array',
-      widget: 'multiSelectWithRemote',
+      widget: 'remoteMultiSelect',
       title: '多选下拉（远程）',
       remoteData: {
         url: '/api/multi-options',
@@ -257,10 +257,10 @@ export const widgetCatalog: CatalogItem[] = [
     label: '自动完成（远程）',
     icon: '📡',
     category: 'widget',
-    widget: 'autoCompleteWithRemote',
+    widget: 'remoteAutoComplete',
     createNode: () => ({
       type: 'string',
-      widget: 'autoCompleteWithRemote',
+      widget: 'remoteAutoComplete',
       title: '自动完成（远程）',
       remoteData: {
         url: '/api/suggestions',
@@ -287,10 +287,10 @@ export const widgetCatalog: CatalogItem[] = [
     label: '级联选择（远程）',
     icon: '📡',
     category: 'widget',
-    widget: 'cascaderWithRemote',
+    widget: 'remoteCascader',
     createNode: () => ({
       type: 'array',
-      widget: 'cascaderWithRemote',
+      widget: 'remoteCascader',
       title: '级联选择（远程）',
       remoteData: {
         url: '/api/cascader/nodes',
@@ -322,10 +322,10 @@ export const widgetCatalog: CatalogItem[] = [
     label: '提及（远程）',
     icon: '📡',
     category: 'widget',
-    widget: 'mentionsWithRemote',
+    widget: 'remoteMentions',
     createNode: () => ({
       type: 'string',
-      widget: 'mentionsWithRemote',
+      widget: 'remoteMentions',
       title: '提及（远程）',
       remoteData: {
         url: '/api/users/suggestions',

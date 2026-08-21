@@ -53,7 +53,7 @@ export const mentionsWidget = ({
 };
 
 // 远程数据版本
-export const mentionsWidgetWithRemote = ({
+export const remoteMentionsWidget = ({
   value,
   onChange,
   options: _opt,

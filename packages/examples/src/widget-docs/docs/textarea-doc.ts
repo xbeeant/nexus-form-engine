@@ -90,7 +90,12 @@ export const textareaDoc: WidgetDoc = {
             widget: 'textarea',
             title: '评论',
             max: 200,
-            props: { showCount: true, maxLength: 200, autoSize: true, minRows: 2 },
+            props: {
+              showCount: true,
+              maxLength: 200,
+              autoSize: true,
+              minRows: 2,
+            },
           },
         },
       },

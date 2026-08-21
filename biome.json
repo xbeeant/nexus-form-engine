@@ -1,24 +1,20 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
-    "includes": [
-      "**",
-      "!./dist",
-      "!**/*.yaml",
-      "!**/*.html",
-      "!!dist",
-      "!!build"
-    ]
+    "includes": ["**", "!./dist", "!./build", "!**/*.yaml", "!**/*.html"]
   },
   "formatter": {
     "enabled": true,
-    "formatWithErrors": true,
+    "formatWithErrors": false,
     "indentStyle": "space",
     "indentWidth": 2,
     "lineWidth": 80,
-    "attributePosition": "auto",
-    "bracketSameLine": false,
-    "bracketSpacing": true,
+    "lineEnding": "lf",
     "expand": "auto",
     "useEditorconfig": true
   },
@@ -42,7 +38,6 @@
         "useExhaustiveDependencies": "warn"
       },
       "a11y": {
-        "preset": "recommended",
         "noStaticElementInteractions": "off",
         "useButtonType": "warn",
         "noSvgWithoutTitle": "warn",

@@ -5,7 +5,7 @@
 import type { WidgetDoc } from '../types';
 
 export const mentionsRemoteDoc: WidgetDoc = {
-  id: 'mentionsWithRemote',
+  id: 'remoteMentions',
   group: '复杂选择',
   title: '提及（远程数据）',
   english: 'Mentions (Remote)',
@@ -22,7 +22,7 @@ export const mentionsRemoteDoc: WidgetDoc = {
         properties: {
           comment: {
             type: 'string',
-            widget: 'mentionsWithRemote',
+            widget: 'remoteMentions',
             title: '评论',
             remoteData: {
               url: '/api/users/suggestions',

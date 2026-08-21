@@ -56,7 +56,7 @@ export const autoCompleteWidget = ({
 };
 
 // 远程数据版本
-export const autoCompleteWidgetWithRemote = ({
+export const remoteAutoCompleteWidget = ({
   value,
   onChange,
   options: _opt,

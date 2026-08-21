@@ -1,4 +1,4 @@
-import type { NexusSchema } from '@xbeeant/form-engine';
+import type { NexusComponent, NexusSchema } from '@xbeeant/form-engine';
 import type { CSSProperties, ReactNode, SubmitEvent } from 'react';
 import {
   useCallback,
@@ -8,6 +8,7 @@ import {
   useRef,
   useSyncExternalStore,
 } from 'react';
+import { useFormSubmitting } from '../hooks';
 import {
   clearPersisted,
   loadPersisted,
@@ -17,7 +18,6 @@ import {
 import { renderTreeNode } from '../utils/renderTreeNode';
 import type { FormController } from './FormController';
 import { NexusFormProvider } from './NexusFormProvider';
-import { useFormSubmitting } from '../hooks/useFormSubmitting';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Form 布局配置
@@ -57,6 +57,8 @@ export interface NexusFormProps {
   widgets?: Record<string, (props: any) => ReactNode>;
   /** 额外注册的 layout */
   layouts?: Record<string, (props: any) => ReactNode>;
+  /** 字段包裹组件（UI 无关，Renderer 层注入；渲染层默认包裹所有 widget，label=false 时跳过） */
+  fieldWrapper?: NexusComponent;
   /** 提交成功回调 */
   onFinish?: (formData: Record<string, unknown>) => void | Promise<void>;
   /** 校验失败回调 */
@@ -150,6 +152,7 @@ export function NexusForm({
   initialValues,
   widgets,
   layouts,
+  fieldWrapper,
   onFinish,
   onFinishFailed,
   onMount,
@@ -175,10 +178,10 @@ export function NexusForm({
   // （schema/值/订阅互不影响）；实例标识由 useId 内部生成，用户不感知 instanceId。
   // 同一 form = 同一引擎宿主（组件/插件注册共享），不同 schema = 不同实例状态。
   const instanceKey = useId();
-  const engine = useMemo(() => form._useInstance(instanceKey), [
-    form,
-    instanceKey,
-  ]);
+  const engine = useMemo(
+    () => form._useInstance(instanceKey),
+    [form, instanceKey],
+  );
   const formElRef = useRef<HTMLFormElement | null>(null);
   // persist 配置经 ref 持有：保存回调不随配置对象变化重建订阅
   const persistRef = useRef<PersistOptions | undefined>(persist);
@@ -198,10 +201,13 @@ export function NexusForm({
     if (widgets) {
       engine.registerWidgets(widgets);
     }
+    if (fieldWrapper) {
+      engine.registerFieldWrapper(fieldWrapper);
+    }
     if (layouts) {
       engine.registerLayouts(layouts);
     }
-  }, [engine, widgets, layouts]);
+  }, [engine, widgets, layouts, fieldWrapper]);
 
   // schema 变化时重新初始化
   // 注意：initialValues 仅在首次挂载时使用，避免每次渲染都 re-init 导致

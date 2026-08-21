@@ -7,7 +7,7 @@ import './styles.css';
 
 export { FormController } from './components/FormController';
 export { NexusField } from './components/NexusField';
-export type { NexusFormConfig } from './components/NexusForm';
+export type { NexusFormConfig, NexusFormProps } from './components/NexusForm';
 export { NexusForm } from './components/NexusForm';
 export { NexusFormProvider } from './components/NexusFormProvider';
 export { NexusLayout } from './components/NexusLayout';

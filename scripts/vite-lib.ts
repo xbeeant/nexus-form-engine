@@ -16,7 +16,9 @@ import { libInjectCss } from 'vite-plugin-lib-inject-css';
 const SondaPluginPath = 'sonda/vite';
 const DtsPluginPath = 'vite-plugin-dts';
 const Sonda = (await import(SondaPluginPath)).default as () => PluginOption;
-const dts = (await import(DtsPluginPath)).default as (options?: Record<string, unknown>) => PluginOption;
+const dts = (await import(DtsPluginPath)).default as (
+  options?: Record<string, unknown>,
+) => PluginOption;
 
 /** 构建格式：es（默认）/ cjs / umd */
 export type ViteLibFormat = 'es' | 'cjs' | 'umd';

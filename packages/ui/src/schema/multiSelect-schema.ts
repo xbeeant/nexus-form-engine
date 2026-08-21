@@ -51,7 +51,7 @@ export const multiSelectSchema = {
 };
 
 // ── 远程数据版 ──────────────────────────────────────────────────────────────
-export const multiSelectRemoteSchema = {
+export const remoteMultiSelectSchema = {
   showSearch: { type: 'boolean', widget: 'switch', title: '可搜索' },
   mode: {
     type: 'string',

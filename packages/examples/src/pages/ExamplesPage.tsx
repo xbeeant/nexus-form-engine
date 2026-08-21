@@ -93,14 +93,14 @@ export default function ExamplesPage() {
               使用示例
             </Typography.Title>
             <Paragraph type='secondary'>
-              场景：新品发布（商品上架）。覆盖全部默认 widget（input / password /
-              select / radio / checkbox / switch / rate / slider / number / date /
-              time / dateRange / timeRange / color / urlInput / treeSelect /
-              cascader / autoComplete / multiSelect / checkboxes / mentions /
-              segmented / transfer / image / file / html / list / simpleList /
-              tableList）+ 全部布局（card / grid / tabs / collapse / steps / flex /
-              divider / space）+ reactions 联动 + 计算字段 + 校验 + 数据对象 +
-              registerValidator
+              场景：新品发布（商品上架）。覆盖全部默认 widget（input / password
+              / select / radio / checkbox / switch / rate / slider / number /
+              date / time / dateRange / timeRange / color / urlInput /
+              treeSelect / cascader / autoComplete / multiSelect / checkboxes /
+              mentions / segmented / transfer / image / file / html / list /
+              simpleList / tableList）+ 全部布局（card / grid / tabs / collapse
+              / steps / flex / divider / space）+ reactions 联动 + 计算字段 +
+              校验 + 数据对象 + registerValidator
             </Paragraph>
           </div>
           <Segmented
@@ -129,8 +129,9 @@ export default function ExamplesPage() {
             ]}
           />
           <Typography.Text type='secondary' style={{ fontSize: 12 }}>
-            「促销配置」卡片演示 visible/required 联动（勾选秒杀/优惠券显示对应字段）
-            与计算字段（售价 × 折扣 = 折后价）
+            「促销配置」卡片演示 visible/required
+            联动（勾选秒杀/优惠券显示对应字段） 与计算字段（售价 × 折扣 =
+            折后价）
           </Typography.Text>
         </Space>
 
@@ -225,7 +226,10 @@ export default function ExamplesPage() {
                   <Button
                     size='small'
                     onClick={async () => {
-                      const errors = await form.validateFields(['name', 'price']);
+                      const errors = await form.validateFields([
+                        'name',
+                        'price',
+                      ]);
                       console.error('校验结果:', Object.fromEntries(errors));
                     }}
                   >

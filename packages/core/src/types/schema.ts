@@ -412,7 +412,7 @@ export interface DataFieldSchema extends BaseSchemaNode {
   /** JSON Schema 兼容：仅空白视为空（自动转 ValidationRule） */
   whitespace?: boolean;
   /**
-   * 远程数据源配置（远程数据组件扩展属性，如 selectWithRemote）
+   * 远程数据源配置（远程数据组件扩展属性，如 remoteSelect）
    * 由组件库（@xbeeant/form-engine-ui）消费，Core 仅透传到 props 供控件读取
    */
   remoteData?: Record<string, unknown>;

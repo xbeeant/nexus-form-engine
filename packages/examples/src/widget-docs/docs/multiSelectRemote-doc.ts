@@ -5,7 +5,7 @@
 import type { WidgetDoc } from '../types';
 
 export const multiSelectRemoteDoc: WidgetDoc = {
-  id: 'multiSelectWithRemote',
+  id: 'remoteMultiSelect',
   group: '选择类',
   title: '多选（远程数据）',
   english: 'MultiSelect (Remote)',
@@ -22,7 +22,7 @@ export const multiSelectRemoteDoc: WidgetDoc = {
         properties: {
           members: {
             type: 'array',
-            widget: 'multiSelectWithRemote',
+            widget: 'remoteMultiSelect',
             title: '项目成员',
             remoteData: {
               url: '/api/members',
@@ -52,7 +52,7 @@ export const multiSelectRemoteDoc: WidgetDoc = {
         properties: {
           keywords: {
             type: 'array',
-            widget: 'multiSelectWithRemote',
+            widget: 'remoteMultiSelect',
             title: '关键词',
             remoteData: {
               url: '/api/keywords',

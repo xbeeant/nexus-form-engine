@@ -39,7 +39,7 @@ export const selectWidget = ({
 };
 
 // 远程数据版本
-export const selectWidgetWithRemote = ({
+export const remoteSelectWidget = ({
   value,
   onChange,
   options: _opt,

@@ -4,8 +4,8 @@
 // 任何需要自定义或扩展组件行为的开发者都可以在此文件中修改或添加新的 Schema
 
 import {
-  autoCompleteRemoteSchema,
   autoCompleteSchema,
+  remoteAutoCompleteSchema,
 } from './autoComplete-schema';
 import { cardSchema } from './card-schema';
 import { cascaderRemoteSchema, cascaderSchema } from './cascader-schema';
@@ -21,15 +21,15 @@ import { inputSchema } from './input-schema';
 import { listSchema } from './list-schema';
 import { mentionsRemoteSchema, mentionsSchema } from './mentions-schema';
 import {
-  multiSelectRemoteSchema,
   multiSelectSchema,
+  remoteMultiSelectSchema,
 } from './multiSelect-schema';
 import { numberSchema } from './number-schema';
 import { passwordSchema } from './password-schema';
 import { radioSchema } from './radio-schema';
 import { rateSchema } from './rate-schema';
 import { segmentedSchema } from './segmented-schema';
-import { selectRemoteSchema, selectSchema } from './select-schema';
+import { remoteSelectSchema, selectSchema } from './select-schema';
 import { simpleListSchema } from './simpleList-schema';
 import { sliderSchema } from './slider-schema';
 import { spaceSchema } from './space-schema';
@@ -45,7 +45,6 @@ import { voidTitleSchema } from './voidTitle-schema';
 
 // ── 导出所有 Schema 定义 ─────────────────────────────────────────────────────────
 export {
-  autoCompleteRemoteSchema,
   autoCompleteSchema,
   cardSchema,
   cascaderRemoteSchema,
@@ -62,14 +61,15 @@ export {
   listSchema,
   mentionsRemoteSchema,
   mentionsSchema,
-  multiSelectRemoteSchema,
   multiSelectSchema,
   numberSchema,
   passwordSchema,
   radioSchema,
   rateSchema,
+  remoteAutoCompleteSchema,
+  remoteMultiSelectSchema,
+  remoteSelectSchema,
   segmentedSchema,
-  selectRemoteSchema,
   selectSchema,
   simpleListSchema,
   sliderSchema,
@@ -96,7 +96,7 @@ export const widgetSchemas: PropertySchemaMap = {
   input: inputSchema,
   password: passwordSchema,
   select: selectSchema,
-  selectWithRemote: selectRemoteSchema,
+  remoteSelect: remoteSelectSchema,
   radio: radioSchema,
   rate: rateSchema,
   checkbox: checkboxSchema,
@@ -105,7 +105,7 @@ export const widgetSchemas: PropertySchemaMap = {
   voidTitle: voidTitleSchema,
   number: numberSchema,
   multiSelect: multiSelectSchema,
-  multiSelectWithRemote: multiSelectRemoteSchema,
+  remoteMultiSelect: remoteMultiSelectSchema,
   textarea: textareaSchema,
   textArea: textareaSchema,
   date: dateSchema,
@@ -119,11 +119,11 @@ export const widgetSchemas: PropertySchemaMap = {
   urlInput: urlInputSchema,
   treeSelect: treeSelectSchema,
   autoComplete: autoCompleteSchema,
-  autoCompleteWithRemote: autoCompleteRemoteSchema,
+  remoteAutoComplete: remoteAutoCompleteSchema,
   cascader: cascaderSchema,
-  cascaderWithRemote: cascaderRemoteSchema,
+  remoteCascader: cascaderRemoteSchema,
   mentions: mentionsSchema,
-  mentionsWithRemote: mentionsRemoteSchema,
+  remoteMentions: mentionsRemoteSchema,
   segmented: segmentedSchema,
   transfer: transferSchema,
   file: fileSchema,

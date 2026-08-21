@@ -5,7 +5,7 @@
 import type { WidgetDoc } from '../types';
 
 export const autoCompleteRemoteDoc: WidgetDoc = {
-  id: 'autoCompleteWithRemote',
+  id: 'remoteAutoComplete',
   group: '复杂选择',
   title: '自动完成（远程数据）',
   english: 'AutoComplete (Remote)',
@@ -22,7 +22,7 @@ export const autoCompleteRemoteDoc: WidgetDoc = {
         properties: {
           city: {
             type: 'string',
-            widget: 'autoCompleteWithRemote',
+            widget: 'remoteAutoComplete',
             title: '搜索城市',
             remoteData: {
               url: '/api/cities',

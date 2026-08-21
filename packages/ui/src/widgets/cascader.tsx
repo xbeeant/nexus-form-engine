@@ -124,7 +124,7 @@ export const cascaderWidget = ({
 };
 
 // 远程数据版本
-export const cascaderWidgetWithRemote = ({
+export const remoteCascaderWidget = ({
   value,
   onChange,
   options,

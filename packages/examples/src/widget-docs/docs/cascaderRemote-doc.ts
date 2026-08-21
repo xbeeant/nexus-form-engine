@@ -5,7 +5,7 @@
 import type { WidgetDoc } from '../types';
 
 export const cascaderRemoteDoc: WidgetDoc = {
-  id: 'cascaderWithRemote',
+  id: 'remoteCascader',
   group: '复杂选择',
   title: '级联选择（远程数据）',
   english: 'Cascader (Remote)',
@@ -22,7 +22,7 @@ export const cascaderRemoteDoc: WidgetDoc = {
         properties: {
           area: {
             type: 'array',
-            widget: 'cascaderWithRemote',
+            widget: 'remoteCascader',
             title: '行政区划',
             remoteData: {
               url: '/api/cascader/nodes',

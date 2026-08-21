@@ -5,7 +5,7 @@
 import type { WidgetDoc } from '../types';
 
 export const selectRemoteDoc: WidgetDoc = {
-  id: 'selectWithRemote',
+  id: 'remoteSelect',
   group: '选择类',
   title: '下拉选择（远程数据）',
   english: 'Select (Remote)',
@@ -22,7 +22,7 @@ export const selectRemoteDoc: WidgetDoc = {
         properties: {
           user: {
             type: 'string',
-            widget: 'selectWithRemote',
+            widget: 'remoteSelect',
             title: '选择用户',
             remoteData: {
               url: '/api/options',
@@ -56,7 +56,7 @@ export const selectRemoteDoc: WidgetDoc = {
           },
           user: {
             type: 'string',
-            widget: 'selectWithRemote',
+            widget: 'remoteSelect',
             title: '用户（按城市过滤）',
             remoteData: {
               url: '/api/users',
@@ -85,7 +85,7 @@ export const selectRemoteDoc: WidgetDoc = {
         properties: {
           dept: {
             type: 'string',
-            widget: 'selectWithRemote',
+            widget: 'remoteSelect',
             title: '所属部门',
             remoteData: {
               url: '/api/departments',

@@ -202,9 +202,7 @@ describe('字段级 tooltip（ProForm / Formily 对齐）', () => {
         },
       },
     });
-    expect(engine.getFieldState('name')?.meta.tooltip).toBe(
-      '仅支持中文与字母',
-    );
+    expect(engine.getFieldState('name')?.meta.tooltip).toBe('仅支持中文与字母');
   });
 
   it('reaction 的 fulfill.state.tooltip 可动态联动', () => {
@@ -221,7 +219,8 @@ describe('字段级 tooltip（ProForm / Formily 对齐）', () => {
               dependencies: ['mode'],
               fulfill: {
                 state: {
-                  tooltip: "{{ $deps[0] === 'vip' ? 'VIP 专属提示' : '普通提示' }}",
+                  tooltip:
+                    "{{ $deps[0] === 'vip' ? 'VIP 专属提示' : '普通提示' }}",
                 },
               },
             },

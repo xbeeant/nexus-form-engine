@@ -34,7 +34,7 @@ export const selectSchema = {
 
 // ── 远程数据版 ──────────────────────────────────────────────────────────────
 // 选项通过 remoteData 配置异步加载（GET/POST + 动态 params）
-export const selectRemoteSchema = {
+export const remoteSelectSchema = {
   showSearch: { type: 'boolean', widget: 'switch', title: '可搜索' },
   allowClear: { type: 'boolean', widget: 'switch', title: '允许清除' },
   optionFilterProp: {
