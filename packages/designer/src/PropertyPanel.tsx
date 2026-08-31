@@ -16,7 +16,7 @@ import type { NexusSchema, SchemaNode } from '@xbeeant/form-engine';
 import { NexusForm, useForm } from '@xbeeant/form-engine-react';
 import { registerAntdUI } from '@xbeeant/form-engine-ui';
 import { Input } from 'antd';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDesigner } from './DesignerContext';
 import {
   commonPropertyFields,
@@ -191,6 +191,16 @@ interface KeyEditorProps {
 
 function KeyEditor({ oldKey, locked, onRename }: KeyEditorProps) {
   const [value, setValue] = useState(oldKey);
+  // 记录已同步到本地 state 的外部 key：仅当外部 oldKey 发生「非本次编辑产生」的
+  // 变化（如切换选中节点）时才重置输入框，避免用 key 重建组件导致失焦
+  const syncedKeyRef = useRef(oldKey);
+
+  useEffect(() => {
+    if (oldKey !== syncedKeyRef.current) {
+      syncedKeyRef.current = oldKey;
+      setValue(oldKey);
+    }
+  }, [oldKey]);
 
   if (locked) {
     return (
@@ -209,6 +219,7 @@ function KeyEditor({ oldKey, locked, onRename }: KeyEditorProps) {
   }
 
   const onChange = (v: string) => {
+    syncedKeyRef.current = v;
     setValue(v);
     onRename(v);
   };
@@ -223,7 +234,6 @@ function KeyEditor({ oldKey, locked, onRename }: KeyEditorProps) {
           const trimmed = (e.target.value || '').trim();
           onChange(trimmed);
         }}
-        autoFocus
         className='nexus-key-input'
       />
       <div className='mt-1 text-[11px] text-[#c0c4cc]'>
