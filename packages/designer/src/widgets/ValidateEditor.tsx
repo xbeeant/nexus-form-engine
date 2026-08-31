@@ -5,7 +5,7 @@
 // ============================================================================
 
 import type { WidgetProps } from '@xbeeant/form-engine-ui';
-import { Button, Form, Input } from 'antd';
+import { Button, Input } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { ExpressionBuilder } from './ExpressionBuilder';
 import { genId } from './reactionsModel';
@@ -43,7 +43,7 @@ function rowsToValidate(
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
-export function ValidateEditor({ value, onChange, title }: WidgetProps) {
+export function ValidateEditor({ value, onChange }: WidgetProps) {
   const fields = useFormDataFields();
   const [rows, setRows] = useState<ValidateRow[]>(() => validateToRows(value));
   const prevValueRef = useRef(value);
@@ -79,7 +79,7 @@ export function ValidateEditor({ value, onChange, title }: WidgetProps) {
   };
 
   return (
-    <Form.Item layout={'vertical'} label={title} style={{ width: '100%' }}>
+    <div style={{ width: '100%' }}>
       {rows.length === 0 ? (
         <div
           style={{
@@ -155,7 +155,7 @@ export function ValidateEditor({ value, onChange, title }: WidgetProps) {
       <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
         提示：依赖字段（formData.xxx）变化时会自动联动重校验。
       </div>
-    </Form.Item>
+    </div>
   );
 }
 

@@ -8,7 +8,7 @@
 // ============================================================================
 
 import type { WidgetProps } from '@xbeeant/form-engine-ui';
-import { Button, Form, Input, Select, Switch } from 'antd';
+import { Button, Input, Select, Switch } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { ExpressionBuilder } from './ExpressionBuilder';
 import {
@@ -176,7 +176,7 @@ function PatchValueInput({
 // ReactionsEditor — 主组件（本地工作副本 + 每次编辑提交，避免受控重置）
 // ────────────────────────────────────────────────────────────────────────────
 
-export function ReactionsEditor({ value, onChange, title }: WidgetProps) {
+export function ReactionsEditor({ value, onChange }: WidgetProps) {
   const [cards, setCards] = useState<Card[]>(() =>
     toManualReactions(value).map(reactionToCard),
   );
@@ -238,7 +238,7 @@ export function ReactionsEditor({ value, onChange, title }: WidgetProps) {
     : 0;
 
   return (
-    <Form.Item layout={'vertical'} label={title} style={{ width: '100%' }}>
+    <div style={{ width: '100%' }}>
       {autoExprCount > 0 && (
         <div
           style={{
@@ -274,7 +274,7 @@ export function ReactionsEditor({ value, onChange, title }: WidgetProps) {
         顺序）、$self.value、formData。满足 when（可选）执行 fulfill，否则执行
         otherwise。
       </div>
-    </Form.Item>
+    </div>
   );
 }
 

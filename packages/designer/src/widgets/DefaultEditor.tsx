@@ -4,41 +4,36 @@
 // ============================================================================
 
 import type { WidgetProps } from '@xbeeant/form-engine-ui';
-import { Form, Input, InputNumber, Switch } from 'antd';
+import { Input, InputNumber, Switch } from 'antd';
 
-export function DefaultEditor({
-  value,
-  onChange,
-  title,
-  ...rest
-}: WidgetProps) {
+export function DefaultEditor({ value, onChange, ...rest }: WidgetProps) {
   const fieldProps = rest as Record<string, unknown>;
   const dataType = (fieldProps?.dataType as string) ?? 'string';
 
   if (dataType === 'boolean') {
     return (
-      <Form.Item label={title} style={{ width: '100%' }}>
+      <div style={{ width: '100%' }}>
         <Switch checked={!!value} onChange={(v) => onChange(v)} />
-      </Form.Item>
+      </div>
     );
   }
 
   if (dataType === 'number' || dataType === 'integer') {
     return (
-      <Form.Item label={title} style={{ width: '100%' }}>
+      <div style={{ width: '100%' }}>
         <InputNumber
           value={value as number}
           onChange={(v) => onChange(v ?? undefined)}
           style={{ width: '100%' }}
         />
-      </Form.Item>
+      </div>
     );
   }
 
   if (dataType === 'object' || dataType === 'array') {
     const text = value !== undefined ? JSON.stringify(value, null, 2) : '';
     return (
-      <Form.Item label={`${title}（JSON）`} style={{ width: '100%' }}>
+      <div style={{ width: '100%' }}>
         <Input.TextArea
           rows={3}
           value={text}
@@ -55,18 +50,18 @@ export function DefaultEditor({
             }
           }}
         />
-      </Form.Item>
+      </div>
     );
   }
 
   // string
   return (
-    <Form.Item label={title} style={{ width: '100%' }}>
+    <div style={{ width: '100%' }}>
       <Input
         value={(value as string) ?? ''}
         onChange={(e) => onChange(e.target.value || undefined)}
       />
-    </Form.Item>
+    </div>
   );
 }
 

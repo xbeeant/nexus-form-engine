@@ -5,13 +5,12 @@
 // ============================================================================
 
 import type { WidgetProps } from '@xbeeant/form-engine-ui';
-import { Button, Form, Input, Space, Typography } from 'antd';
+import { Button, Input, Space, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 
 export function CodeEditor({
   value,
   onChange,
-  title,
   description,
   placeholder,
   ...rest
@@ -66,21 +65,19 @@ export function CodeEditor({
   };
 
   return (
-    <Form.Item
-      label={title}
-      layout={'vertical'}
-      style={{ width: '100%' }}
-      help={
-        error ? (
+    <div style={{ width: '100%' }}>
+      {error && (
+        <div style={{ marginBottom: 4 }}>
           <Typography.Text type='danger' style={{ fontSize: 11 }}>
             {error}
           </Typography.Text>
-        ) : description ? (
+        </div>
+      )}
+      {!error && description && (
+        <div style={{ marginBottom: 4 }}>
           <span style={{ fontSize: 11, color: '#999' }}>{description}</span>
-        ) : undefined
-      }
-      validateStatus={error ? 'error' : undefined}
-    >
+        </div>
+      )}
       <Input.TextArea
         value={text}
         rows={lines}
@@ -107,7 +104,7 @@ export function CodeEditor({
           清空
         </Button>
       </Space.Compact>
-    </Form.Item>
+    </div>
   );
 }
 

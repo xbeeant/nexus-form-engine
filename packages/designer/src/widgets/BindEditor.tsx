@@ -4,7 +4,7 @@
 // ============================================================================
 
 import type { WidgetProps } from '@xbeeant/form-engine-ui';
-import { Form, Input, Select } from 'antd';
+import { Input, Select } from 'antd';
 import { useState } from 'react';
 
 function getBindMode(value: unknown): string {
@@ -27,7 +27,7 @@ const BIND_MODE_OPTIONS = [
   { value: 'false', label: '不绑定（不提交）' },
 ];
 
-export function BindEditor({ value, onChange, title }: WidgetProps) {
+export function BindEditor({ value, onChange }: WidgetProps) {
   const mode = getBindMode(value);
   // 本地状态缓存文本值，防止每次按键都触发 onChange
   const [textValue, setTextValue] = useState<string>(
@@ -67,38 +67,36 @@ export function BindEditor({ value, onChange, title }: WidgetProps) {
   };
 
   return (
-    <Form.Item layout={'vertical'} label={title} style={{ width: '100%' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <Select
-          value={mode}
-          options={BIND_MODE_OPTIONS}
-          onChange={handleModeChange}
-          style={{ width: '100%' }}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+      <Select
+        value={mode}
+        options={BIND_MODE_OPTIONS}
+        onChange={handleModeChange}
+        style={{ width: '100%' }}
+      />
+      {mode === 'string' && (
+        <Input
+          placeholder='如: user.name'
+          value={textValue}
+          onChange={(e) => setTextValue(e.target.value)}
+          onBlur={handleTextCommit}
+          onPressEnter={handleTextCommit}
         />
-        {mode === 'string' && (
-          <Input
-            placeholder='如: user.name'
-            value={textValue}
-            onChange={(e) => setTextValue(e.target.value)}
-            onBlur={handleTextCommit}
-            onPressEnter={handleTextCommit}
-          />
-        )}
-        {mode === 'array' && (
-          <Input.TextArea
-            rows={3}
-            placeholder={'如: a.b\nc.d'}
-            value={textValue}
-            onChange={(e) => setTextValue(e.target.value)}
-            onBlur={handleTextCommit}
-          />
-        )}
-        <div style={{ fontSize: 11, color: '#999' }}>
-          提示：bind 将字段值映射到不同数据路径。string[]
-          表示字段值数组按顺序拆分到多个路径；false 表示字段不参与提交。
-        </div>
+      )}
+      {mode === 'array' && (
+        <Input.TextArea
+          rows={3}
+          placeholder={'如: a.b\nc.d'}
+          value={textValue}
+          onChange={(e) => setTextValue(e.target.value)}
+          onBlur={handleTextCommit}
+        />
+      )}
+      <div style={{ fontSize: 11, color: '#999' }}>
+        提示：bind 将字段值映射到不同数据路径。string[]
+        表示字段值数组按顺序拆分到多个路径；false 表示字段不参与提交。
       </div>
-    </Form.Item>
+    </div>
   );
 }
 

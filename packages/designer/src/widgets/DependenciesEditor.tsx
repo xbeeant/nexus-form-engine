@@ -4,11 +4,11 @@
 // ============================================================================
 
 import type { WidgetProps } from '@xbeeant/form-engine-ui';
-import { Form, Select } from 'antd';
+import { Select } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { useFormDataFieldOptions } from './useFormDataFields';
 
-export function DependenciesEditor({ value, onChange, title }: WidgetProps) {
+export function DependenciesEditor({ value, onChange }: WidgetProps) {
   const fieldOptions = useFormDataFieldOptions();
   const [tags, setTags] = useState<string[]>(() =>
     Array.isArray(value) ? [...value] : [],
@@ -33,7 +33,7 @@ export function DependenciesEditor({ value, onChange, title }: WidgetProps) {
   };
 
   return (
-    <Form.Item layout={'vertical'} label={title} style={{ width: '100%' }}>
+    <div style={{ width: '100%' }}>
       <Select
         size='small'
         mode='tags'
@@ -49,7 +49,7 @@ export function DependenciesEditor({ value, onChange, title }: WidgetProps) {
         提示：依赖字段值变化时，触发该字段重新求值与渲染。支持相对路径（如 处于
         address.city 时填 province 表示 address.province）。
       </div>
-    </Form.Item>
+    </div>
   );
 }
 

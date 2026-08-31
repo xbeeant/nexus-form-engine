@@ -13,7 +13,6 @@ import type { WidgetProps } from '@xbeeant/form-engine-ui';
 import {
   Button,
   Collapse,
-  Form,
   Input,
   InputNumber,
   Select,
@@ -205,7 +204,7 @@ function KeyValueRows({
   );
 }
 
-export function RemoteDataEditor({ value, onChange, title }: WidgetProps) {
+export function RemoteDataEditor({ value, onChange }: WidgetProps) {
   const [form, setForm] = useState<RemoteDataForm>(() => configToForm(value));
   const prevValueRef = useRef(value);
   // 自身 onChange 引发的 value 回传不应触发重建（否则每次输入都被重置）
@@ -232,7 +231,7 @@ export function RemoteDataEditor({ value, onChange, title }: WidgetProps) {
   };
 
   return (
-    <Form.Item layout={'vertical'} label={title} style={{ width: '100%' }}>
+    <div style={{ width: '100%' }}>
       <Space orientation='vertical' style={{ width: '100%' }} size={8}>
         {/* 请求地址 + 方式 */}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -375,7 +374,7 @@ export function RemoteDataEditor({ value, onChange, title }: WidgetProps) {
           提示：字段值变化后选项自动刷新；POST 时参数放入请求体
         </div>
       </Space>
-    </Form.Item>
+    </div>
   );
 }
 
