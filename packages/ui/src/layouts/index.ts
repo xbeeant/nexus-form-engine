@@ -15,7 +15,7 @@ export {
   stepLayout, // 步骤布局
   tabPaneLayout, // 标签页布局
   voidLayout, // 空白布局
-} from './passThrough';
+} from './pass-through';
 export { spaceLayout } from './space';
 export { stepsLayout } from './steps';
 export { tabsLayout } from './tabs';
@@ -35,13 +35,14 @@ import {
   stepLayout,
   tabPaneLayout,
   voidLayout,
-} from './passThrough';
+} from './pass-through';
 import { spaceLayout } from './space';
 import { stepsLayout } from './steps';
 import { tabsLayout } from './tabs';
 
 // 布局名称到组件函数的映射表
 // 支持 engine.registerLayouts() 注册布局组件
+
 export const antdLayouts: Record<
   string,
   (props: WidgetProps<any>) => ReactNode

@@ -21,7 +21,7 @@ export {
   stepLayout,
   tabPaneLayout,
   voidLayout,
-} from './layouts/passThrough';
+} from './layouts/pass-through';
 export { stepsLayout } from './layouts/steps';
 export { tabsLayout } from './layouts/tabs';
 export type { NexusLocaleBundle } from './locales';
@@ -79,21 +79,21 @@ export {
   useFormItemProps, // 获取 Ant Design FormItem 属性 Hook
   withFormItem, // 公共包裹方法 - 为任意组件包装表单验证功能
 } from './widgets/_shared';
-export { autoCompleteWidget } from './widgets/autoComplete';
+export { autoCompleteWidget } from './widgets/auto-complete';
 export { cascaderWidget } from './widgets/cascader';
 export { checkboxWidget } from './widgets/checkbox';
 export { checkboxesWidget } from './widgets/checkboxes';
 export { colorWidget } from './widgets/color';
-export { datePickerWidget } from './widgets/datePicker';
-export { dateRangeWidget } from './widgets/dateRange';
+export { datePickerWidget } from './widgets/date-picker';
+export { dateRangeWidget } from './widgets/date-range';
 export { fileWidget } from './widgets/file';
 export { htmlWidget } from './widgets/html';
-export { imageInputWidget } from './widgets/imageInput';
+export { imageInputWidget } from './widgets/image-input';
 export { inputWidget } from './widgets/input';
-export { inputNumberWidget } from './widgets/inputNumber';
+export { inputNumberWidget } from './widgets/input-number';
 export { listWidget } from './widgets/list';
 export { mentionsWidget } from './widgets/mentions';
-export { multiSelectWidget } from './widgets/multiSelect';
+export { multiSelectWidget } from './widgets/multi-select';
 export { passwordWidget } from './widgets/password';
 export type {
   AutoCompleteWidgetProps,
@@ -131,18 +131,18 @@ export { radioWidget } from './widgets/radio';
 export { rateWidget } from './widgets/rate';
 export { segmentedWidget } from './widgets/segmented';
 export { selectWidget } from './widgets/select';
-export { simpleListWidget } from './widgets/simpleList';
+export { simpleListWidget } from './widgets/simple-list';
 export { sliderWidget } from './widgets/slider';
 export { switchWidget } from './widgets/switch';
-export { tableListWidget } from './widgets/tableList';
-export { textAreaWidget } from './widgets/textArea';
-export { timePickerWidget } from './widgets/timePicker';
-export { timeRangeWidget } from './widgets/timeRange';
+export { tableListWidget } from './widgets/table-list';
+export { textAreaWidget } from './widgets/textarea';
+export { timePickerWidget } from './widgets/time-picker';
+export { timeRangeWidget } from './widgets/time-range';
 export { transferWidget } from './widgets/transfer';
-export type { TreeSelectConfig } from './widgets/treeSelect';
-export { treeSelectWidget } from './widgets/treeSelect';
-export { urlInputWidget } from './widgets/urlInput';
-export { voidTitleWidget } from './widgets/voidTitle';
+export type { TreeSelectConfig } from './widgets/tree-select';
+export { treeSelectWidget } from './widgets/tree-select';
+export { urlInputWidget } from './widgets/url-input';
+export { voidTitleWidget } from './widgets/void-title';
 
 /**
  * Ant Design UI 注册函数

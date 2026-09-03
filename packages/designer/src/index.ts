@@ -3,10 +3,10 @@
 // ============================================================================
 
 export { layoutCatalog, widgetCatalog } from './catalog';
-export type { DesignerProps } from './Designer';
-export { Designer } from './Designer';
-export type { DesignerContextValue } from './DesignerContext';
-export { DesignerProvider, useDesigner } from './DesignerContext';
+export type { DesignerProps } from './designer';
+export { Designer } from './designer';
+export type { DesignerContextValue } from './designer-context';
+export { DesignerProvider, useDesigner } from './designer-context';
 export {
   addChildToSchema,
   collectDataFieldOptions,
@@ -16,7 +16,7 @@ export {
   removeNodeFromSchema,
   updateNodeInSchema,
   updateNodeWithNesting,
-} from './schemaUtils';
+} from './schema-utils';
 export type {
   CatalogItem,
   DesignerMode,

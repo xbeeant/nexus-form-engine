@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createExpressionSandbox,
   ErrorHandlerStrategy,
-} from '../src/ExpressionSandbox';
+} from '../src/expression-sandbox';
 import type { FieldState, ReactionContext } from '../src/types/schema';
 
 function baseCtx(extra?: Partial<ReactionContext>): ReactionContext {

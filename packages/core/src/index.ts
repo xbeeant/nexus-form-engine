@@ -12,26 +12,26 @@ export {
   createAsyncValidatorPlugin,
 } from './async-validator';
 /** 显式依赖图（静态构建，O(1) 查询） */
-export { DependencyGraph } from './DependencyGraph';
+export { DependencyGraph } from './dependency-graph';
 // Core
 /** 表单引擎核心类 */
-export { NexusEngine } from './Engine';
-export type { EvaluateOptions } from './ExpressionSandbox';
+export { NexusEngine } from './engine';
+export type { EvaluateOptions } from './expression-sandbox';
 /** 表达式安全求值沙箱 */
 export {
   createExpressionSandbox,
   ErrorHandlerStrategy,
   ExpressionSandbox,
-} from './ExpressionSandbox';
-export type { FormRegisterCallback } from './FormRegistry';
+} from './expression-sandbox';
+export type { FormRegisterCallback } from './form-registry';
 /** 多表单实例注册表（跨表单联动基础设施） */
 export {
   createFormRegistry,
   defaultFormRegistry,
   FormRegistry,
-} from './FormRegistry';
+} from './form-registry';
 /** Schema 解析器（命名空间对象：SchemaParser.parse / SchemaParser.createArrayItemState 等） */
-export * from './SchemaParser';
+export * from './schema-parser';
 // 类型定义
 export type {
   BindSchema,

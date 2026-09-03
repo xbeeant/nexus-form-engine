@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import * as SchemaParser from '../src/SchemaParser';
+import * as SchemaParser from '../src/schema-parser';
 import type { NexusSchema } from '../src/types/schema';
 
 describe('SchemaParser', () => {

@@ -2,9 +2,9 @@ import { fireEvent, render } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { FormController } from '../src/components/FormController';
-import { NexusForm } from '../src/components/NexusForm';
-import { useForm } from '../src/hooks/useForm';
+import type { FormController } from '../src/components/form-controller';
+import { NexusForm } from '../src/components/nexus-form';
+import { useForm } from '../src/hooks/use-form';
 
 const holder: { form?: FormController } = {};
 

@@ -7,8 +7,8 @@
 // 1. 基础类型
 // ────────────────────────────────────────────────────────────────────────────
 
-import type { NexusEngine } from '../Engine.ts';
-import type { FormRegistry } from '../FormRegistry';
+import type { NexusEngine } from '../engine.ts';
+import type { FormRegistry } from '../form-registry';
 
 /** 表达式字符串，用 {{ }} 包裹 */
 export type Expression = string;

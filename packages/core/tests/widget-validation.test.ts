@@ -6,8 +6,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { AsyncValidatorPlugin } from '../src/async-validator';
-import { NexusEngine } from '../src/Engine';
-import * as SchemaParser from '../src/SchemaParser';
+import { NexusEngine } from '../src/engine';
+import * as SchemaParser from '../src/schema-parser';
 import type { WidgetValidationDescriptor } from '../src/types/schema';
 
 describe('widget validation & state linkage', () => {

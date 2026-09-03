@@ -4,9 +4,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { DependencyGraph } from '../src/DependencyGraph';
-import { NexusEngine } from '../src/Engine';
-import * as SchemaParser from '../src/SchemaParser';
+import { DependencyGraph } from '../src/dependency-graph';
+import { NexusEngine } from '../src/engine';
+import * as SchemaParser from '../src/schema-parser';
 import type { NexusSchema, Reaction } from '../src/types/schema';
 
 describe('DependencyGraph', () => {

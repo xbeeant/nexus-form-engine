@@ -13,8 +13,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { NexusEngine } from '../src/Engine';
-import { createFormRegistry, FormRegistry } from '../src/FormRegistry';
+import { NexusEngine } from '../src/engine';
+import { createFormRegistry, FormRegistry } from '../src/form-registry';
 import type { NexusSchema } from '../src/types/schema';
 
 function baseSchema(fields: Record<string, unknown>): NexusSchema {

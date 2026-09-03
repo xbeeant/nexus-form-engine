@@ -10,7 +10,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { ArrayOperationsPlugin } from '../src/array-list';
-import { NexusEngine } from '../src/Engine';
+import { NexusEngine } from '../src/engine';
 import type { NexusSchema } from '../src/types/schema';
 
 function makeEngine(schema: NexusSchema): {

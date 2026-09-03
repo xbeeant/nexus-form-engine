@@ -13,7 +13,7 @@
 import { describe, expect, it } from 'vitest';
 import type { NexusSchema } from '../src';
 import { NexusEngine } from '../src';
-import * as SchemaParser from '../src/SchemaParser';
+import * as SchemaParser from '../src/schema-parser';
 
 describe('数据对象容器（NexusObject 继承）', () => {
   it('对象容器创建 containerOnly 状态：仅 UI 状态，无值，不参与数据收集', () => {

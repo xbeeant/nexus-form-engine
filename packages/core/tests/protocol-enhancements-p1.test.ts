@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { NexusEngine } from '../src/Engine';
+import { NexusEngine } from '../src/engine';
 import type { NexusSchema } from '../src/types/schema';
 
 describe('reaction state.value 计算字段（formily 对齐）', () => {

@@ -1,0 +1,212 @@
+import type { CSSProperties, FocusEvent, ReactElement } from 'react';
+import { useCallback, useContext, useMemo, useSyncExternalStore } from 'react';
+import { FieldInheritContext } from '../contexts/field-inherit-context';
+import { GridContext } from '../contexts/grid-context';
+import { LayoutConfigContext } from '../contexts/layout-config-context';
+import { useNexusContext } from '../contexts/nexus-context';
+import { resolveColSpan } from '../utils/resolve-col-span';
+
+interface NexusFieldProps {
+  dataPath: string;
+  layoutKey: string;
+}
+
+/**
+ * NexusField — 单个字段渲染器
+ */
+export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
+  const { engine, config, form } = useNexusContext();
+  // 按路径精准订阅：仅该字段版本变化时重渲染（reaction 影响其他字段不会触发本组件）
+  // 第三个参数 getServerSnapshot 与 getSnapshot 一致（引擎状态同步，SSR 必需）
+  useSyncExternalStore(
+    (onStoreChange) => engine.subscribeField(dataPath, onStoreChange),
+    () => engine.getFieldVersion(dataPath),
+    () => engine.getFieldVersion(dataPath),
+  );
+  const state = engine.getFieldState(dataPath);
+  // GridContext 必须在所有 early return 之前调用，否则会破坏 Hooks 调用顺序
+  const gridCtx = useContext(GridContext);
+  const layoutConfig = useContext(LayoutConfigContext);
+  // 祖先对象容器（NexusObject）下发的继承属性：visible=false 时子树整体隐藏
+  const inherit = useContext(FieldInheritContext);
+
+  const handleChange = useCallback(
+    (value: unknown) => {
+      engine.setFieldValue(dataPath, value);
+    },
+    [engine, dataPath],
+  );
+
+  // 失焦触发 blur 规则校验（trigger: 'blur'）：
+  // React onBlur 冒泡（focusout 语义），包裹层统一处理内部控件失焦；
+  // 焦点仍在字段内部（如 dateRange 双输入框间切换）时跳过。
+  const handleBlur = useCallback(
+    (e: FocusEvent<HTMLDivElement>) => {
+      if (e.currentTarget.contains(e.relatedTarget as Node)) {
+        return;
+      }
+      engine.validateField(dataPath, { trigger: 'blur' });
+    },
+    [engine, dataPath],
+  );
+
+  // 从 enum + enumNames 构建选项（x-render 对齐）。
+  // meta/props 引用在状态更新时保持稳定，useMemo 避免每次渲染重建数组（破坏子组件 memo）。
+  // 必须在所有 early return 之前调用（Hooks 顺序规则），state 未定义时安全降级
+  const options = useMemo(
+    () =>
+      state?.meta.enum
+        ? state.meta.enum.map((value: any, index: number) => ({
+            value,
+            label: state.meta.enumNames?.[index] ?? String(value),
+          }))
+        : (state?.props.options as
+            | Array<{ label: string; value: unknown } | string | number>
+            | undefined),
+    [state?.meta.enum, state?.meta.enumNames, state?.props.options],
+  );
+
+  // 从 reactions 依赖构建 dependValues，供 widget 获取关联字段值。
+  // reactions 引用稳定，值在 memo 执行时读取；避免每次渲染新建对象
+  const dependValues = useMemo(() => {
+    const values: Record<string, unknown> = {};
+    if (state?.reactions) {
+      for (const reaction of state.reactions) {
+        if (reaction.dependencies) {
+          for (const dep of reaction.dependencies) {
+            values[dep] = engine.getFieldValue(dep);
+          }
+        }
+      }
+    }
+    return values;
+  }, [state?.reactions, engine]);
+
+  if (!state) {
+    // 仅当引擎已初始化（version > 0）但字段仍未找到时才发出警告
+    // 初始化过程中的短暂空状态不应报警
+    if (engine.getSnapshot() > 0) {
+      console.warn(`[NexusField] Field not found: ${dataPath}`);
+    }
+    return null;
+  }
+
+  // 祖先对象容器隐藏 → 子树整体不可见（与字段自身 visible 合并判断）
+  if (inherit.visible === false || !state.visible) {
+    // 如果父布局节点配置了 removeHidden，则不渲染占位符（移除以防止栅格塌陷）
+    if (layoutConfig.removeHidden === true) {
+      return null;
+    }
+    // 默认行为：渲染 display:none 占位符以保持布局
+    return <div className='hidden' data-nexus-hidden={dataPath} />;
+  }
+
+  // 从 enum + enumNames 构建选项（x-render 对齐）
+  const readOnly =
+    config.readOnly || inherit.readOnly === true || state.readOnly;
+  // 对象容器继承 disabled（父级激活时优先），与字段级 disabled 合并
+  const disabled = inherit.disabled === true || state.disabled;
+
+  // readOnlyWidget：指定 readOnly 生效时切换使用的渲染 widget（x-render readOnlyWidget 对齐）。
+  // - 配置了 readOnlyWidget 且字段为只读时，切换渲染该 widget（readOnly 一并透传，
+  //   widget 按自身逻辑决定只读展示形态，如 treeSelect 的 readOnly 回显）；
+  // - 未配置时 readOnly 原样透传给 widget，由 widget 自身决定只读形态
+  //   （antd 原生 readOnly，或内置 widget 的 ReadOnlyDisplay 文本回退）。
+  const wantReadOnlyWidget = readOnly && !!state.meta.readOnlyWidget;
+  const widgetName = wantReadOnlyWidget
+    ? state.meta.readOnlyWidget!
+    : state.meta.widget;
+  /** 获取UI组件库 进行渲染 **/
+  let Widget = engine.getWidget(widgetName);
+  // readOnlyWidget 未注册时优雅降级：退回原 widget，沿用现有只读渲染方式
+  if (!Widget && wantReadOnlyWidget) {
+    Widget = engine.getWidget(state.meta.widget);
+  }
+
+  if (!Widget) {
+    return (
+      <div className='text-xs text-red-500' data-nexus-field={dataPath}>
+        ⚠️ Widget "{state.meta.widget}" 未注册 (path: {dataPath})
+      </div>
+    );
+  }
+
+  // 字段级配置优先于表单级配置
+  const fieldDisplayType = state.meta.displayType ?? config.displayType;
+  const fieldLabelWidth = state.meta.labelWidth ?? config.labelWidth;
+  const fieldColumn = state.meta.column ?? config.column;
+
+  // 布局属性作用于 NexusField 包装层而非 DOM 控件
+  // - column（fieldColumn）：字段内部子元素分列数（如 checkboxes/radio），传给 Widget
+  // - colSpan：在父 Grid 中横跨多少列（tailwind 风格：gridColumn: span N）
+  // - width：在父 Flex 布局中自身宽度（百分比或固定值），flexShrink:0 防压缩
+  const effectiveColSpan = resolveColSpan(state.meta.colSpan, gridCtx);
+  const wrapperStyle: CSSProperties = {
+    ...(state.meta.width ? { width: state.meta.width, flexShrink: 0 } : {}),
+    ...(effectiveColSpan ? { gridColumn: `span ${effectiveColSpan}` } : {}),
+  };
+
+  // 默认包裹：所有 widget 统一由 FieldWrapper 包裹（引擎注册，UI 层提供），
+  // 仅当 label === false（字段级或表单级）时 FieldWrapper 不包裹 Form.Item。
+  // 未注册 FieldWrapper（纯 react 无 ui 层）时直接渲染裸 widget。
+  const FieldWrapper = engine.getFieldWrapper();
+
+  // Form.Item 消费的元数据 props 剥离给 FieldWrapper，避免透传到底层 antd 控件：
+  // - required: 会让 <input required> 触发浏览器原生校验
+  // - errors/title/description/label/extra/width/displayType/labelWidth/column:
+  //   作为未知属性透传到 DOM 会产生 React 警告
+  const fieldWrapperProps = {
+    label: state.meta.label,
+    title: state.meta.title,
+    description: state.meta.description,
+    tooltip: state.meta.tooltip,
+    errors: state.errors,
+    required: state.required,
+    extra: state.meta.extra,
+    width: state.meta.width,
+    displayType: fieldDisplayType,
+    labelWidth: fieldLabelWidth,
+    column: fieldColumn,
+  };
+
+  // widget 仅接收控件相关 props（value/onChange/状态/选项/表单引用/自有 props）
+  const widgetProps = {
+    dataPath,
+    path: dataPath,
+    value: state.value,
+    onChange: handleChange,
+    disabled,
+    readOnly,
+    loading: state.loading,
+    placeholder: state.meta.placeholder,
+    options,
+    form,
+    dependValues,
+    items: state.meta.items,
+    schema: state.meta.schema,
+    // 远程选项数据版本：reloadRemoteData 后变化，widget 据此跳过缓存重新请求
+    remoteVersion: engine.getRemoteDataVersion(dataPath),
+    ...state.props,
+  };
+
+  let control: ReactElement;
+  if (FieldWrapper) {
+    control = (
+      <FieldWrapper key={layoutKey} {...fieldWrapperProps}>
+        <Widget {...widgetProps} />
+      </FieldWrapper>
+    );
+  } else {
+    control = <Widget key={layoutKey} {...widgetProps} />;
+  }
+
+  return (
+    <div
+      data-nexus-field={dataPath}
+      onBlur={handleBlur}
+      style={Object.keys(wrapperStyle).length > 0 ? wrapperStyle : undefined}
+    >
+      {control}
+    </div>
+  );
+}

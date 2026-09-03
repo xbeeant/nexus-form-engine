@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NexusEngine } from '../src/Engine';
+import { NexusEngine } from '../src/engine';
 
 const schema = {
   type: 'object',

@@ -14,7 +14,7 @@ import {
   formatFieldValue,
   getEmptyObject,
   RenderItemControl,
-} from './_listShared';
+} from './_list-shared';
 import type { WidgetProps } from './_shared';
 
 export const listWidget = ({

@@ -4,7 +4,7 @@
 // 严禁在 Core 主类中硬编码数组变换逻辑
 // ============================================================================
 
-import type { NexusEngine } from './Engine';
+import type { NexusEngine } from './engine';
 import type { ArrayOperationOptions, NexusPlugin } from './types/schema';
 
 /**

@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { ArrayOperationsPlugin } from '../src/array-list';
-import { NexusEngine } from '../src/Engine';
+import { NexusEngine } from '../src/engine';
 import type { NexusSchema } from '../src/types/schema';
 
 describe('NexusEngine P1', () => {

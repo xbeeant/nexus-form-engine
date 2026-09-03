@@ -6,14 +6,14 @@
 import {
   autoCompleteSchema,
   remoteAutoCompleteSchema,
-} from './autoComplete-schema';
+} from './auto-complete-schema';
 import { cardSchema } from './card-schema';
 import { cascaderRemoteSchema, cascaderSchema } from './cascader-schema';
 import { checkboxSchema } from './checkbox-schema';
 import { checkboxesSchema } from './checkboxes-schema';
 import { colorSchema } from './color-schema';
+import { dateRangeSchema } from './date-range-schema';
 import { dateSchema } from './date-schema';
-import { dateRangeSchema } from './dateRange-schema';
 import { fileSchema } from './file-schema';
 import { htmlSchema } from './html-schema';
 import { imageSchema } from './image-schema';
@@ -23,25 +23,25 @@ import { mentionsRemoteSchema, mentionsSchema } from './mentions-schema';
 import {
   multiSelectSchema,
   remoteMultiSelectSchema,
-} from './multiSelect-schema';
+} from './multi-select-schema';
 import { numberSchema } from './number-schema';
 import { passwordSchema } from './password-schema';
 import { radioSchema } from './radio-schema';
 import { rateSchema } from './rate-schema';
 import { segmentedSchema } from './segmented-schema';
 import { remoteSelectSchema, selectSchema } from './select-schema';
-import { simpleListSchema } from './simpleList-schema';
+import { simpleListSchema } from './simple-list-schema';
 import { sliderSchema } from './slider-schema';
 import { spaceSchema } from './space-schema';
 import { switchSchema } from './switch-schema';
-import { tableListSchema } from './tableList-schema';
+import { tableListSchema } from './table-list-schema';
 import { textareaSchema } from './textarea-schema';
+import { timeRangeSchema } from './time-range-schema';
 import { timeSchema } from './time-schema';
-import { timeRangeSchema } from './timeRange-schema';
 import { transferSchema } from './transfer-schema';
-import { treeSelectSchema } from './treeSelect-schema';
-import { urlInputSchema } from './urlInput-schema';
-import { voidTitleSchema } from './voidTitle-schema';
+import { treeSelectSchema } from './tree-select-schema';
+import { urlInputSchema } from './url-input-schema';
+import { voidTitleSchema } from './void-title-schema';
 
 // ── 导出所有 Schema 定义 ─────────────────────────────────────────────────────────
 export {

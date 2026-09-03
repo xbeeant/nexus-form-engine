@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { NexusEngine } from '../src/Engine';
+import { NexusEngine } from '../src/engine';
 import type { NexusSchema } from '../src/types/schema';
 
 const schema: NexusSchema = {

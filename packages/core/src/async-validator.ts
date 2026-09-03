@@ -4,7 +4,7 @@
 // 严禁在 Core 主类中硬编码异步校验调度逻辑
 // ============================================================================
 
-import type { NexusEngine } from './Engine';
+import type { NexusEngine } from './engine';
 import type { NexusPlugin } from './types/schema';
 
 /**

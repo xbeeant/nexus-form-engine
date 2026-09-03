@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import 'dayjs/locale/zh-cn';
 import './index.css';
 
-import App from './App.tsx';
+import App from './app.tsx';
 import { DocsFrameworkProvider } from './lib/router';
 
 dayjs.locale('zh-cn');

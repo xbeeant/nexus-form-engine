@@ -6,7 +6,7 @@
 export {
   default as NexusDevTools,
   type NexusDevToolsProps,
-} from './NexusDevTools';
+} from './nexus-dev-tools';
 export {
   DEVTOOLS_PLUGIN_NAME,
   type DevToolsEvent,
