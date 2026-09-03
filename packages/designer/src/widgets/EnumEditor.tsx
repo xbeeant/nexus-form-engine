@@ -22,19 +22,20 @@ export function EnumEditor({ value, onChange }: WidgetProps) {
   // value 是 _enum 的值（序列化字符串）
 
   return (
-    <div style={{ width: '100%' }}>
+    <>
       <Input.TextArea
         rows={3}
         value={typeof value === 'string' ? value : ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder='每行一个枚举值'
+        style={{ marginBottom: 4 }}
       />
       <div
-        style={{ fontSize: 11, color: '#999', marginTop: 4, marginBottom: 8 }}
+        style={{ fontSize: 11, color: '#999', marginTop: -12, marginBottom: 8 }}
       >
         提示：枚举值用于选项的值，枚举文案见下方字段
       </div>
-    </div>
+    </>
   );
 }
 
@@ -46,14 +47,12 @@ export const enumEditorWidget = EnumEditor;
 
 export function EnumNamesEditor({ value, onChange }: WidgetProps) {
   return (
-    <div style={{ width: '100%' }}>
-      <Input.TextArea
-        rows={3}
-        value={typeof value === 'string' ? value : ''}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder='每行一个枚举文案，与枚举值一一对应'
-      />
-    </div>
+    <Input.TextArea
+      rows={3}
+      value={typeof value === 'string' ? value : ''}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder='每行一个枚举文案，与枚举值一一对应'
+    />
   );
 }
 

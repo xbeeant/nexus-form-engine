@@ -279,7 +279,7 @@ function DesignerForm() {
         <div className='flex flex-1 overflow-hidden'>
           <ResizablePanel
             side='left'
-            defaultWidth={240}
+            defaultWidth={320}
             minWidth={160}
             maxWidth={420}
             collapsedTitle='组件面板'
@@ -291,7 +291,7 @@ function DesignerForm() {
             side='right'
             defaultWidth={320}
             minWidth={240}
-            maxWidth={560}
+            maxWidth={800}
             collapsedTitle='属性面板'
           >
             <PropertyPanel />

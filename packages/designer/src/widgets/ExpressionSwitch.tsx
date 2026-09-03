@@ -8,7 +8,11 @@ import { Switch } from 'antd';
 import { ExpressionBuilder } from './ExpressionBuilder';
 import { useFormDataFields } from './useFormDataFields';
 
-export function ExpressionSwitch({ value, onChange }: WidgetProps) {
+export function ExpressionSwitch({
+  value,
+  onChange,
+  displayType,
+}: WidgetProps) {
   // ExpressionOr<boolean>: 非空字符串=表达式模式，其他=静态模式
   // 直接由 value 派生（受控），外部 value 变化（如切换选中节点）自动同步；
   // 不再维护内部 isExpr state，避免与外部值脱节
@@ -28,22 +32,31 @@ export function ExpressionSwitch({ value, onChange }: WidgetProps) {
   };
 
   return (
-    <div className={`flex gap-2 ${isExpr ? 'flex-col' : 'flex-row'}`}>
-      {isExpr ? (
-        <ExpressionBuilder
-          value={value as string}
-          onChange={(s) => onChange(s)}
-          fields={fields}
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: displayType === 'row' ? 'row' : 'column',
+        gap: displayType === 'row' ? 8 : 0,
+        marginBottom: 0,
+      }}
+    >
+      <div className={`flex gap-2 ${isExpr ? 'flex-col' : 'flex-row'}`}>
+        {isExpr ? (
+          <ExpressionBuilder
+            value={value as string}
+            onChange={(s) => onChange(s)}
+            fields={fields}
+          />
+        ) : (
+          <Switch checked={!!value} onChange={(v) => onChange(v)} />
+        )}
+        <Switch
+          checked={isExpr}
+          checkedChildren='表达式'
+          unCheckedChildren='静态'
+          onChange={switchMode}
         />
-      ) : (
-        <Switch checked={!!value} onChange={(v) => onChange(v)} />
-      )}
-      <Switch
-        checked={isExpr}
-        checkedChildren='表达式'
-        unCheckedChildren='静态'
-        onChange={switchMode}
-      />
+      </div>
     </div>
   );
 }

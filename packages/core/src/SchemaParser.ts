@@ -829,6 +829,7 @@ function processDataField(
       labelWidth: node.labelWidth,
       column: node.column,
       bind: node.bind,
+      schema: node,
     },
   };
 
@@ -1050,6 +1051,7 @@ function processDataArray(
       labelWidth: node.labelWidth,
       column: node.column,
       items: node.items,
+      schema: node,
     },
   };
 
@@ -1323,6 +1325,7 @@ export function createArrayItemState(
       max: node.max,
       extra: node.extra,
       itemOf: arrayPath,
+      schema: node,
     },
   };
 }

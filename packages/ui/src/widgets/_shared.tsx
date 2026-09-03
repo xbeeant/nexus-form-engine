@@ -2,24 +2,25 @@ import type {
   DataFieldSchema,
   DataObjectSchema,
   NexusFormInstance,
+  SchemaNode,
 } from '@xbeeant/form-engine';
 import { toBoolean } from '@xbeeant/form-engine/utils/schema-helper';
 import { NexusContext, useFormConfig } from '@xbeeant/form-engine-react';
-import { ConfigProvider, Form } from 'antd';
+import { Form } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import React, { useContext } from 'react';
-
-import {
-  type NexusLocaleBundle,
-  resolveAntdLocale,
-  resolveNexusLocale,
-} from '../locales';
+import { type NexusLocaleBundle, resolveNexusLocale } from '../locales';
 
 // 支持按 format 模板解析（如 'YYYY年MM月DD日'），默认解析无法识别此类自定义格式
 dayjs.extend(customParseFormat);
 
 export interface WidgetProps<T = Record<string, any>> {
+  /**
+   * 原始 Schema 节点（供 widget 组件读取完整声明）
+   * @deprecated
+   */
+  schema: SchemaNode;
   /** 字段数据路径（供 widget 组件内注册校验规则 / 读取自身状态） */
   dataPath?: string;
   /** 字段数据路径（dataPath 别名，x-render 风格） */
@@ -354,20 +355,15 @@ export interface FieldWrapperProps {
 
 export function FieldWrapper(props: FieldWrapperProps) {
   const { children, ...rest } = props;
-  const config = useFormConfig();
+
   const { wrap } = useFormItem(rest as WidgetProps);
-  // antd 组件库 locale（ConfigProvider 包裹，表单级 locale 生效于所有控件）
-  const antdLocale = resolveAntdLocale(config.locale);
-  return (
-    <ConfigProvider locale={antdLocale}>
-      {wrap(
-        <FieldMetaContext.Provider
-          value={{ title: rest.title, description: rest.description }}
-        >
-          {children}
-        </FieldMetaContext.Provider>,
-      )}
-    </ConfigProvider>
+
+  return wrap(
+    <FieldMetaContext.Provider
+      value={{ title: rest.title, description: rest.description }}
+    >
+      {children}
+    </FieldMetaContext.Provider>,
   );
 }
 

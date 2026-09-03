@@ -731,6 +731,12 @@ export interface FieldState {
      * 其禁用/只读/隐藏状态由 Renderer 层经 context 下发给子组件。
      */
     containerOnly?: boolean;
+
+    /**
+     * 原始 Schema 节点（供 widget 组件读取完整声明）
+     * @deprecated
+     */
+    schema?: SchemaNode;
   };
 }
 

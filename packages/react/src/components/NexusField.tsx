@@ -183,6 +183,7 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
     form,
     dependValues,
     items: state.meta.items,
+    schema: state.meta.schema,
     // 远程选项数据版本：reloadRemoteData 后变化，widget 据此跳过缓存重新请求
     remoteVersion: engine.getRemoteDataVersion(dataPath),
     ...state.props,

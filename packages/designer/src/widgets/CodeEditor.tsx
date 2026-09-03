@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 export function CodeEditor({
   value,
   onChange,
+  title,
   description,
   placeholder,
   ...rest
@@ -65,19 +66,7 @@ export function CodeEditor({
   };
 
   return (
-    <div style={{ width: '100%' }}>
-      {error && (
-        <div style={{ marginBottom: 4 }}>
-          <Typography.Text type='danger' style={{ fontSize: 11 }}>
-            {error}
-          </Typography.Text>
-        </div>
-      )}
-      {!error && description && (
-        <div style={{ marginBottom: 4 }}>
-          <span style={{ fontSize: 11, color: '#999' }}>{description}</span>
-        </div>
-      )}
+    <>
       <Input.TextArea
         value={text}
         rows={lines}
@@ -104,7 +93,15 @@ export function CodeEditor({
           清空
         </Button>
       </Space.Compact>
-    </div>
+      {error && (
+        <Typography.Text type='danger' style={{ fontSize: 11 }}>
+          {error}
+        </Typography.Text>
+      )}
+      {description && !error && (
+        <span style={{ fontSize: 11, color: '#999' }}>{description}</span>
+      )}
+    </>
   );
 }
 
