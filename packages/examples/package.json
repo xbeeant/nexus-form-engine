@@ -16,8 +16,9 @@
     "@xbeeant/form-engine-designer": "^0.0.3",
     "@xbeeant/form-engine-devtools": "^0.0.3",
     "@xbeeant/form-engine-ui": "^0.0.3",
-    "antd": "^6.5.3",
+    "antd": ">=5.0.0",
     "dayjs": "^1.11.11",
+    "diff-match-patch": "^1.0.5",
     "fumadocs-core": "^16.14.4",
     "fumadocs-mdx": "^15.2.3",
     "fumadocs-ui": "^16.14.4"

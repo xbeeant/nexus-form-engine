@@ -11,7 +11,7 @@ dayjs.locale('zh-cn');
 
 createRoot(document.getElementById('root')!).render(
   <DocsFrameworkProvider>
-    <RootProvider>
+    <RootProvider search={{ enabled: false }}>
       <App />
     </RootProvider>
   </DocsFrameworkProvider>,

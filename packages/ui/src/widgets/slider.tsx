@@ -25,11 +25,13 @@ export const sliderWidget = ({
   // antd Slider 默认即悬停/拖动时显示数值提示，无需强制 open（open: true 会常显）；
   // 因此仅当明确禁用（false）或显式对象配置（{ open }）时才传 tooltip，true/undefined 走默认悬停显示。
   let tooltipProp: { open?: boolean } | undefined;
-  if (tooltip === false) {
+  const sliderTooltip = tooltip as boolean | { open?: boolean } | undefined;
+  if (sliderTooltip === false) {
     tooltipProp = { open: false };
-  } else if (typeof tooltip === 'object' && tooltip !== null) {
-    tooltipProp = tooltip as { open?: boolean };
+  } else if (typeof sliderTooltip === 'object' && sliderTooltip !== null) {
+    tooltipProp = sliderTooltip;
   }
+
   let marksProp: Record<number, string> | undefined;
   if (typeof marks === 'string' && marks.trim()) {
     try {

@@ -27,8 +27,10 @@ export { tabsLayout } from './layouts/tabs';
 export type { NexusLocaleBundle } from './locales';
 // ── i18n 语言包导出 ────────────────────────────────────────────────────────────
 export {
+  antdLocales,
   nexusLocales,
   normalizeLocale,
+  resolveAntdLocale,
   resolveNexusLocale,
   toAntdLocaleName,
 } from './locales';

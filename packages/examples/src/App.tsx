@@ -5,7 +5,7 @@
 
 import type { Root } from 'fumadocs-core/page-tree';
 import { DocsLayout } from 'fumadocs-ui/layouts/docs';
-import { DocsFrameworkProvider, useHashPath } from './lib/router';
+import { useHashPath } from './lib/router';
 import { source } from './lib/source';
 import AdvancedWidgetsPage from './pages/AdvancedWidgetsPage';
 import BenchmarkPage from './pages/BenchmarkPage';
@@ -14,6 +14,7 @@ import DevToolsPage from './pages/DevToolsPage';
 import ExamplesPage from './pages/ExamplesPage';
 import ExtensionsPage from './pages/ExtensionsPage';
 import { MdxDocsPage } from './pages/MdxDocsPage';
+import ModalPage from './pages/ModalPage';
 import MultiFormPage from './pages/MultiFormPage';
 import MultiInstancePage from './pages/MultiInstancePage';
 import WidgetValidationPage from './pages/WidgetValidationPage';
@@ -32,6 +33,7 @@ function buildTree(): Root {
       { type: 'page', name: '开发工具', url: '/devtools' },
       { type: 'page', name: '多表单联动', url: '/multi-form' },
       { type: 'page', name: '同一 form 多 schema', url: '/multi-instance' },
+      { type: 'page', name: '模态框示例', url: '/modal' },
       { type: 'page', name: '组件文档', url: '/widget-docs' },
       { type: 'page', name: '组件内校验', url: '/widget-validation' },
       { type: 'page', name: '高级组件', url: '/advanced-widgets' },
@@ -71,6 +73,12 @@ function PageRouter({ path }: { path: string }) {
   if (path === '/extensions') {
     return <ExtensionsPage />;
   }
+  if (path === '/modal') {
+    return <ModalPage />;
+  }
+  if (path === '/designer') {
+    return <DesignerPage />;
+  }
   return <MdxDocsPage path={path.replace(/^\//, '') || 'index'} />;
 }
 
@@ -79,7 +87,7 @@ function App() {
   const isDesigner = path === '/designer';
 
   return (
-    <DocsFrameworkProvider>
+    <>
       {isDesigner ? (
         <div style={{ height: '100vh' }}>
           <DesignerPage />
@@ -93,7 +101,7 @@ function App() {
           <PageRouter path={path} />
         </DocsLayout>
       )}
-    </DocsFrameworkProvider>
+    </>
   );
 }
 

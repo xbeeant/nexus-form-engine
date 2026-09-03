@@ -6,6 +6,7 @@
 import { globSync, readFileSync } from 'node:fs';
 import { extname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { UserOptions } from 'sonda';
 import type { PluginOption, UserConfig } from 'vite';
 import { libInjectCss } from 'vite-plugin-lib-inject-css';
 
@@ -15,7 +16,9 @@ import { libInjectCss } from 'vite-plugin-lib-inject-css';
 // package.json exports 正常解析。
 const SondaPluginPath = 'sonda/vite';
 const DtsPluginPath = 'vite-plugin-dts';
-const Sonda = (await import(SondaPluginPath)).default as () => PluginOption;
+const Sonda = (await import(SondaPluginPath)).default as (
+  options?: UserOptions,
+) => PluginOption;
 const dts = (await import(DtsPluginPath)).default as (
   options?: Record<string, unknown>,
 ) => PluginOption;
@@ -66,8 +69,17 @@ export interface ViteLibOptions {
   /** 额外 external（react/react-dom/jsx-runtime、/node_modules/、dependencies、peerDependencies 已内置） */
   extraExternal?: (string | RegExp)[];
   /**
+   * 是否将所有 CSS 聚合到单个文件（默认 false，保持原有行为）。
+   * 设为 true 时，es/cjs/umd 均输出聚合的 CSS 文件而非分散输出。
+   * 开启后不再使用 libInjectCss 注入 CSS 到 JS。
+   */
+  cssBundle?: boolean;
+  /** CSS 产物文件名（含扩展名），仅 cssBundle: true 时生效，默认 'index.css' */
+  cssFileNames?: string;
+  /**
    * 是否在 es/cjs 产物中以 import 形式注入 CSS（vite-plugin-lib-inject-css）。
    * 仅对多入口 es/cjs 生效；umd 由 vite 原生输出独立 index.css。
+   * @deprecated 使用 cssBundle 替代
    */
   injectCss?: boolean;
   /** 是否在 es 格式下生成 .d.ts */
@@ -85,23 +97,42 @@ const REACT_EXTERNALS: (string | RegExp)[] = [
   'react',
   'react-dom',
   'react/jsx-runtime',
+  /^@xbeeant\//,
 ];
 
-/** 外部依赖 = react 系列 + /node_modules/ + 当前包 dependencies/peerDependencies */
-function buildExternals(extra: (string | RegExp)[] = []): (string | RegExp)[] {
+/** 外部依赖匹配函数：react 系列 + 当前包 dependencies/peerDependencies（含子路径） */
+function buildExternals(
+  extra: (string | RegExp)[] = [],
+): (id: string, importer: string | undefined, isResolved: boolean) => boolean {
   const pkg = JSON.parse(
     readFileSync(resolve(process.cwd(), 'package.json'), 'utf-8'),
   ) as {
     dependencies?: Record<string, string>;
     peerDependencies?: Record<string, string>;
   };
-  return [
-    ...REACT_EXTERNALS,
-    ...extra,
-    /node_modules/,
+  const depNames = [
     ...Object.keys(pkg.dependencies ?? {}),
     ...Object.keys(pkg.peerDependencies ?? {}),
   ];
+  const fixedExternals: (string | RegExp)[] = [...REACT_EXTERNALS, ...extra];
+  const fixedMatch = (id: string) =>
+    fixedExternals.some((e) => (typeof e === 'string' ? id === e : e.test(id)));
+
+  return (id, _importer, isResolved) => {
+    // 未解析的原始规范符：按包名或其子路径精确匹配，直接保留原始导入字符串。
+    // 若等到已解析成 node_modules 绝对路径后再外部化，会丢失原始包名，
+    // 导致发布产物中出现写死本机绝对路径的 import（如 @lexical/react 子路径导入）。
+    if (!isResolved) {
+      if (fixedMatch(id)) {
+        return true;
+      }
+      if (depNames.some((d) => id === d || id.startsWith(`${d}/`))) {
+        return true;
+      }
+    }
+    // 已解析路径兜底：位于 node_modules 的绝对路径视为外部依赖，防止把第三方代码打进产物
+    return /node_modules/.test(id);
+  };
 }
 
 /**
@@ -145,10 +176,16 @@ function buildMultiEntryOutput(format: 'es' | 'cjs') {
  * 库模式公共配置工厂。
  * - es/cjs：多入口 preserveModules，产物结构与源码一致
  * - umd：单入口 bundle，全局名由 name 指定
+ * - cssBundle：所有 CSS 聚合到单个文件输出（默认 false）
  */
 export function defineLibConfig(options: ViteLibOptions): UserConfig {
   const format = options.format ?? getFormatFromArgs() ?? 'es';
   const multiEntry = format === 'es' || format === 'cjs';
+  // cssBundle 优先级高于 injectCss（兼容旧配置）
+  const cssBundle = options.cssBundle ?? false;
+  const cssFileName = options.cssFileNames ?? 'index';
+  // 兼容旧的 injectCss 配置：同时开启 cssBundle
+  const legacyInjectCss = options.injectCss ?? false;
 
   console.info('[build][format]', format);
 
@@ -156,8 +193,14 @@ export function defineLibConfig(options: ViteLibOptions): UserConfig {
     ...(options.plugins ?? []),
     // libInjectCss 仅适用于多入口 preserveModules 产物（es/cjs）：
     // umd 单入口由 vite 原生输出独立 index.css，若在此注入会吞掉 CSS 产物
-    ...(multiEntry && options.injectCss ? [libInjectCss()] : []),
-    Sonda(),
+    // 当开启 cssBundle 时不使用 libInjectCss，CSS 将输出为独立文件
+    ...(multiEntry && legacyInjectCss && !cssBundle ? [libInjectCss()] : []),
+    Sonda({
+      open: false,
+      gzip: true,
+      sources: true,
+      filename: `${format}_sonda_[index]`,
+    }),
     ...(format === 'es' && options.dts
       ? [
           dts({
@@ -171,6 +214,17 @@ export function defineLibConfig(options: ViteLibOptions): UserConfig {
         ]
       : []),
   ];
+
+  // CSS 聚合输出配置：所有 CSS 合并到 index.css
+  const cssConfig: {
+    cssCodeSplit: boolean;
+    assetsInclude?: string | string[];
+    rollupOptions?: {
+      output?: Record<string, unknown>[];
+    };
+  } = {
+    cssCodeSplit: false, // 关闭 CSS 按模块分割，聚合到一个文件
+  };
 
   const config: UserConfig = {
     plugins,
@@ -188,7 +242,16 @@ export function defineLibConfig(options: ViteLibOptions): UserConfig {
         ...(multiEntry
           ? {
               input: collectEntries(),
-              output: [buildMultiEntryOutput(format as 'es' | 'cjs')],
+              output: [
+                {
+                  ...buildMultiEntryOutput(format as 'es' | 'cjs'),
+                  // cssBundle: 自定义 CSS 输出文件名
+                  assetFileNames: cssBundle
+                    ? () => `${cssFileName}.css`
+                    : (assetInfo: { name?: string }) =>
+                        assetInfo.name?.split('/').pop() || 'index[extname]',
+                },
+              ],
             }
           : {
               output: [
@@ -200,6 +263,7 @@ export function defineLibConfig(options: ViteLibOptions): UserConfig {
               ],
             }),
       },
+      ...cssConfig,
     },
   };
 

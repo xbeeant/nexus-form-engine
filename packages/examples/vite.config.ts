@@ -65,6 +65,14 @@ export default defineConfig({
   resolve: {
     // 工作区包解析：node_modules 无符号链接，直接映射到源码
     alias: workspaceAliases(),
+    // bun 的隔离安装会按 peer 组合把 fumadocs-core 拆成多份物理副本
+    // （node_modules/.bun/fumadocs-core@<ver>+<hash>/node_modules/fumadocs-core）：
+    // 应用源码命中 packages/examples 的顶层副本，fumadocs-ui 内部命中它自己的兄弟副本，
+    // 两份副本各自持有一个 FrameworkContext，SearchDialog 中的 useRouter() 因此取不到
+    // DocsFrameworkProvider 提供的值、落到默认实现并抛出
+    // "You need to wrap your application inside `FrameworkProvider`"。
+    // 统一从项目根解析，保证运行时只有一份 fumadocs-core。
+    dedupe: ['fumadocs-core', 'fumadocs-ui'],
   },
   build: {
     outDir: 'dist',

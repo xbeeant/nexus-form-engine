@@ -6,11 +6,15 @@ import type {
 } from '@xbeeant/form-engine';
 import { toBoolean } from '@xbeeant/form-engine/utils/schema-helper';
 import { NexusContext, useFormConfig } from '@xbeeant/form-engine-react';
-import { Form } from 'antd';
+import { ConfigProvider, Form } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import React, { useContext } from 'react';
-import { type NexusLocaleBundle, resolveNexusLocale } from '../locales';
+import {
+  type NexusLocaleBundle,
+  resolveAntdLocale,
+  resolveNexusLocale,
+} from '../locales';
 
 // 支持按 format 模板解析（如 'YYYY年MM月DD日'），默认解析无法识别此类自定义格式
 dayjs.extend(customParseFormat);
@@ -355,15 +359,21 @@ export interface FieldWrapperProps {
 
 export function FieldWrapper(props: FieldWrapperProps) {
   const { children, ...rest } = props;
-
+  const config = useFormConfig();
   const { wrap } = useFormItem(rest as WidgetProps);
+  // antd 组件库 locale（ConfigProvider 包裹，表单级 locale 生效于所有控件）
+  const antdLocale = resolveAntdLocale(config.locale);
 
-  return wrap(
-    <FieldMetaContext.Provider
-      value={{ title: rest.title, description: rest.description }}
-    >
-      {children}
-    </FieldMetaContext.Provider>,
+  return (
+    <ConfigProvider locale={antdLocale}>
+      {wrap(
+        <FieldMetaContext.Provider
+          value={{ title: rest.title, description: rest.description }}
+        >
+          {children}
+        </FieldMetaContext.Provider>,
+      )}
+    </ConfigProvider>
   );
 }
 

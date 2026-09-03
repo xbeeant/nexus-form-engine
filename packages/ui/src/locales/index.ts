@@ -3,6 +3,10 @@
 // 语言标识约定：BCP 47（'zh-CN' / 'en-US'），缺省 zh-CN
 // ────────────────────────────────────────────────────────────────────────────
 
+import type { Locale as AntdLocale } from 'antd/es/locale';
+import enUS from 'antd/locale/en_US';
+import zhCN from 'antd/locale/zh_CN';
+
 export interface NexusLocaleBundle {
   /** 只读展示内置文案 */
   readonlyDisplay: {
@@ -28,9 +32,20 @@ export function normalizeLocale(locale?: string): string {
   return nexusLocales[locale] ? locale : 'zh-CN';
 }
 
+/** antd 组件库 locale 映射（ConfigProvider 消费） */
+export const antdLocales: Record<string, AntdLocale> = {
+  'zh-CN': zhCN,
+  'en-US': enUS,
+};
+
 /** 获取语言包（未知 locale 回退中文包） */
 export function resolveNexusLocale(locale?: string): NexusLocaleBundle {
   return nexusLocales[normalizeLocale(locale)];
+}
+
+/** 获取 antd locale 对象（未知 locale 回退中文） */
+export function resolveAntdLocale(locale?: string): AntdLocale {
+  return antdLocales[normalizeLocale(locale)];
 }
 
 /** 规范化语言标识到 antd 可识别的 BCP 47 格式（'zh-CN' → 'zh_CN'） */

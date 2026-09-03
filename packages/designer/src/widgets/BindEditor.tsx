@@ -67,7 +67,14 @@ export function BindEditor({ value, onChange }: WidgetProps) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        width: '100%',
+      }}
+    >
       <Select
         value={mode}
         options={BIND_MODE_OPTIONS}

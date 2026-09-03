@@ -17,7 +17,7 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "src", "README.md"],
+  "files": ["dist", "README.md"],
   "sideEffects": ["**/*.css"],
   "scripts": {
     "build": "tsc -b && vite build",
