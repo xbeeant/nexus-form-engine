@@ -53,7 +53,7 @@ export const listDoc: WidgetDoc = {
     {
       title: '按钮控制与文案',
       description:
-        'addText/removeText/copyText 定制按钮文案；hideAddButton/hideDeleteButton/hideMoveButton/hideCopyButton 控制按钮显隐。',
+        'addText/removeText/copyText 定制按钮文案；hideAdd/hideDelete/hideMove/hideCopy 控制按钮显隐。',
       schema: {
         type: 'object',
         displayType: 'row',
@@ -73,7 +73,7 @@ export const listDoc: WidgetDoc = {
               addText: '新增里程碑',
               removeText: '移除',
               copyText: '复制',
-              hideDeleteButton: true,
+              hideDelete: true,
             },
           },
         },

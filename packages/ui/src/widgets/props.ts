@@ -326,13 +326,13 @@ export interface ListActionsProps {
   /** 复制按钮文案（默认：复制） */
   copyText?: string;
   /** 隐藏添加按钮 */
-  hideAddButton?: boolean;
+  hideAdd?: boolean;
   /** 隐藏删除按钮 */
-  hideDeleteButton?: boolean;
+  hideDelete?: boolean;
   /** 隐藏上移/下移按钮 */
-  hideMoveButton?: boolean;
+  hideMove?: boolean;
   /** 隐藏复制按钮 */
-  hideCopyButton?: boolean;
+  hideCopy?: boolean;
 }
 
 /** List widget props */
@@ -348,6 +348,13 @@ export type SimpleListWidgetProps = ListWidgetProps;
 export interface TableListWidgetProps extends ListActionsProps {
   /** 表格横向滚动（默认开启） */
   scrollX?: boolean;
+  /** 操作列属性（参考 Antd Table ColumnType），hidden: true 可隐藏操作列 */
+  actionColumnProps?: {
+    hidden?: boolean;
+    title?: string;
+    width?: number;
+    [key: string]: unknown;
+  };
 }
 
 // ── 新增 antd 组件（AutoComplete / Cascader / Mentions / Segmented / Transfer / File）──

@@ -42,19 +42,19 @@ export const listWidget = ({
   addText: _addText,
   removeText: _removeText,
   copyText: _copyText,
-  hideAddButton: _hideAddButton,
-  hideDeleteButton: _hideDeleteButton,
-  hideMoveButton: _hideMoveButton,
-  hideCopyButton: _hideCopyButton,
+  hideAdd: _hideAdd,
+  hideDelete: _hideDelete,
+  hideMove: _hideMove,
+  hideCopy: _hideCopy,
   ...rest
 }: WidgetProps) => {
   const addText = _addText as string | undefined;
   const removeText = _removeText as string | undefined;
   const copyText = _copyText as string | undefined;
-  const hideAddButton = _hideAddButton as boolean | undefined;
-  const hideDeleteButton = _hideDeleteButton as boolean | undefined;
-  const hideMoveButton = _hideMoveButton as boolean | undefined;
-  const hideCopyButton = _hideCopyButton as boolean | undefined;
+  const hideAdd = _hideAdd as boolean | undefined;
+  const hideDelete = _hideDelete as boolean | undefined;
+  const hideMove = _hideMove as boolean | undefined;
+  const hideCopy = _hideCopy as boolean | undefined;
   const array = Array.isArray(value) ? value : [];
   const itemSchema = items as DataObjectSchema | undefined;
   const itemProperties = itemSchema?.properties ?? {};
@@ -122,7 +122,7 @@ export const listWidget = ({
           extra={
             readOnly ? null : (
               <Space size='small'>
-                {!hideMoveButton && (
+                {!hideMove && (
                   <>
                     <Button
                       type='text'
@@ -142,7 +142,7 @@ export const listWidget = ({
                     </Button>
                   </>
                 )}
-                {!hideCopyButton && (
+                {!hideCopy && (
                   <Button
                     type='text'
                     size='small'
@@ -152,7 +152,7 @@ export const listWidget = ({
                     {copyText ?? '复制'}
                   </Button>
                 )}
-                {!hideDeleteButton && (
+                {!hideDelete && (
                   <Button
                     type='text'
                     size='small'
@@ -199,7 +199,7 @@ export const listWidget = ({
           })}
         </Card>
       ))}
-      {!readOnly && !hideAddButton && (
+      {!readOnly && !hideAdd && (
         <Button type='dashed' onClick={handleAdd} disabled={disabled} block>
           + {addText ?? '添加'}
         </Button>

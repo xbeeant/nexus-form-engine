@@ -56,6 +56,8 @@ export interface WidgetProps<T = Record<string, any>> {
   column?: number;
   /** 表单实例，可调用表单方法（如 getValues/setValueByPath 等） */
   form?: NexusFormInstance;
+  /** x-render addons — 表单取值、校验、Schema 操作入口 */
+  addons?: NexusAddons;
   /** 依赖字段的值映射（key 为字段路径，value 为字段值） */
   dependValues?: Record<string, unknown>;
   /** 远程选项数据版本：engine.reloadRemoteData() 后递增，widget 据此跳过缓存重新请求 */
@@ -64,6 +66,51 @@ export interface WidgetProps<T = Record<string, any>> {
   items?: DataFieldSchema | DataObjectSchema;
   [key: string]: unknown;
   props: T;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// NexusAddons — x-render addons 对齐
+// 为 widget 组件提供统一的表单数据访问、校验、Schema 操作入口，
+// 对齐 x-render 自定义组件的 addons API
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface NexusAddons {
+  /** 表单全部可见数据 */
+  formData: Record<string, unknown>;
+  /** 根级表单数据（与 formData 等价，x-render 对齐） */
+  rootValue: Record<string, unknown>;
+  /** 当前字段值 */
+  value: unknown;
+  /** 当前字段路径 */
+  dataPath: string;
+  /** 当前字段路径（dataPath 别名） */
+  path: string;
+  /** 当前字段 Schema */
+  schema: SchemaNode;
+  /** 数组项索引（字段在数组内时有值） */
+  index?: number;
+  /** 父级值（数组项→父数组，对象字段→父对象） */
+  parentValues?: unknown;
+  /** 按路径取值 */
+  getValue(path: string): unknown;
+  /** 按路径设值 */
+  setValue(path: string, value: unknown): void;
+  /** 按路径设值（x-render 别名） */
+  onItemChange(path: string, value: unknown): void;
+  /** 校验单个/全部字段 */
+  validate(path?: string): Promise<void>;
+  /** 校验多个字段 */
+  validateFields(paths?: string[]): Promise<void>;
+  /** 触发提交 */
+  submit(): Promise<void>;
+  /** 重置表单 */
+  resetFields(): void;
+  /** 替换 Schema */
+  setSchema(schema: Record<string, unknown>): void;
+  /** 按路径更新 Schema */
+  setSchemaByPath(path: string, patch: Record<string, unknown>): void;
+  /** 获取 Schema */
+  getSchema(): Record<string, unknown> | null;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -416,6 +463,7 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
       labelWidth,
       column,
       form,
+      addons,
       items,
       dependValues,
       dataPath,
@@ -433,6 +481,7 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
         placeholder,
         options,
         form,
+        addons,
         items,
         dependValues,
         dataPath,

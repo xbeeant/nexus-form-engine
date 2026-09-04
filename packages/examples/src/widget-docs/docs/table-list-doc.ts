@@ -56,7 +56,7 @@ export const tableListDoc: WidgetDoc = {
     {
       title: '横向滚动与按钮控制',
       description:
-        'scrollX 开启横向滚动（列多时）；hideAddButton/hideDeleteButton 控制按钮显隐。',
+        'scrollX 开启横向滚动（列多时）；hideAdd/hideDelete 控制按钮显隐。',
       schema: {
         type: 'object',
         displayType: 'row',
@@ -82,7 +82,7 @@ export const tableListDoc: WidgetDoc = {
             },
             props: {
               scrollX: true,
-              hideAddButton: false,
+              hideAdd: false,
             },
           },
         },

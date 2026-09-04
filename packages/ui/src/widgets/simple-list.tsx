@@ -45,19 +45,19 @@ export const simpleListWidget = ({
   addText: _addText,
   removeText: _removeText,
   copyText: _copyText,
-  hideAddButton: _hideAddButton,
-  hideDeleteButton: _hideDeleteButton,
-  hideMoveButton: _hideMoveButton,
-  hideCopyButton: _hideCopyButton,
+  hideAdd: _hideAdd,
+  hideDelete: _hideDelete,
+  hideMove: _hideMove,
+  hideCopy: _hideCopy,
   ...rest
 }: WidgetProps) => {
   const addText = _addText as string | undefined;
   const removeText = _removeText as string | undefined;
   const copyText = _copyText as string | undefined;
-  const hideAddButton = _hideAddButton as boolean | undefined;
-  const hideDeleteButton = _hideDeleteButton as boolean | undefined;
-  const hideMoveButton = _hideMoveButton as boolean | undefined;
-  const hideCopyButton = _hideCopyButton as boolean | undefined;
+  const hideAdd = _hideAdd as boolean | undefined;
+  const hideDelete = _hideDelete as boolean | undefined;
+  const hideMove = _hideMove as boolean | undefined;
+  const hideCopy = _hideCopy as boolean | undefined;
   const array = Array.isArray(value) ? value : [];
 
   // 判断 items 是对象还是简单类型
@@ -131,7 +131,7 @@ export const simpleListWidget = ({
     }
     return (
       <Space size='small' style={{ flexShrink: 0 }}>
-        {!hideMoveButton && (
+        {!hideMove && (
           <>
             <Button
               type='text'
@@ -151,7 +151,7 @@ export const simpleListWidget = ({
             </Button>
           </>
         )}
-        {!hideCopyButton && (
+        {!hideCopy && (
           <Button
             type='text'
             size='small'
@@ -161,7 +161,7 @@ export const simpleListWidget = ({
             {copyText ?? '复制'}
           </Button>
         )}
-        {!hideDeleteButton && (
+        {!hideDelete && (
           <Button
             type='text'
             size='small'
@@ -250,7 +250,7 @@ export const simpleListWidget = ({
           {renderActions(index)}
         </div>
       ))}
-      {!readOnly && !hideAddButton && (
+      {!readOnly && !hideAdd && (
         <Button type='dashed' onClick={handleAdd} disabled={disabled} block>
           + {addText ?? '添加'}
         </Button>

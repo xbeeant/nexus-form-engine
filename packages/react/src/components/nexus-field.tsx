@@ -82,6 +82,50 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
     return values;
   }, [state?.reactions, engine]);
 
+  // x-render addons — 为 widget 组件提供统一的表单数据访问、校验、Schema 操作入口
+  // 对齐 x-render 自定义组件的 addons API
+  const addons = useMemo(() => {
+    const arrayPath = state?.meta.itemOf;
+    const isItemField = !!arrayPath;
+    const indexMatch = isItemField ? dataPath.match(/\[(\d+)\]/) : undefined;
+    const index = indexMatch ? Number(indexMatch[1]) : undefined;
+
+    return {
+      get formData() {
+        return form.getValues();
+      },
+      get rootValue() {
+        return form.getValues();
+      },
+      value: state?.value,
+      dataPath,
+      path: dataPath,
+      schema: state?.meta.schema,
+      index,
+      parentValues: arrayPath ? form.getValueByPath(arrayPath) : undefined,
+      getValue: (p: string) => form.getValueByPath(p),
+      setValue: (p: string, v: unknown) => form.setValueByPath(p, v),
+      onItemChange: (p: string, v: unknown) => form.setValueByPath(p, v),
+      validate: async (p?: string) => {
+        if (p) {
+          await form.validateFields([p]);
+        } else {
+          await form.validateFields([dataPath]);
+        }
+      },
+      validateFields: async (paths?: string[]) => {
+        await form.validateFields(paths);
+      },
+      submit: () => form.submit(),
+      resetFields: () => form.resetFields(),
+      setSchema: (s: Record<string, unknown>) =>
+        form.setSchema(s as any),
+      setSchemaByPath: (p: string, patch: Record<string, unknown>) =>
+        form.setSchemaByPath(p, patch),
+      getSchema: () => form.getSchema(),
+    };
+  }, [form, dataPath, state?.value, state?.meta.itemOf, state?.meta.schema]);
+
   if (!state) {
     // 仅当引擎已初始化（version > 0）但字段仍未找到时才发出警告
     // 初始化过程中的短暂空状态不应报警
@@ -181,6 +225,7 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
     placeholder: state.meta.placeholder,
     options,
     form,
+    addons,
     dependValues,
     items: state.meta.items,
     schema: state.meta.schema,

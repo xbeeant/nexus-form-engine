@@ -46,19 +46,23 @@ export const tableListWidget = ({
   dataPath,
   path: _p,
   addText: _addText,
-  hideAddButton: _hideAddButton,
-  hideDeleteButton: _hideDeleteButton,
-  hideMoveButton: _hideMoveButton,
-  hideCopyButton: _hideCopyButton,
+  hideAdd: _hideAdd,
+  hideDelete: _hideDelete,
+  hideMove: _hideMove,
+  hideCopy: _hideCopy,
   scrollX: _scrollX,
+  actionColumnProps: _actionColumnProps,
   ...rest
 }: WidgetProps) => {
   const addText = _addText as string | undefined;
-  const hideAddButton = _hideAddButton as boolean | undefined;
-  const hideDeleteButton = _hideDeleteButton as boolean | undefined;
-  const hideMoveButton = _hideMoveButton as boolean | undefined;
-  const hideCopyButton = _hideCopyButton as boolean | undefined;
+  const hideAdd = _hideAdd as boolean | undefined;
+  const hideDelete = _hideDelete as boolean | undefined;
+  const hideMove = _hideMove as boolean | undefined;
+  const hideCopy = _hideCopy as boolean | undefined;
   const scrollX = _scrollX as boolean | undefined;
+  const actionColumnProps = _actionColumnProps as
+    | Record<string, unknown>
+    | undefined;
   const array = Array.isArray(value) ? value : [];
   const itemSchema = items as DataObjectSchema | undefined;
   const itemProperties = itemSchema?.properties ?? {};
@@ -134,15 +138,17 @@ export const tableListWidget = ({
   ];
 
   // 操作列
-  if (!readOnly) {
+  if (!readOnly && !actionColumnProps?.hidden) {
+    const { hidden: _hidden, ...restColumnProps } = actionColumnProps ?? {};
     columns.push({
       title: '操作',
       key: '__action',
       width: 200,
       fixed: 'right' as const,
+      ...restColumnProps,
       render: (_val: unknown, _record: TableItemType, index: number) => (
         <Space size='small'>
-          {!hideMoveButton && (
+          {!hideMove && (
             <>
               <Button
                 type='text'
@@ -162,7 +168,7 @@ export const tableListWidget = ({
               </Button>
             </>
           )}
-          {!hideCopyButton && (
+          {!hideCopy && (
             <Button
               type='text'
               size='small'
@@ -172,7 +178,7 @@ export const tableListWidget = ({
               复制
             </Button>
           )}
-          {!hideDeleteButton && (
+          {!hideDelete && (
             <Popconfirm
               title='确认删除该行？'
               onConfirm={() => handleRemove(index)}
@@ -208,7 +214,7 @@ export const tableListWidget = ({
         bordered
         locale={{ emptyText: '暂无数据' }}
       />
-      {!readOnly && !hideAddButton && (
+      {!readOnly && !hideAdd && (
         <Button
           type='dashed'
           onClick={handleAdd}

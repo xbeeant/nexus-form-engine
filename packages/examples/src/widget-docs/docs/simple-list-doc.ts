@@ -46,7 +46,7 @@ export const simpleListDoc: WidgetDoc = {
     {
       title: '多字段与按钮控制',
       description:
-        'items 含多个字段时并排展示；hideDeleteButton/hideMoveButton/hideCopyButton 控制按钮显隐。',
+        'items 含多个字段时并排展示；hideDelete/hideMove/hideCopy 控制按钮显隐。',
       schema: {
         type: 'object',
         displayType: 'row',
@@ -64,8 +64,8 @@ export const simpleListDoc: WidgetDoc = {
             },
             props: {
               addText: '添加链接',
-              hideMoveButton: true,
-              hideCopyButton: true,
+              hideMove: true,
+              hideCopy: true,
             },
           },
         },
