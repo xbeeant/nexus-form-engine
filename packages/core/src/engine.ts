@@ -849,6 +849,11 @@ export class NexusEngine implements IFormEngine {
       return;
     }
 
+    // 只读字段不参与校验（值不可由用户修改，可能因联动/初始值而不满足约束）
+    if (state.readOnly) {
+      return;
+    }
+
     const errors: string[] = [];
     const formData = this.getFormDataInternal(); // 使用缓存引用
 
@@ -1193,6 +1198,11 @@ export class NexusEngine implements IFormEngine {
     for (const path of targetPaths) {
       const state = this._inst().fieldStates.get(path);
       if (!state?.visible) {
+        continue;
+      }
+
+      // 只读字段不参与校验（值不可由用户修改，可能因联动/初始值而不满足约束）
+      if (state.readOnly) {
         continue;
       }
 
