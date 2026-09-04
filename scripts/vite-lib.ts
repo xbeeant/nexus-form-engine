@@ -3,7 +3,7 @@
 // 统一处理 CLI 格式参数、多入口 preserveModules 输出、外部依赖声明、
 // .d.ts 产物（仅 es）、Sonda 分析与工作区包别名，避免 4 份配置重复维护。
 
-import { globSync, readFileSync } from 'node:fs';
+import { globSync, readFileSync, rmSync } from 'node:fs';
 import { extname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { UserOptions } from 'sonda';
@@ -90,6 +90,20 @@ export interface ViteLibOptions {
   sourcemap?: boolean;
   /** 额外 asset 类型（如 bpmn 文件等） */
   assetsInclude?: string[];
+}
+
+/**
+ * 构建前清理 dist/${format} 目录，防止上一次构建的残留文件污染产物。
+ * 每个格式（es/cjs/umd）只清理自己的子目录，互不干扰。
+ */
+function cleanDistPlugin(format: string): PluginOption {
+  return {
+    name: 'vite-plugin-clean-dist',
+    buildStart() {
+      const distDir = resolve(process.cwd(), `dist/${format}`);
+      rmSync(distDir, { recursive: true, force: true });
+    },
+  };
 }
 
 /** react 系列 peer 依赖：所有带 UI 的包统一 external，core 无此依赖但声明无害 */
@@ -190,6 +204,7 @@ export function defineLibConfig(options: ViteLibOptions): UserConfig {
   console.info('[build][format]', format);
 
   const plugins: PluginOption[] = [
+    cleanDistPlugin(format),
     ...(options.plugins ?? []),
     // libInjectCss 仅适用于多入口 preserveModules 产物（es/cjs）：
     // umd 单入口由 vite 原生输出独立 index.css，若在此注入会吞掉 CSS 产物

@@ -6,7 +6,6 @@ export default defineLibConfig({
   name: 'NexusFormEngineDesigner',
   format: 'es',
   plugins: [react(), tailwindcss()],
-  sourcemap: true,
   resolve: {
     dedupe: ['react', 'react-dom'],
     // 工作区包解析：node_modules 无符号链接，直接映射到源码
