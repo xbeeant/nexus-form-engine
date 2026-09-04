@@ -20,10 +20,7 @@ import {
 dayjs.extend(customParseFormat);
 
 export interface WidgetProps<T = Record<string, any>> {
-  /**
-   * 原始 Schema 节点（供 widget 组件读取完整声明）
-   * @deprecated
-   */
+  /** 原始 Schema 节点（供 widget 组件读取完整声明） */
   schema: SchemaNode;
   /** 字段数据路径（供 widget 组件内注册校验规则 / 读取自身状态） */
   dataPath?: string;
@@ -85,8 +82,6 @@ export interface NexusAddons {
   dataPath: string;
   /** 当前字段路径（dataPath 别名） */
   path: string;
-  /** 当前字段 Schema */
-  schema: SchemaNode;
   /** 数组项索引（字段在数组内时有值） */
   index?: number;
   /** 父级值（数组项→父数组，对象字段→父对象） */

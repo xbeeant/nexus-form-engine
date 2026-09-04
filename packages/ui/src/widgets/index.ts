@@ -6,7 +6,7 @@
 // WidgetProps 是所有 Widget 组件的通用属性类型
 import type { ReactNode } from 'react';
 
-export type { WidgetProps } from './_shared';
+export type { NexusAddons, WidgetProps } from './_shared';
 
 // ── 工具函数和组件导出 ─────────────────────────────────────────────────────────
 export {

@@ -100,7 +100,6 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
       value: state?.value,
       dataPath,
       path: dataPath,
-      schema: state?.meta.schema,
       index,
       parentValues: arrayPath ? form.getValueByPath(arrayPath) : undefined,
       getValue: (p: string) => form.getValueByPath(p),
@@ -124,7 +123,7 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
         form.setSchemaByPath(p, patch),
       getSchema: () => form.getSchema(),
     };
-  }, [form, dataPath, state?.value, state?.meta.itemOf, state?.meta.schema]);
+  }, [form, dataPath, state?.value, state?.meta.itemOf]);
 
   if (!state) {
     // 仅当引擎已初始化（version > 0）但字段仍未找到时才发出警告
