@@ -199,6 +199,9 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
   // - required: 会让 <input required> 触发浏览器原生校验
   // - errors/title/description/label/extra/width/displayType/labelWidth/column:
   //   作为未知属性透传到 DOM 会产生 React 警告
+  // width / colSpan / displayType / labelWidth / column 是布局属性，
+  // 由 NexusField 外层 <div> 的 wrapperStyle 统一消费，不透传给 FieldWrapper（Form.Item），
+  // 避免外层 div 与 Form.Item 重复设置 width。
   const fieldWrapperProps = {
     label: state.meta.label,
     title: state.meta.title,
@@ -207,7 +210,6 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
     errors: state.errors,
     required: state.required,
     extra: state.meta.extra,
-    width: state.meta.width,
     displayType: fieldDisplayType,
     labelWidth: fieldLabelWidth,
     column: fieldColumn,
@@ -248,6 +250,7 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
   return (
     <div
       data-nexus-field={dataPath}
+      className={readOnly ? 'nexus-field-readonly' : undefined}
       onBlur={handleBlur}
       style={Object.keys(wrapperStyle).length > 0 ? wrapperStyle : undefined}
     >
