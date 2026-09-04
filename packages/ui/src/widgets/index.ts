@@ -116,9 +116,13 @@ export const antdWidgets: Record<string, (props: WidgetProps) => ReactNode> = {
   textarea: textAreaWidget, // 多行文本输入框
   textArea: textAreaWidget, // 多行文本输入框
   date: datePickerWidget, // 日期选择器
+  datePicker: datePickerWidget, // 日期选择器
   dateRange: dateRangeWidget, // 日期范围选择器
+  dateRangePicker: dateRangeWidget, // 日期范围选择器
   time: timePickerWidget, // 时间选择器
+  timePicker: timePickerWidget, // 时间选择器
   timeRange: timeRangeWidget, // 时间范围选择器
+  timeRangePicker: timeRangeWidget, // 时间范围选择器
   html: htmlWidget, // HTML 内容渲染
   slider: sliderWidget, // 滑块选择器
   image: imageInputWidget, // 图片上传组件
