@@ -1,6 +1,6 @@
 {
   "name": "@xbeeant/form-engine-designer",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -17,8 +17,13 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md"],
-  "sideEffects": ["**/*.css"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "scripts": {
     "build": "tsc -b && vite build",
     "prepublishOnly": "npm run build",
@@ -47,8 +52,8 @@
     }
   },
   "dependencies": {
-    "@xbeeant/form-engine": "^0.0.3",
-    "@xbeeant/form-engine-ui": "^0.0.3"
+    "@xbeeant/form-engine": "^0.0.4",
+    "@xbeeant/form-engine-ui": "^0.0.4"
   },
   "devDependencies": {
     "vitest": "^4.1.10"
