@@ -98,7 +98,30 @@ const REACTION_EXPR_FIELDS = [
   'disabled',
   'readOnly',
   'hidden',
+  'display',
 ] as const;
+
+/**
+ * 解析字段的显示状态（formily `display` 三态对齐）
+ * - 声明了 display 表达式/布尔时取声明值（'none'/'hidden'/'visible'）
+ * - 未声明 display，但 hidden: true / visible: false → 'hidden'
+ * - 其余默认 'visible'
+ */
+function resolveDisplay(node: {
+  hidden?: unknown;
+  display?: unknown;
+}): 'visible' | 'none' | 'hidden' {
+  if (node.display !== undefined) {
+    if (node.display === 'none' || node.display === 'hidden') {
+      return node.display;
+    }
+    return 'visible';
+  }
+  if (node.hidden === true) {
+    return 'hidden';
+  }
+  return 'visible';
+}
 
 function extractLayoutProps(
   node: Record<string, unknown>,
@@ -346,6 +369,7 @@ export function collectExpressionReactions(node: {
   disabled?: unknown;
   readOnly?: unknown;
   hidden?: unknown;
+  display?: unknown;
   dependencies?: string[];
   reactions?: Reaction[];
 }): void {
@@ -812,6 +836,9 @@ function processDataField(
   // （activate 分支成员 visible，其余隐藏）。此处仅存基础可见性（不含分支判定），
   // 避免跨分支同名键被非活动分支的解析覆盖成隐藏。
   const branchVisible = visible;
+  // display 三态：'hidden' 隐含不可见（不收集）；'none' 仍可见可收集（仅不渲染）
+  const display = resolveDisplay(node);
+  const effectiveVisible = display === 'hidden' ? false : branchVisible;
 
   const state: FieldState = {
     path: dataPath,
@@ -819,7 +846,8 @@ function processDataField(
     initialValue,
     touched: false,
     dirty: false,
-    visible: branchVisible,
+    visible: effectiveVisible,
+    display,
     disabled,
     readOnly,
     required: typeof node.required === 'boolean' ? node.required : false,
@@ -941,7 +969,13 @@ function processDataObject(
     initialValue: undefined,
     touched: false,
     dirty: false,
-    visible: typeof node.hidden === 'boolean' ? !node.hidden : true,
+    visible:
+      resolveDisplay(node) === 'hidden'
+        ? false
+        : typeof node.hidden === 'boolean'
+          ? !node.hidden
+          : true,
+    display: resolveDisplay(node),
     disabled: typeof node.disabled === 'boolean' ? node.disabled : false,
     readOnly: typeof node.readOnly === 'boolean' ? node.readOnly : false,
     required: typeof node.required === 'boolean' ? node.required : false,
@@ -1062,7 +1096,8 @@ function processDataArray(
     initialValue,
     touched: false,
     dirty: false,
-    visible: branchVisible,
+    visible: resolveDisplay(node) === 'hidden' ? false : branchVisible,
+    display: resolveDisplay(node),
     disabled,
     readOnly,
     required: typeof node.required === 'boolean' ? node.required : false,
@@ -1319,6 +1354,7 @@ function processBranchNode(
     touched: false,
     dirty: false,
     visible: typeof bnode.hidden === 'boolean' ? !bnode.hidden : true,
+    display: resolveDisplay(bnode),
     disabled: typeof bnode.disabled === 'boolean' ? bnode.disabled : false,
     readOnly: typeof bnode.readOnly === 'boolean' ? bnode.readOnly : false,
     required: false,
@@ -1542,7 +1578,13 @@ export function createArrayItemState(
     initialValue: value,
     touched: false,
     dirty: false,
-    visible: typeof node.hidden === 'boolean' ? !node.hidden : true,
+    visible:
+      resolveDisplay(node) === 'hidden'
+        ? false
+        : typeof node.hidden === 'boolean'
+          ? !node.hidden
+          : true,
+    display: resolveDisplay(node),
     disabled: typeof node.disabled === 'boolean' ? node.disabled : false,
     readOnly: typeof node.readOnly === 'boolean' ? node.readOnly : false,
     required: typeof node.required === 'boolean' ? node.required : false,

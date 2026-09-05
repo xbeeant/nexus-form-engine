@@ -135,6 +135,41 @@ describe('NexusForm', () => {
     expect(container.querySelectorAll('input')).toHaveLength(1);
   });
 
+  it("display:'none' → 不渲染任何节点（无占位符），但值仍在 formData", () => {
+    const { container } = render(
+      <TestForm
+        schema={{
+          type: 'object',
+          properties: {
+            name: { type: 'string', widget: 'input', default: 'a' },
+            ghost: {
+              type: 'string',
+              widget: 'input',
+              default: 'kept',
+              display: 'none',
+            },
+            hidden: {
+              type: 'string',
+              widget: 'input',
+              default: 'removed',
+              display: 'hidden',
+            },
+          },
+        }}
+      />,
+    );
+    // 'none' 与 'hidden' 都不渲染输入框
+    expect(container.querySelectorAll('input')).toHaveLength(1);
+    // 'none' 不输出任何节点（连占位符都没有）
+    expect(
+      container.querySelector('[data-nexus-hidden="ghost"]'),
+    ).toBeNull();
+    // 值语义：'none' 收集，'hidden' 不收集
+    const data = holder.form!._getEngine().getFormData();
+    expect(data.ghost).toBe('kept');
+    expect(data.hidden).toBeUndefined();
+  });
+
   it('布局节点 removeHidden=true 时隐藏字段完全移除（含占位符）', () => {
     const { container } = render(
       <TestForm

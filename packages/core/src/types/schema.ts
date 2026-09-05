@@ -150,6 +150,34 @@ export interface ReactionContext {
   $form: ReadonlyFormEngine;
 }
 
+/**
+ * 函数式 reaction 的执行上下文（formily `x-reactions` as function 对齐）
+ *
+ * 当声明式 `fulfill/otherwise` 补丁不足以表达联动逻辑时，`Reaction.run` 函数
+ * 接收此上下文，直接用一等函数操作字段值 / 状态 —— 声明式模型的逃逸舱。
+ *
+ * `dependencies` 仍需显式声明（构建依赖图 / 触发重跑用），与声明式 reaction 一致。
+ */
+export interface ReactionFnContext {
+  /** 目标字段自身的状态（可读可写） */
+  state: FieldState;
+  /** 依赖字段的值（按 dependencies 顺序，等同 $deps） */
+  deps: unknown[];
+  /** 完整表单数据（只读快照） */
+  formData: Record<string, unknown>;
+  /** 读取任意字段值 */
+  getValue: (path: string) => unknown;
+  /** 设置任意字段值（含实时重校验与沿依赖图传播） */
+  setValue: (path: string, value: unknown) => void;
+  /** 设置任意字段状态补丁（visible/disabled/required/value 等） */
+  setState: (path: string, patch: FieldStatePatch) => void;
+  /** 底层引擎实例（高级操作，如 reloadRemoteData / validate） */
+  form: ReadonlyFormEngine & {
+    setFieldValue(path: string, value: unknown): void;
+    setFieldState(path: string, patch: FieldStatePatch): void;
+  };
+}
+
 export interface ReactionStatePatch {
   /**
    * 计算字段值（formily x-reactions state.value 对齐）
@@ -159,6 +187,12 @@ export interface ReactionStatePatch {
   value?: ExpressionOr<unknown>;
   visible?: ExpressionOr<boolean>;
   hidden?: ExpressionOr<boolean>;
+  /**
+   * 显示状态（formily `display` 三态对齐）
+   * - 'none'：不渲染但仍收集提交（值保留）
+   * - 'hidden'：不渲染且不收集（等同 hidden:true）
+   */
+  display?: ExpressionOr<'visible' | 'none' | 'hidden'>;
   disabled?: ExpressionOr<boolean>;
   readOnly?: ExpressionOr<boolean>;
   required?: ExpressionOr<boolean>;
@@ -193,6 +227,30 @@ export interface Reaction {
     state?: ReactionStatePatch;
     schema?: ReactionSchemaPatch;
   };
+  /**
+   * 函数式联动（formily `x-reactions` as function 对齐）
+   *
+   * 存在时以命令式函数替代声明式 fulfill/otherwise 执行（逃逸舱）：
+   * 适合声明式状态/Schema 补丁无法直白表达的逻辑（复杂计算、跨字段联动、
+   * 依赖其他字段做分支等）。
+   *
+   * ```ts
+   * reactions: [{
+   *   dependencies: ['type'],
+   *   run: ({ state, deps, setState, setValue }) => {
+   *     const type = deps[0];
+   *     setState('remark', {
+   *       visible: type === 'other',
+   *       required: type === 'other',
+   *     });
+   *   },
+   * }],
+   * ```
+   *
+   * 注意：run 使 schema 不再是纯 JSON（函数不可序列化），属预期取舍（formily 同）。
+   * dependencies 仍需声明（参与依赖图构建与重跑触发）。
+   */
+  run?: (ctx: ReactionFnContext) => void;
   /**
    * 跨表单联动：源表单的 formId
    *
@@ -403,6 +461,13 @@ export interface BaseSchemaNode {
   readOnly?: ExpressionOr<boolean>;
   /** 隐藏，支持布尔值或表达式 */
   hidden?: ExpressionOr<boolean>;
+  /**
+   * 显示状态（formily `display` 三态对齐）
+   * - 'none'：不渲染（无占位符），但仍参与数据收集与提交（值保留）
+   * - 'hidden'：不渲染且不参与数据收集（等同 hidden: true）
+   * 可声明为表达式（{{ }}）或经 reactions `fulfill.state.display` 联动
+   */
+  display?: ExpressionOr<'visible' | 'none' | 'hidden'>;
   /** 单元素展示宽度，如 '20%'（x-render 对齐） */
   width?: string;
   /** 排序权重，越小越靠前（x-render 对齐） */
@@ -796,6 +861,13 @@ export interface FieldState {
   dirty: boolean;
   /** 是否可见 */
   visible: boolean;
+  /**
+   * 显示状态（formily `display` 三态对齐）
+   * - 'visible'（默认）：正常渲染，参与数据收集
+   * - 'none'：不渲染（连占位符都不输出），但**仍参与数据收集与校验**（值保留在 formData）
+   * - 'hidden'：不渲染，**不参与数据收集**（从 formData 移除，等价位与 visible=false）
+   */
+  display: 'visible' | 'none' | 'hidden';
   /** 是否禁用 */
   disabled: boolean;
   /** 是否只读 */

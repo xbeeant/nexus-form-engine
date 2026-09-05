@@ -133,6 +133,11 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
     return null;
   }
 
+  // formily display 三态：'none' 不渲染（无占位符），但值仍参与收集与提交
+  if (state.display === 'none') {
+    return null;
+  }
+
   // 祖先对象容器隐藏 → 子树整体不可见（与字段自身 visible 合并判断）
   if (inherit.visible === false || !state.visible) {
     // 如果父布局节点配置了 removeHidden，则不渲染占位符（移除以防止栅格塌陷）

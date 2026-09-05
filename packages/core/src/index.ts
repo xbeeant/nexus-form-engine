@@ -68,6 +68,7 @@ export type {
   OneOfMeta,
   Reaction,
   ReactionContext,
+  ReactionFnContext,
   ReactionSchemaPatch,
   ReactionStatePatch,
   ReadonlyFormEngine,

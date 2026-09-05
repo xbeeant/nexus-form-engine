@@ -75,6 +75,27 @@
 ### ✅ T2-3 Designer 补充 `passThrough` 布局项
 - `designer/src/catalog.ts` layouts 增加 passThrough（透传容器）。
 
+### ✅ T2-4 函数式 reactions `run`（formily `x-reactions` as function 对齐）
+- `Reaction` 新增可选 `run?: (ctx: ReactionFnContext) => void`——命令式函数替代声明式 `fulfill/otherwise`，作为声明式模型的逃逸舱（复杂计算、跨字段联动、依赖分支）。
+- `ReactionFnContext`：`state / deps / formData / getValue / setValue / setState / form`；`setValue`/`setState` 复用引擎公开方法（含实时重校验 + 沿依赖图传播）。
+- `dependencies` 仍显式声明（参与依赖图构建与重跑触发）；run 存在时优先于声明式补丁执行。
+- **测试**：`core/tests/function-reaction.test.ts`（5 用例：依赖触发 / 上下文完整 / 链式传播 sum→double / 仅声明依赖触发 / run 与声明式共存优先）。
+
+### ✅ T2-5 `display` 三态模型（visible / display:none / hidden，formily 对齐）
+- `FieldState.display: 'visible' | 'none' | 'hidden'`（默认 'visible'）：
+  - `'none'`：不渲染（无占位符，`NexusField` 直接返回 null），但**仍参与数据收集与提交**（值保留，`visible=true`）
+  - `'hidden'`：不渲染且**不参与数据收集**（等同 `hidden:true`，`visible=false`，值进 hidden）
+- `BaseSchemaNode.display`（可声明为静态或 `{{ }}` 表达式经 `_autoExpr` reaction 动态联动）+ `ReactionStatePatch.display` + `FieldStatePatch.display`（`setFieldState` 支持）。
+- Parser 5 处 FieldState 构造统一 `resolveDisplay(node)` + `display` 缺省；engine `applyStatePatch`/`setFieldState` 处理 display（'hidden' → visible=false，'none'/'visible' → visible=true）。
+- React `NexusField`：`display==='none'` 直接返回 null（不占位）、值照常收集。
+- **测试**：`core/tests/display-model.test.ts`（7 用例：默认/None 语义/Hidden 语义/表达式联动/声明式 reaction/setFieldState patch/hidden 等价）+ `react/tests/nexus-form.test.tsx`（render 行为：none 无节点、值保留）。
+
+### ⬜ T2-6 依赖驱动的动态 enum（ProForm / x-render 对齐）
+
+### ⬜ T2-7 字段级 `onChange`/`onBlur` schema 钩子（formily 对齐）
+
+### ⬜ T2-8 数组折叠/卡片 + 拖拽排序（formily ArrayField 对齐）
+
 ---
 
 ## P3 — 测试与文档
@@ -114,4 +135,4 @@
 
 ## 执行顺序
 
-T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T1-6 ✅ → T1-7 ✅ → T1-8 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T3-1 ✅ → T3-2 ✅
+T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T1-6 ✅ → T1-7 ✅ → T1-8 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T2-4 ✅ → T2-5 ✅ → T2-6 → T2-7 → T2-8 → T3-1 ✅ → T3-2 ✅

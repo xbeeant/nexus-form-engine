@@ -790,6 +790,11 @@ export class NexusEngine implements IFormEngine {
     if (patch.visible !== undefined) {
       state.visible = patch.visible;
     }
+    if (patch.display !== undefined) {
+      state.display = patch.display;
+      // 'hidden' → 不参与数据收集（visible=false）；'none'/'visible' → 参与
+      state.visible = state.display !== 'hidden';
+    }
     if (patch.disabled !== undefined) {
       state.disabled = patch.disabled;
     }
@@ -2226,14 +2231,36 @@ export class NexusEngine implements IFormEngine {
       this.syncBranchFromSource(targetPath);
       return;
     }
+    const targetState = this._inst().fieldStates.get(targetPath);
+
+    // 函数式联动（formily x-reactions as function 对齐）：
+    // 命令式函数替代声明式 fulfill/otherwise，作为声明式模型的逃逸舱。
+    if (typeof reaction.run === 'function' && targetState) {
+      const dependValues =
+        dependValuesOverride ??
+        reaction.dependencies.map((dep) => this.getFieldValue(dep));
+      const data = formData ?? this.getFormDataInternal();
+
+      reaction.run({
+        state: targetState,
+        deps: dependValues,
+        formData: data,
+        getValue: (path) => this.getFieldValue(path),
+        // 一律走 setFieldValue（含实时重校验 + 沿依赖图继续传播到下游字段）
+        setValue: (path, value) => this.setFieldValue(path, value),
+        setState: (path, patch) => this.setFieldState(path, patch),
+        form: this,
+      });
+      return;
+    }
+    if (!targetState) {
+      return;
+    }
+
     // 跨表单场景：依赖值由调用方（源表单引擎）注入，本表单不反查源字段
     const dependValues =
       dependValuesOverride ??
       reaction.dependencies.map((dep) => this.getFieldValue(dep));
-    const targetState = this._inst().fieldStates.get(targetPath);
-    if (!targetState) {
-      return;
-    }
 
     // 单次 reaction 执行中复用同一份 formData，避免多次遍历 Map
     const data = formData ?? this.getFormDataInternal();
@@ -2800,6 +2827,16 @@ export class NexusEngine implements IFormEngine {
     if (patch.hidden !== undefined) {
       const hidden = toBoolean(this.resolveValue(patch.hidden, context));
       state.visible = !hidden;
+      this.markFormDataDirty();
+    }
+    // 处理显示状态（formily display 三态，优先于 visible/hidden）
+    if (patch.display !== undefined) {
+      state.display = this.resolveValue(
+        patch.display,
+        context,
+      ) as FieldState['display'];
+      // 'hidden' → 不参与数据收集（visible=false）；'none'/'visible' → 参与
+      state.visible = state.display !== 'hidden';
       this.markFormDataDirty();
     }
     // 处理禁用状态
