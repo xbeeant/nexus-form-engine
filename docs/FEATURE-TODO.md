@@ -103,7 +103,11 @@
 - **React**：`useFieldHookRunner` 构建执行上下文（复用 FormController 公开 API）；`handleChange` 捕获旧值后 setFieldValue 再触发 onChange 钩子；`handleBlur` 校验后触发 onBlur；`onFocusCapture` 冒泡触发 onFocus。setValue 一律走引擎（含实时重校验 + 联动传播），可与 reactions 组合产生联动副作用。
 - **测试**：`react/tests/nexus-form.test.tsx`（onChange 新旧值/onBlur/onFocus 触发 + 钩子内 setValue 联动副作用）。
 
-### ⬜ T2-8 数组折叠/卡片 + 拖拽排序（formily ArrayField 对齐）
+### ✅ T2-8 数组折叠/卡片 + 拖拽排序（formily ArrayField 对齐）
+- **list widget 升级**：卡片式数组项改用 antd `Collapse` 折叠面板渲染（`collapsible` 默认开启，`collapsible: false` 回退原卡片式）：
+  - 每项默认展开，可手动折叠/隐藏字段（紧凑布局）；`activeKeys` 受控状态，数组增删/重置后新增项自动补入展开态、越界索引自动移除。
+- **拖拽排序**（`props.dragSort: true` opt-in）：HTML5 原生 DnD——卡片标题左侧 `⇅` 手柄 draggable，拖动悬停高亮目标卡片、`drop` 时经 `arrayMove` 换序；与上移/下移按钮并存（无障碍回退），readOnly/disabled 时禁用。
+- **测试**：`ui/tests/widgets.test.tsx`（Collapse 卡片字段渲染+数据回显 / dragSort 手柄渲染）。
 
 ---
 
@@ -144,4 +148,4 @@
 
 ## 执行顺序
 
-T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T1-6 ✅ → T1-7 ✅ → T1-8 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T2-4 ✅ → T2-5 ✅ → T2-6 ✅ → T2-7 ✅ → T2-8 → T3-1 ✅ → T3-2 ✅
+T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T1-6 ✅ → T1-7 ✅ → T1-8 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T2-4 ✅ → T2-5 ✅ → T2-6 ✅ → T2-7 ✅ → T2-8 ✅ → T3-1 ✅ → T3-2 ✅

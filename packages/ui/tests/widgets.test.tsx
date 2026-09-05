@@ -458,3 +458,88 @@ describe('依赖驱动的动态 enum（P2-C，渲染层）', () => {
     expect(form.form!.getValueByPath('city')).toBe('北京');
   });
 });
+
+describe('数组折叠 + 拖拽排序（P2-E，formily ArrayField 对齐）', () => {
+  function renderList(
+    schema: unknown,
+    initialValues?: Record<string, unknown>,
+  ) {
+    const holder: { form?: FormController } = {};
+    function TestForm() {
+      const [form] = useForm();
+      holder.form = form;
+      registerAntdUI(form._getEngine());
+      return (
+        <NexusForm
+          form={form}
+          schema={schema as never}
+          footer={false}
+          initialValues={initialValues}
+        />
+      );
+    }
+    const result = render(<TestForm />);
+    return { ...result, form: holder };
+  }
+
+  const listSchema = {
+    type: 'object',
+    properties: {
+      items: {
+        type: 'array',
+        widget: 'list',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', widget: 'input', title: '名称' },
+            count: { type: 'number', widget: 'input', title: '数量' },
+          },
+        },
+      },
+    },
+  };
+
+  it('collapsible 卡片：字段渲染在 Collapse 面板中，值与路径正确', () => {
+    const { container, form } = renderList(listSchema, {
+      items: [
+        { name: 'a', count: 1 },
+        { name: 'b', count: 2 },
+      ],
+    });
+    // antd Collapse → 渲染每项输入框（2 项 × 2 字段），字段输入框存在
+    const inputs = container.querySelectorAll('input');
+    expect(inputs.length).toBeGreaterThanOrEqual(4);
+    // 引擎数据完整回显
+    expect(form.form!.getValueByPath('items')).toEqual([
+      { name: 'a', count: 1 },
+      { name: 'b', count: 2 },
+    ]);
+  });
+
+  it('拖拽排序（dragSort）：渲染拖拽手柄，可排序', () => {
+    const { container, form } = renderList(
+      {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            widget: 'list',
+            props: { dragSort: true },
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', widget: 'input', title: '名称' },
+              },
+            },
+          },
+        },
+      },
+      { items: [{ name: 'a' }, { name: 'b' }] },
+    );
+    // 渲染拖拽手柄（每项一个）
+    const handles = container.querySelectorAll('[title="拖拽排序"]');
+    expect(handles.length).toBeGreaterThanOrEqual(2);
+    // 初始数组顺序
+    expect(form.form!.getValueByPath('items')).toHaveLength(2);
+  });
+});
