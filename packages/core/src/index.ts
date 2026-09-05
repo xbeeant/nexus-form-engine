@@ -48,6 +48,8 @@ export type {
   Expression,
   ExpressionOr,
   FieldFormat,
+  FieldHookContext,
+  FieldHooks,
   FieldState,
   FieldStatePatch,
   FormEngine,

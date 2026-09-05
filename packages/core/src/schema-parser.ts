@@ -882,6 +882,7 @@ function processDataField(
       widget: widgetName,
       readOnlyWidget: node.readOnlyWidget,
       sideEffects: node.sideEffects,
+      hooks: node.hooks,
       type: node.type,
       rules,
       description: node.description,
@@ -1629,6 +1630,7 @@ export function createArrayItemState(
       max: node.max,
       extra: node.extra,
       itemOf: arrayPath,
+      hooks: node.hooks,
       schema: node,
     },
   };

@@ -1,3 +1,4 @@
+import type { FieldHooks } from '@xbeeant/form-engine';
 import type { CSSProperties, FocusEvent, ReactElement } from 'react';
 import { useCallback, useContext, useMemo, useSyncExternalStore } from 'react';
 import { FieldInheritContext } from '../contexts/field-inherit-context';
@@ -9,6 +10,48 @@ import { resolveColSpan } from '../utils/resolve-col-span';
 interface NexusFieldProps {
   dataPath: string;
   layoutKey: string;
+}
+
+/**
+ * 构建字段级事件钩子的执行上下文（P2-D）
+ *
+ * 复用 FormController 的公开 API（getValues / setValueByPath / validate 等），
+ * 与 addons 保持一致；setValue 一律走引擎 setFieldValue（含实时重校验 + 联动传播）。
+ */
+function useFieldHookRunner(
+  hooks: FieldHooks | undefined,
+  form: any,
+  engine: any,
+  dataPath: string,
+) {
+  return useCallback(
+    (event: keyof FieldHooks, value: unknown, oldValue?: unknown) => {
+      const hook = hooks?.[event];
+      if (typeof hook !== 'function') {
+        return;
+      }
+      const engineRef = engine;
+      hook({
+        dataPath,
+        value,
+        oldValue,
+        formData: form.getValues(),
+        getValue: (path: string) => form.getValueByPath(path),
+        setValue: (path: string, v: unknown) =>
+          engineRef.setFieldValue(path, v),
+        setState: (path: string, patch: Record<string, unknown>) =>
+          engineRef.setFieldState(path, patch),
+        form: {
+          ...engineRef,
+          setFieldValue: (path: string, v: unknown) =>
+            engineRef.setFieldValue(path, v),
+          setFieldState: (path: string, patch: Record<string, unknown>) =>
+            engineRef.setFieldState(path, patch),
+        },
+      });
+    },
+    [hooks, form, engine, dataPath],
+  );
 }
 
 /**
@@ -30,11 +73,22 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
   // 祖先对象容器（NexusObject）下发的继承属性：visible=false 时子树整体隐藏
   const inherit = useContext(FieldInheritContext);
 
+  // 字段级事件钩子（P2-D）：onChange / onBlur / onFocus，仅在对应事件触发时执行
+  const runFieldHook = useFieldHookRunner(
+    state?.meta.hooks,
+    form,
+    engine,
+    dataPath,
+  );
+
   const handleChange = useCallback(
     (value: unknown) => {
+      // 变更前旧值（钩子接收；setFieldValue 会覆盖 state.value）
+      const oldValue = engine.getFieldValue(dataPath);
       engine.setFieldValue(dataPath, value);
+      runFieldHook('onChange', value, oldValue);
     },
-    [engine, dataPath],
+    [engine, dataPath, runFieldHook],
   );
 
   // 失焦触发 blur 规则校验（trigger: 'blur'）：
@@ -46,9 +100,15 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
         return;
       }
       engine.validateField(dataPath, { trigger: 'blur' });
+      runFieldHook('onBlur', engine.getFieldValue(dataPath));
     },
-    [engine, dataPath],
+    [engine, dataPath, runFieldHook],
   );
+
+  // 字段聚焦时触发 onFocus 钩子（冒泡语义：内部控件聚焦即触发）
+  const handleFocus = useCallback(() => {
+    runFieldHook('onFocus', engine.getFieldValue(dataPath));
+  }, [engine, dataPath, runFieldHook]);
 
   // 从 enum + enumNames 构建选项（x-render 对齐）。
   // meta/props 引用在状态更新时保持稳定，useMemo 避免每次渲染重建数组（破坏子组件 memo）。
@@ -260,6 +320,7 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
       data-nexus-field={dataPath}
       className={readOnly ? 'nexus-field-readonly' : undefined}
       onBlur={handleBlur}
+      onFocusCapture={handleFocus}
       style={Object.keys(wrapperStyle).length > 0 ? wrapperStyle : undefined}
     >
       {control}

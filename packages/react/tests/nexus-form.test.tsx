@@ -161,9 +161,7 @@ describe('NexusForm', () => {
     // 'none' 与 'hidden' 都不渲染输入框
     expect(container.querySelectorAll('input')).toHaveLength(1);
     // 'none' 不输出任何节点（连占位符都没有）
-    expect(
-      container.querySelector('[data-nexus-hidden="ghost"]'),
-    ).toBeNull();
+    expect(container.querySelector('[data-nexus-hidden="ghost"]')).toBeNull();
     // 值语义：'none' 收集，'hidden' 不收集
     const data = holder.form!._getEngine().getFormData();
     expect(data.ghost).toBe('kept');
@@ -375,5 +373,98 @@ describe('NexusForm', () => {
     expect(onFinish).toHaveBeenCalledTimes(1);
     expect(listenerCalls).toBeGreaterThanOrEqual(2);
     unsubscribe();
+  });
+
+  it('字段级 hooks（P2-D）：onChange 传递新旧值，onBlur/onFocus 触发', () => {
+    const onChange = vi.fn();
+    const onBlur = vi.fn();
+    const onFocus = vi.fn();
+
+    function HookForm() {
+      const [form] = useForm();
+      holder.form = form;
+      return (
+        <NexusForm
+          form={form}
+          schema={
+            {
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string',
+                  widget: 'input',
+                  hooks: { onChange, onBlur, onFocus },
+                },
+              },
+            } as never
+          }
+          widgets={{ input: StubInput }}
+        />
+      );
+    }
+    const { container } = render(<HookForm />);
+    const input = container.querySelector('input') as HTMLInputElement;
+
+    // focus → onFocus 钩子触发
+    fireEvent.focus(input);
+    expect(onFocus).toHaveBeenCalledTimes(1);
+    const focusCtx = onFocus.mock.calls[0][0];
+    expect(focusCtx.dataPath).toBe('name');
+    expect(focusCtx.value).toBe('');
+
+    // change → onChange 钩子触发，携带新值与旧值
+    fireEvent.change(input, { target: { value: 'lisi' } });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const changeCtx = onChange.mock.calls[0][0];
+    expect(changeCtx.dataPath).toBe('name');
+    expect(changeCtx.value).toBe('lisi');
+    expect(changeCtx.oldValue).toBe('');
+    expect(changeCtx.formData).toMatchObject({ name: 'lisi' });
+    // 引擎值与钩子同步
+    expect(holder.form!.getValueByPath('name')).toBe('lisi');
+
+    // blur → onBlur 钩子触发
+    fireEvent.blur(input);
+    expect(onBlur).toHaveBeenCalledTimes(1);
+    expect(onBlur.mock.calls[0][0].dataPath).toBe('name');
+  });
+
+  it('字段级 hooks：onChange 内通过 setValue 产生联动副作用', () => {
+    const onChange = vi.fn(() => {
+      (holder.form as any).setValueByPath('role', 'root');
+    });
+
+    function HookForm() {
+      const [form] = useForm();
+      holder.form = form;
+      return (
+        <NexusForm
+          form={form}
+          schema={
+            {
+              type: 'object',
+              properties: {
+                user: {
+                  type: 'string',
+                  widget: 'input',
+                  hooks: { onChange },
+                },
+                role: { type: 'string', widget: 'input' },
+              },
+            } as never
+          }
+          widgets={{ input: StubInput }}
+        />
+      );
+    }
+    const { container } = render(<HookForm />);
+    const userInput = container.querySelector(
+      'input[data-testid="input-user"]',
+    ) as HTMLInputElement;
+    fireEvent.change(userInput, { target: { value: 'admin' } });
+    // 钩子通过 setValueByPath 联动 role
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(holder.form!.getValueByPath('role')).toBe('root');
+    expect(holder.form!.getValueByPath('user')).toBe('admin');
   });
 });

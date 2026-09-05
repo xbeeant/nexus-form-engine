@@ -97,7 +97,11 @@
 - **UI**：`nexus-field` options useMemo 依赖 `meta.enum`，反应更新即重渲染选项。
 - **测试**：`core/tests/dynamic-enum.test.ts`（6 用例：表达式求值/enum+Names 联动/formData 引用/静态数组不受影响/值保留/声明式 reaction）+ `ui/tests/widgets.test.tsx`（渲染层切换）。
 
-### ⬜ T2-7 字段级 `onChange`/`onBlur` schema 钩子（formily 对齐）
+### ✅ T2-7 字段级 `onChange`/`onBlur`/`onFocus` schema 钩子（formily / rjsf 对齐）
+- **协议**：`DataFieldSchema.hooks`（`onChange` / `onBlur` / `onFocus` 一等函数），在对应事件触发时调用（值变化 commit 后、失焦、聚焦）。
+- **Core**：`FieldHooks` + `FieldHookContext`（dataPath/value/oldValue/formData/getValue/setValue/setState/form）+ `FieldState.meta.hooks` 透传（data field / array item 两处）；`index.ts` 导出。
+- **React**：`useFieldHookRunner` 构建执行上下文（复用 FormController 公开 API）；`handleChange` 捕获旧值后 setFieldValue 再触发 onChange 钩子；`handleBlur` 校验后触发 onBlur；`onFocusCapture` 冒泡触发 onFocus。setValue 一律走引擎（含实时重校验 + 联动传播），可与 reactions 组合产生联动副作用。
+- **测试**：`react/tests/nexus-form.test.tsx`（onChange 新旧值/onBlur/onFocus 触发 + 钩子内 setValue 联动副作用）。
 
 ### ⬜ T2-8 数组折叠/卡片 + 拖拽排序（formily ArrayField 对齐）
 
@@ -140,4 +144,4 @@
 
 ## 执行顺序
 
-T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T1-6 ✅ → T1-7 ✅ → T1-8 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T2-4 ✅ → T2-5 ✅ → T2-6 ✅ → T2-7 → T2-8 → T3-1 ✅ → T3-2 ✅
+T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T1-6 ✅ → T1-7 ✅ → T1-8 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T2-4 ✅ → T2-5 ✅ → T2-6 ✅ → T2-7 ✅ → T2-8 → T3-1 ✅ → T3-2 ✅

@@ -12,6 +12,7 @@
 - 📋 **统一 Schema**：一份 JSON 同时描述数据字段与布局结构，兼容 x-render 语法（`hidden` / `validate` / `bind` / `enum` / `displayType` / `dateString` 等）
 - 🔗 **Reactions 联动**：结构化 `reactions` 数组声明依赖、条件与状态/Schema 补丁，支持 `when` / `fulfill` / `otherwise`，`tooltip` / `title` / `description` 均可动态联动；亦支持**函数式 `run`**（formily `x-reactions` as function 对齐）作为声明式模型的逃逸舱
 - 🔁 **动态 enum**：`enum` / `enumNames` 支持 `{{ }}` 表达式，按依赖字段动态重算下拉选项（如 `enum: "{{ formData.country === 'CN' ? ['北京','上海'] : ['New York','LA'] }}"`）
+- 🎣 **字段级钩子**：字段 Schema 声明 `hooks.onChange` / `hooks.onBlur` / `hooks.onFocus`（一等函数），在值变化/失焦/聚焦时触发（formily / rjsf 字段钩子对齐）
 - 🧩 **插件系统**：异步校验（防抖/超时/并行）、数组操作（push/pop/insert/move/copy + minItems/maxItems 约束）等能力通过 `engine.use()` 注入
 - ✅ **多维校验**：内置规则（required/min/max/pattern）、表达式校验、自定义 validator、跨字段校验、`validateFirst` 短路
 - 🔀 **数据绑定**：`bind` 支持路径重映射（`"user.name"`）、数组拆分（`["a.b", "c.d"]`）与 `false`（不提交）；提交支持 `omitNil` 空值过滤

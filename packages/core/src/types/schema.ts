@@ -178,6 +178,64 @@ export interface ReactionFnContext {
   };
 }
 
+/**
+ * 字段级事件钩子的执行上下文（P2-D，formily / rjsf 字段钩子对齐）
+ *
+ * 字段 Schema 可声明 `onChange` / `onBlur` / `onFocus` 一等函数钩子，
+ * 在对应事件发生时调用。钩子接收本上下文，可直接操作字段值与表单状态。
+ *
+ * 与函数式 reaction（`run`）的区别：钩子不是联动模型，不参与依赖图，
+ * 仅在事件本身触发（值变化 / 失焦 / 聚焦），用于日志、埋点、副作用等。
+ */
+export interface FieldHookContext {
+  /** 事件对应字段的数据路径 */
+  dataPath: string;
+  /** 事件发生时的字段值（onChange 为新值；onBlur/onFocus 为当前值） */
+  value: unknown;
+  /** 变更前旧值（仅 onChange；onBlur/onFocus 为 undefined） */
+  oldValue?: unknown;
+  /** 完整表单数据（只读快照） */
+  formData: Record<string, unknown>;
+  /** 读取任意字段值 */
+  getValue: (path: string) => unknown;
+  /** 设置任意字段值（含实时重校验与沿依赖图传播） */
+  setValue: (path: string, value: unknown) => void;
+  /** 设置任意字段状态补丁 */
+  setState: (path: string, patch: FieldStatePatch) => void;
+  /** 底层引擎实例 */
+  form: ReadonlyFormEngine & {
+    setFieldValue(path: string, value: unknown): void;
+    setFieldState(path: string, patch: FieldStatePatch): void;
+  };
+}
+
+/**
+ * 字段级事件钩子集合（P2-D，formily / rjsf 对齐）
+ *
+ * 声明在字段 Schema 上，由渲染层（React NexusField）在对应事件触发时调用。
+ * 仅接收一等函数（不可序列化，属预期取舍，与 Reaction.run 一致）。
+ *
+ * ```ts
+ * const field = {
+ *   type: 'string',
+ *   widget: 'input',
+ *   onChange: ({ dataPath, value, setValue }) => {
+ *     console.log('changed', dataPath, value);
+ *     if (value === 'admin') setValue('role', 'root'); // 联动副作用
+ *   },
+ *   onBlur: ({ value }) => reportBlur(value),
+ * };
+ * ```
+ */
+export interface FieldHooks {
+  /** 值变化时触发（commit 后；可经 setValue 产生联动副作用） */
+  onChange?: (ctx: FieldHookContext) => void;
+  /** 字段失焦时触发（仅校验触发点；不参与依赖图） */
+  onBlur?: (ctx: FieldHookContext) => void;
+  /** 字段聚焦时触发 */
+  onFocus?: (ctx: FieldHookContext) => void;
+}
+
 export interface ReactionStatePatch {
   /**
    * 计算字段值（formily x-reactions state.value 对齐）
@@ -440,6 +498,8 @@ export interface BaseSchemaNode {
   rules?: ValidationRule[];
   /** 联动规则列表 */
   reactions?: Reaction[];
+  /** 字段级事件钩子（onChange / onBlur / onFocus，formily / rjsf 字段钩子对齐） */
+  hooks?: FieldHooks;
   /** x-render bind：数据绑定/路径映射（string | string[] | false） */
   bind?: BindSchema;
   /** x-render validate：跨字段校验表达式 */
@@ -965,6 +1025,12 @@ export interface FieldState {
      * 存在时字段旁渲染「编辑」入口，点击弹出对应编辑器编辑字段值
      */
     sideEffects?: SideEffectsConfig;
+
+    /**
+     * 字段级事件钩子（P2-D，formily / rjsf 字段钩子对齐）
+     * 渲染层在对应事件触发时调用，接收 FieldHookContext
+     */
+    hooks?: FieldHooks;
   };
 }
 
