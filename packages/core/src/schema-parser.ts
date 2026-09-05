@@ -102,6 +102,13 @@ const REACTION_EXPR_FIELDS = [
 ] as const;
 
 /**
+ * 可自动转 _autoExpr reaction 的「选项字段」（P2-C 动态 enum）
+ * 与状态字段不同：enum/enumNames 携带的是选项数据而非歧义布尔状态，
+ * 表达式经 reaction 动态求值写入 meta.enum/meta.enumNames（渲染层据此重建选项）。
+ */
+const REACTION_OPTION_FIELDS = ['enum', 'enumNames'] as const;
+
+/**
  * 解析字段的显示状态（formily `display` 三态对齐）
  * - 声明了 display 表达式/布尔时取声明值（'none'/'hidden'/'visible'）
  * - 未声明 display，但 hidden: true / visible: false → 'hidden'
@@ -370,6 +377,8 @@ export function collectExpressionReactions(node: {
   readOnly?: unknown;
   hidden?: unknown;
   display?: unknown;
+  enum?: unknown;
+  enumNames?: unknown;
   dependencies?: string[];
   reactions?: Reaction[];
 }): void {
@@ -393,6 +402,14 @@ export function collectExpressionReactions(node: {
   };
 
   for (const field of REACTION_EXPR_FIELDS) {
+    const val = node[field];
+    if (typeof val === 'string') {
+      applyExpression(field, val);
+    }
+  }
+
+  // 动态 enum：enum/enumNames 声明为表达式时同样经 reaction 动态求值
+  for (const field of REACTION_OPTION_FIELDS) {
     const val = node[field];
     if (typeof val === 'string') {
       applyExpression(field, val);

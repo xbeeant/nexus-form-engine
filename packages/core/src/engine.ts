@@ -2872,6 +2872,20 @@ export class NexusEngine implements IFormEngine {
     if (patch.tooltip !== undefined) {
       state.meta.tooltip = this.resolveValue(patch.tooltip, context) as string;
     }
+    // 处理动态选项（P2-C 依赖驱动的动态 enum）：
+    // 表达式经 resolveValue 求值后写入 meta.enum，渲染层据此重建下拉选项
+    if (patch.enum !== undefined) {
+      state.meta.enum = this.resolveValue(
+        patch.enum,
+        context,
+      ) as FieldState['meta']['enum'];
+    }
+    if (patch.enumNames !== undefined) {
+      state.meta.enumNames = this.resolveValue(
+        patch.enumNames,
+        context,
+      ) as FieldState['meta']['enumNames'];
+    }
     // 处理自定义属性
     if (patch.props) {
       for (const [key, expr] of Object.entries(patch.props)) {

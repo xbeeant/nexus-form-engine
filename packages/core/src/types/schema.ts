@@ -201,6 +201,14 @@ export interface ReactionStatePatch {
   description?: ExpressionOr<string>;
   /** 字段标题旁的气泡提示（动态设置，对齐 title/description） */
   tooltip?: ExpressionOr<string>;
+  /**
+   * 动态选项值列表（P2-C 依赖驱动的动态 enum）
+   * 支持表达式：如 `enum: "{{ $deps[0] === 'CN' ? ['北京','上海'] : ['NY','LA'] }}"`
+   * 解析结果写入 meta.enum（渲染层据此构建下拉选项）
+   */
+  enum?: ExpressionOr<Array<string | number>>;
+  /** 动态选项文案，与 enum 一一对应（支持表达式） */
+  enumNames?: ExpressionOr<Array<string>>;
   props?: Record<string, ExpressionOr<unknown>>;
 }
 
@@ -502,10 +510,13 @@ export interface DataFieldSchema extends BaseSchemaNode {
   /**
    * 枚举值列表（x-render / JSON Schema 对齐）
    * 与 enumNames 配合使用：enum 为值数组，enumNames 为文案数组
+   * 声明为 `{{ }}` 表达式时启用「依赖驱动的动态 enum」（P2-C）：
+   * 经依赖图的 reaction 按 `$deps` 动态重算选项，如
+   * `enum: "{{ $deps[0] === 'CN' ? ['北京','上海'] : ['New York','LA'] }}"`。
    */
-  enum?: Array<string | number>;
-  /** 枚举值对应的文案，与 enum 一一对应（x-render 对齐） */
-  enumNames?: Array<string>;
+  enum?: ExpressionOr<Array<string | number>>;
+  /** 枚举值对应的文案，与 enum 一一对应（x-render 对齐）；同样支持 `{{ }}` 表达式 */
+  enumNames?: ExpressionOr<Array<string>>;
   /** 输入框占位符 */
   placeholder?: string;
   /** 辅助判断 widget 的格式（x-render 对齐）；format 为 email/url 时自动附加格式校验 */
@@ -894,8 +905,10 @@ export interface FieldState {
     /** 标题旁的气泡提示（antd Form.Item tooltip） */
     tooltip?: string;
     placeholder?: string;
-    enum?: Array<string | number>;
-    enumNames?: Array<string>;
+    /** 枚举值列表（x-render 对齐）；可为 `{{ }}` 表达式经 dynamic-enum reaction 动态解析 */
+    enum?: ExpressionOr<Array<string | number>>;
+    /** 枚举值对应的文案，与 enum 一一对应（x-render 对齐） */
+    enumNames?: ExpressionOr<Array<string>>;
     format?: FieldFormat;
     min?: number;
     max?: number;

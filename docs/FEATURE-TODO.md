@@ -90,7 +90,12 @@
 - React `NexusField`：`display==='none'` 直接返回 null（不占位）、值照常收集。
 - **测试**：`core/tests/display-model.test.ts`（7 用例：默认/None 语义/Hidden 语义/表达式联动/声明式 reaction/setFieldState patch/hidden 等价）+ `react/tests/nexus-form.test.tsx`（render 行为：none 无节点、值保留）。
 
-### ⬜ T2-6 依赖驱动的动态 enum（ProForm / x-render 对齐）
+### ✅ T2-6 依赖驱动的动态 enum（ProForm / x-render 对齐）
+- **协议**：`DataFieldSchema.enum` / `enumNames` 支持声明为 `{{ }}` 表达式（`EnumFieldSchema`），经依赖图按 `$deps` / `formData` 动态重算选项——如 `enum: "{{ $deps[0] === 'CN' ? ['北京','上海'] : ['New York','LA'] }}"`。
+- **Parser**：`collectExpressionReactions` 新增 `REACTION_OPTION_FIELDS`（`enum` / `enumNames`），表达式自动转 `_autoExpr` reaction（与 hidden/display 等状态表达式同机制）。
+- **Core**：`ReactionStatePatch` 新增 `enum`/`enumNames` 键，`applyStatePatch` 求值后写入 `meta.enum`/`meta.enumNames`（渲染层据此重建下拉选项）；字段值不变、数据收集语义不破坏。
+- **UI**：`nexus-field` options useMemo 依赖 `meta.enum`，反应更新即重渲染选项。
+- **测试**：`core/tests/dynamic-enum.test.ts`（6 用例：表达式求值/enum+Names 联动/formData 引用/静态数组不受影响/值保留/声明式 reaction）+ `ui/tests/widgets.test.tsx`（渲染层切换）。
 
 ### ⬜ T2-7 字段级 `onChange`/`onBlur` schema 钩子（formily 对齐）
 
@@ -135,4 +140,4 @@
 
 ## 执行顺序
 
-T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T1-6 ✅ → T1-7 ✅ → T1-8 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T2-4 ✅ → T2-5 ✅ → T2-6 → T2-7 → T2-8 → T3-1 ✅ → T3-2 ✅
+T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T1-6 ✅ → T1-7 ✅ → T1-8 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T2-4 ✅ → T2-5 ✅ → T2-6 ✅ → T2-7 → T2-8 → T3-1 ✅ → T3-2 ✅

@@ -422,3 +422,39 @@ describe('sideEffects 附带编辑器（P1-4，x-render onClickAction 对齐）'
     expect(document.querySelector('.ant-modal')).toBeNull();
   });
 });
+
+describe('依赖驱动的动态 enum（P2-C，渲染层）', () => {
+  it('表达式 enum 依赖切换：下拉选项随之更新', () => {
+    // 先渲染 – 初始 country=CN → 北京/上海
+    const { container, form } = renderForm({
+      type: 'object',
+      properties: {
+        country: {
+          type: 'string',
+          widget: 'select',
+          default: 'CN',
+          enum: ['CN', 'US'],
+        },
+        city: {
+          type: 'string',
+          widget: 'select',
+          default: '北京',
+          enum: "{{ $deps[0] === 'CN' ? ['北京', '上海'] : ['New York', 'LA'] }}",
+          dependencies: ['country'],
+        },
+      },
+    });
+    const cityField = container.querySelector('[data-nexus-field="city"]')!;
+
+    // 渲染层面：字段存在且值为默认
+    expect(cityField).not.toBeNull();
+    expect(form.form!.getValueByPath('city')).toBe('北京');
+
+    // 切换 country → US，city 的 meta.enum 更新为 NYC/LA（依赖引擎反应链路）
+    (form.form as any).setValueByPath('country', 'US');
+    const cityState = form.form!._getEngine().getFieldState('city')!;
+    expect(cityState.meta.enum).toEqual(['New York', 'LA']);
+    // 值保留（动态 enum 不重置字段值）
+    expect(form.form!.getValueByPath('city')).toBe('北京');
+  });
+});
