@@ -1,6 +1,6 @@
 {
   "name": "@xbeeant/form-engine-devtools",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -51,6 +51,6 @@
     }
   },
   "dependencies": {
-    "@xbeeant/form-engine": "^0.0.4"
+    "@xbeeant/form-engine": "^0.0.5"
   }
 }
