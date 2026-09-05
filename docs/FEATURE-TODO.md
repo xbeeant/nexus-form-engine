@@ -47,6 +47,12 @@
 - **schema-lifecycle**：`collectFieldPaths` / `getSchemaFieldPaths` / `getInitialValues` 支持分支容器（各分支字段在父路径收集）。
 - **测试**：`core/tests/oneof-branch.test.ts`（11 用例：解析/布局透明/anyOf 自动切换/oneOf 手动切换/共享键保留/独占值清除/嵌套布局分支）。
 
+### ✅ T1-7 时间/日期字符串传输格式 `dateString` / `timeString`（x-render 对齐）
+- **现状**：`date`/`time`/`dateRange`/`timeRange` 单控件已存字符串，但 `dateRangeWidget` 用 `[dayjs, dayjs]` 传输（JSON.stringify 退化为 UTC ISO 字符串，破坏 format 语义），字段值在「字符串 / dayjs」双形态间摇摆。
+- **规范**：日期与时间控件统一「字符串传输格式」——单控件 `dateString`/`timeString`（按 `format` 格式化），范围控件 `[string, string]`。引擎 formData 永不出现 dayjs 对象（JSON 安全），控件内部回显时经 `toDayjs` 解析。
+- **UI**：`dateRangeWidget` 改为字符串数组写回（`onChange?.(['2024-01-01', '2024-03-15'])`）；`antdWidgets` 注册 `dateString` / `timeString` / `dateRangeString` / `timeRangeString` 四个别名（与 `date`/`time`/`dateRange`/`timeRange` 同实现）。
+- **测试**：`ui/tests/widgets.test.tsx` 新增用例（回显字符串、范围字符串数组、readOnly `~` 连接、别名注册）。
+
 ---
 
 ## P2 — 增强
@@ -100,4 +106,4 @@
 
 ## 执行顺序
 
-T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T3-1 ✅ → T3-2 ✅
+T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T1-6 ✅ → T1-7 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T3-1 ✅ → T3-2 ✅

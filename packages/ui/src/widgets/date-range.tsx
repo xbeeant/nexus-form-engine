@@ -17,17 +17,31 @@ export const dateRangeWidget = ({
   ...rest
 }: WidgetProps) => {
   const formatStr = typeof format === 'string' ? format : undefined;
+
+  // 日期范围统一以「字符串数组」传输（['YYYY-MM-DD', 'YYYY-MM-DD']，对齐
+  // date/time 单控件的 dateString/timeString 传输格式，JSON 安全）。回显时
+  // 将字符串经 toDayjs 解析为 dayjs 供 antd 使用。
   const [startDate, endDate] =
     Array.isArray(value) && value.length === 2
       ? [toDayjs(value[0], formatStr), toDayjs(value[1], formatStr)]
       : [null, null];
 
-  const handleStartChange = (date: Dayjs | null) => {
-    onChange?.([date, endDate]);
+  // 起始/结束值以 dateString（按 format 格式化后的字符串）写回，与
+  // datePickerWidget 完全一致的传输协议，避免 dayjs 对象进入 formData
+  //（JSON.stringify 时退化为 UTC ISO 字符串，破坏 format 语义）。
+  const prevRange = Array.isArray(value) ? (value as unknown[]) : [];
+  const handleStartChange = (
+    _: Dayjs | null,
+    dateString: string | string[] | null,
+  ) => {
+    onChange?.([String(dateString ?? ''), prevRange[1]]);
   };
 
-  const handleEndChange = (date: Dayjs | null) => {
-    onChange?.([startDate, date]);
+  const handleEndChange = (
+    _: Dayjs | null,
+    dateString: string | string[] | null,
+  ) => {
+    onChange?.([prevRange[0], String(dateString ?? '')]);
   };
 
   const disabledStartDate = (current: Dayjs) => {
@@ -60,7 +74,7 @@ export const dateRangeWidget = ({
   return (
     <div
       className={`
-        flex w-full items-center h-8 px-[11px] py-1 
+        flex w-full items-center h-8 px-[11px] py-1
         transition-all duration-300
         ${disabled ? 'bg-[#f5f5f5] cursor-not-allowed' : ''}
       `}

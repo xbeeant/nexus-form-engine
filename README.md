@@ -9,11 +9,13 @@
 
 ## 特性
 
-- 📋 **统一 Schema**：一份 JSON 同时描述数据字段与布局结构，兼容 x-render 语法（`hidden` / `validate` / `bind` / `enum` / `displayType` 等）
+- 📋 **统一 Schema**：一份 JSON 同时描述数据字段与布局结构，兼容 x-render 语法（`hidden` / `validate` / `bind` / `enum` / `displayType` / `dateString` 等）
 - 🔗 **Reactions 联动**：结构化 `reactions` 数组声明依赖、条件与状态/Schema 补丁，支持 `when` / `fulfill` / `otherwise`，`tooltip` / `title` / `description` 均可动态联动
-- 🧩 **插件系统**：异步校验（防抖/超时/并行）、数组操作（push/pop/insert/move + minItems/maxItems 约束）等能力通过 `engine.use()` 注入
+- 🧩 **插件系统**：异步校验（防抖/超时/并行）、数组操作（push/pop/insert/move/copy + minItems/maxItems 约束）等能力通过 `engine.use()` 注入
 - ✅ **多维校验**：内置规则（required/min/max/pattern）、表达式校验、自定义 validator、跨字段校验、`validateFirst` 短路
 - 🔀 **数据绑定**：`bind` 支持路径重映射（`"user.name"`）、数组拆分（`["a.b", "c.d"]`）与 `false`（不提交）；提交支持 `omitNil` 空值过滤
+- 🕐 **字符串传输格式**：`date`/`time`/`dateRange`/`timeRange` 统一存字符串（`dateString` / `timeString` / `dateRangeString` / `timeRangeString`，JSON 安全，x-render 对齐）
+- 🌿 **条件分支容器**：`oneOf` / `anyOf` 布局透明分支渲染（Key 不进数据路径）
 - 🔄 **远程选项**：`remoteData` 异步加载 + `reloadRemoteData()` 手动重载
 - 📡 **值变化回调**：`onValuesChange` 标准回调（changedValue, allValues, changedPath）
 - ⏳ **提交状态**：`getSubmitting()` / `useFormSubmitting` 展示提交 loading

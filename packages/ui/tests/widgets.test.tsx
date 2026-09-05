@@ -3,7 +3,13 @@ import type { FormController } from '@xbeeant/form-engine-react';
 
 import { NexusForm, useForm } from '@xbeeant/form-engine-react';
 import { describe, expect, it } from 'vitest';
-import { registerAntdUI } from '../src';
+import {
+  antdWidgets,
+  datePickerWidget,
+  dateRangeWidget,
+  registerAntdUI,
+  timeRangeWidget,
+} from '../src';
 
 function renderForm(schema: unknown, props: Record<string, unknown> = {}) {
   const holder: { form?: FormController } = {};
@@ -98,6 +104,74 @@ describe('widget 只读回退（集成 NexusForm）', () => {
       { initialValues: { username: 'zhangsan' } },
     );
     expect(container.querySelector('input')).not.toBeNull();
+  });
+});
+
+describe('dateString / timeString 字符串传输格式（x-render 对齐）', () => {
+  it('datePickerWidget 回显字符串值（按 format），不产生 dayjs 下发', () => {
+    const { container } = render(
+      datePickerWidget({
+        value: '2026-01-15',
+        format: 'YYYY-MM-DD',
+        onChange: () => {},
+      } as never),
+    );
+    expect(
+      container.querySelector('.ant-picker-input input')?.getAttribute('value'),
+    ).toBe('2026-01-15');
+  });
+
+  it('dateRangeWidget 值以字符串数组传输（非 dayjs），两端正确回显', () => {
+    const { container } = render(
+      dateRangeWidget({
+        value: ['2026-12-01', '2026-12-21'],
+        format: 'YYYY-MM-DD',
+        onChange: () => {},
+      } as never),
+    );
+    const inputs = Array.from(
+      container.querySelectorAll('.ant-picker-input input'),
+    );
+    expect(inputs).toHaveLength(2);
+    expect((inputs[0] as HTMLInputElement).value).toBe('2026-12-01');
+    expect((inputs[1] as HTMLInputElement).value).toBe('2026-12-21');
+  });
+
+  it('dateRangeWidget readOnly 以 ~ 连接两端字符串', () => {
+    const { container } = render(
+      dateRangeWidget({
+        value: ['2026-12-01', '2026-12-21'],
+        format: 'YYYY-MM-DD',
+        readOnly: true,
+        onChange: () => {},
+      } as never),
+    );
+    expect(container.textContent).toContain('2026-12-01 ~ 2026-12-21');
+  });
+
+  it('timeRangeWidget 以字符串数组传输', () => {
+    const { container } = render(
+      timeRangeWidget({
+        value: ['09:30:00', '18:00:00'],
+        format: 'HH:mm:ss',
+        onChange: () => {},
+      } as never),
+    );
+    const inputs = Array.from(
+      container.querySelectorAll('.ant-picker-input input'),
+    );
+    expect(inputs).toHaveLength(2);
+    expect((inputs[0] as HTMLInputElement).value).toBe('09:30:00');
+    expect((inputs[1] as HTMLInputElement).value).toBe('18:00:00');
+  });
+
+  it('dateString/timeString/dateRangeString/timeRangeString 别名已注册且与默认同实现', () => {
+    expect(antdWidgets.dateString).toBe(antdWidgets.date);
+    expect(antdWidgets.timeString).toBe(antdWidgets.time);
+    expect(antdWidgets.dateRangeString).toBe(antdWidgets.dateRange);
+    expect(antdWidgets.timeRangeString).toBe(antdWidgets.timeRange);
+    expect(typeof antdWidgets.dateString).toBe('function');
+    expect(typeof antdWidgets.timeString).toBe('function');
   });
 });
 
