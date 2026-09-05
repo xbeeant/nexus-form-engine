@@ -3,6 +3,7 @@ import type {
   DataObjectSchema,
   NexusFormInstance,
   SchemaNode,
+  SideEffectsConfig,
 } from '@xbeeant/form-engine';
 import { toBoolean } from '@xbeeant/form-engine/utils/schema-helper';
 import { NexusContext, useFormConfig } from '@xbeeant/form-engine-react';
@@ -15,6 +16,7 @@ import {
   resolveAntdLocale,
   resolveNexusLocale,
 } from '../locales';
+import { SideEffectsEditor } from './side-effects-editor';
 
 // 支持按 format 模板解析（如 'YYYY年MM月DD日'），默认解析无法识别此类自定义格式
 dayjs.extend(customParseFormat);
@@ -396,11 +398,19 @@ export interface FieldWrapperProps {
   displayType?: 'row' | 'column' | 'inline';
   labelWidth?: number | string;
   column?: number;
+  /** 附带编辑器/点击动作配置（x-render `sideEffects`/`onClickAction` 对齐） */
+  sideEffects?: SideEffectsConfig;
+  /** 字段值（供附带编辑器读取） */
+  value?: unknown;
+  /** 字段值变化回调（附带编辑器保存时写回） */
+  onChange?: (v: unknown) => void;
+  /** 字段数据路径 */
+  dataPath?: string;
   children: React.ReactNode;
 }
 
 export function FieldWrapper(props: FieldWrapperProps) {
-  const { children, ...rest } = props;
+  const { children, sideEffects, value, onChange, dataPath, ...rest } = props;
   const config = useFormConfig();
   const { wrap } = useFormItem(rest as WidgetProps);
   // antd 组件库 locale（ConfigProvider 包裹，表单级 locale 生效于所有控件）
@@ -413,6 +423,14 @@ export function FieldWrapper(props: FieldWrapperProps) {
           value={{ title: rest.title, description: rest.description }}
         >
           {children}
+          {sideEffects ? (
+            <SideEffectsEditor
+              sideEffects={sideEffects}
+              value={value}
+              onChange={onChange}
+              dataPath={dataPath}
+            />
+          ) : null}
         </FieldMetaContext.Provider>,
       )}
     </ConfigProvider>

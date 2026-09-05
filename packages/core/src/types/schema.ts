@@ -307,6 +307,33 @@ export interface ValidateSchema {
 export type FieldFormat = string;
 
 /**
+ * 附带编辑器 / 点击动作配置（x-render `sideEffects` + `onClickAction` 对齐）
+ *
+ * 声明字段旁渲染一个「编辑」入口，点击弹出对应编辑器编辑字段值。
+ * 编辑器本身是可复用的 widget 组件（注册为 `editor` 类型），接收 value/onChange。
+ *
+ * 两种形态：
+ * - 简单形态：`sideEffects: 'textarea'`（使用同名已注册编辑器，其余配置取默认）
+ * - 完整形态：`sideEffects: { editor: 'html', title: '编辑内容', mode: 'drawer', props: {...} }`
+ */
+export type SideEffectsConfig =
+  | string
+  | {
+      /**
+       * 编辑器 widget 名称（默认 'textarea'）
+       * 渲染层从引擎注册的编辑器中查找：`editorRegistry[editor]`，
+       * 未注册时回退内置 textarea 编辑器。
+       */
+      editor?: string;
+      /** 编辑器按钮/标题文案（默认「编辑」） */
+      title?: string;
+      /** 打开方式（默认 modal） */
+      mode?: 'modal' | 'drawer';
+      /** 透传给编辑器的 props（与字段 props 合并，字段 props 优先） */
+      props?: Record<string, unknown>;
+    };
+
+/**
  * 基础 Schema 节点
  * 所有数据节点和布局节点的公共属性
  */
@@ -322,6 +349,16 @@ export interface BaseSchemaNode {
    * 未配置时沿用现有只读渲染方式（ReadOnlyDisplay 纯文本）。
    */
   readOnlyWidget?: string;
+  /**
+   * 附带编辑器 / 点击动作（x-render `onClickAction` 对齐）
+   *
+   * 字段旁渲染一个「编辑」入口，点击弹出对应编辑器（Modal/Drawer）编辑字段值。
+   * 适合富文本、JSON、长文本等主控件不适合直接编辑的场景。
+   *
+   * - 简单形态：`sideEffects: 'textarea'`（使用同名已注册编辑器的默认配置）
+   * - 完整形态：`sideEffects: { editor: 'html', title: '编辑内容', mode: 'modal', props: {...} }`
+   */
+  sideEffects?: SideEffectsConfig;
   /** 字段标题 */
   title?: string;
   /** 字段描述 */
@@ -837,6 +874,12 @@ export interface FieldState {
      * - 非活动分支字段 visible=false，不参与数据收集与校验
      */
     branchOf?: number;
+
+    /**
+     * 附带编辑器 / 点击动作配置（x-render `sideEffects` / `onClickAction` 对齐）
+     * 存在时字段旁渲染「编辑」入口，点击弹出对应编辑器编辑字段值
+     */
+    sideEffects?: SideEffectsConfig;
   };
 }
 
@@ -1026,6 +1069,11 @@ export interface NexusPlugin {
   widgets?: Record<string, NexusComponent>;
   /** 自定义布局注册表，key 为布局名称 */
   layouts?: Record<string, NexusComponent>;
+  /**
+   * 编辑器组件注册表，key 为编辑器名称（`sideEffects.editor` 引用，x-render `editor` 对齐）
+   * 编辑器是接收 value/onChange 的一等组件，由渲染层在字段失去主编辑能力时挂载。
+   */
+  editors?: Record<string, NexusComponent>;
   /** 字段包裹组件（渲染层默认包裹所有 widget，label === false 时跳过包裹） */
   fieldWrapper?: NexusComponent;
 }
@@ -1201,6 +1249,13 @@ export interface FormEngine extends ReadonlyFormEngine {
   registerWidgets(widgets: Record<string, NexusComponent>): void;
   /** 注册自定义布局 */
   registerLayouts(layouts: Record<string, NexusComponent>): void;
+  /**
+   * 注册编辑器组件（x-render `editor` 对齐）
+   * 编辑器是接收 value/onChange 的一等组件，供 `sideEffects` 字段的编辑入口使用
+   */
+  registerEditors(editors: Record<string, NexusComponent>): void;
+  /** 获取已注册的编辑器组件 */
+  getEditor(name: string): NexusComponent | undefined;
   /**
    * 注册字段包裹组件（UI 无关，Renderer 层注入）
    * 渲染层默认用它包裹所有 widget，包裹组件自身决定是否跳过（如 label === false）

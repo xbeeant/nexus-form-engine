@@ -311,3 +311,114 @@ describe('treeSelect 静态树数据（treeData 为 JSON 字符串）', () => {
     });
   });
 });
+
+describe('sideEffects 附带编辑器（P1-4，x-render onClickAction 对齐）', () => {
+  it('声明 sideEffects 后渲染「编辑」入口', () => {
+    const { container } = renderForm({
+      type: 'object',
+      properties: {
+        bio: {
+          type: 'string',
+          widget: 'input',
+          title: '简介',
+          sideEffects: { editor: 'textarea', title: '编辑简介' },
+        },
+      },
+    });
+
+    // 编辑入口按钮出现（FieldWrapper 额外渲染）
+    expect(
+      container.querySelector('[data-nexus-side-effects] button'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-nexus-side-effects] button')!.textContent,
+    ).toBe('编辑简介');
+  });
+
+  it('点击编辑入口 → 打开 Modal → 编辑保存写回字段', async () => {
+    const { container, form } = renderForm({
+      type: 'object',
+      properties: {
+        bio: {
+          type: 'string',
+          widget: 'input',
+          title: '简介',
+          sideEffects: { editor: 'textarea', title: '自我介绍' },
+        },
+      },
+    });
+
+    fireEvent.click(
+      container.querySelector('[data-nexus-side-effects] button')!,
+    );
+    await waitFor(() => {
+      expect(document.querySelector('.ant-modal')).not.toBeNull();
+    });
+
+    // 编辑器中输入值
+    const textarea = document.querySelector('.ant-modal textarea');
+    expect(textarea).not.toBeNull();
+    fireEvent.change(textarea!, { target: { value: '我是前端工程师' } });
+
+    // 保存 → 字段值写回引擎
+    fireEvent.click(document.querySelector('.ant-modal .ant-btn-primary')!);
+    await waitFor(() => {
+      expect(form.form!.getValueByPath('bio')).toBe('我是前端工程师');
+    });
+  });
+
+  it('取消关闭不写回值', async () => {
+    const { container, form } = renderForm(
+      {
+        type: 'object',
+        properties: {
+          bio: {
+            type: 'string',
+            widget: 'input',
+            title: '简介',
+            sideEffects: { editor: 'textarea' },
+          },
+        },
+      },
+      { initialValues: { bio: '原始值' } },
+    );
+
+    fireEvent.click(
+      container.querySelector('[data-nexus-side-effects] button')!,
+    );
+    await waitFor(() => {
+      expect(document.querySelector('.ant-modal')).not.toBeNull();
+    });
+    const textarea = document.querySelector('.ant-modal textarea');
+    fireEvent.change(textarea!, { target: { value: '改动但不保存' } });
+    fireEvent.click(
+      document.querySelectorAll('.ant-modal .ant-btn')[0]!, // 取消按钮
+    );
+    await waitFor(() => {
+      expect(document.querySelector('.ant-modal')).toBeNull();
+    });
+    expect(form.form!.getValueByPath('bio')).toBe('原始值');
+  });
+
+  it('drawer 模式渲染抽屉而非弹窗', async () => {
+    const { container } = renderForm({
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          widget: 'input',
+          title: '内容',
+          sideEffects: { editor: 'textarea', mode: 'drawer' },
+        },
+      },
+    });
+
+    fireEvent.click(
+      container.querySelector('[data-nexus-side-effects] button')!,
+    );
+    await waitFor(() => {
+      expect(document.querySelector('.ant-drawer')).not.toBeNull();
+    });
+    expect(document.querySelector('.ant-modal')).toBeNull();
+  });
+});

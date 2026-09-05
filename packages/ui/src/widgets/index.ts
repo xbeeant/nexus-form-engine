@@ -45,6 +45,7 @@ export { radioWidget } from './radio'; // 单选框
 export { rateWidget } from './rate'; // 评分
 export { segmentedWidget } from './segmented'; // 分段控制器
 export { remoteSelectWidget, selectWidget } from './select'; // 下拉选择器
+export { SideEffectsEditor } from './side-effects-editor'; // 附带编辑器/点击动作组件（x-render sideEffects 对齐）
 export { simpleListWidget } from './simple-list'; // 简单列表渲染器
 export { sliderWidget } from './slider'; // 滑块选择器
 export { switchWidget } from './switch'; // 开关

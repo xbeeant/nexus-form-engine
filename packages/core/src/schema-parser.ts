@@ -836,6 +836,7 @@ function processDataField(
       title: node.title || key,
       widget: widgetName,
       readOnlyWidget: node.readOnlyWidget,
+      sideEffects: node.sideEffects,
       type: node.type,
       rules,
       description: node.description,

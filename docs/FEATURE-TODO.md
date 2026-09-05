@@ -53,6 +53,14 @@
 - **UI**：`dateRangeWidget` 改为字符串数组写回（`onChange?.(['2024-01-01', '2024-03-15'])`）；`antdWidgets` 注册 `dateString` / `timeString` / `dateRangeString` / `timeRangeString` 四个别名（与 `date`/`time`/`dateRange`/`timeRange` 同实现）。
 - **测试**：`ui/tests/widgets.test.tsx` 新增用例（回显字符串、范围字符串数组、readOnly `~` 连接、别名注册）。
 
+### ✅ T1-8 附带编辑器 / 点击动作 `sideEffects`（x-render `onClickAction` 对齐）
+- **协议**：字段声明 `sideEffects`（字符串 = `{ editor }` 简写，或对象 `{ editor?, title?, mode?, props? }`）→ 字段旁渲染「编辑」入口按钮 → 点击弹出 Modal/Drawer 内嵌编辑器组件编辑字段值，保存写回字符串。编辑器是接收 `value/onChange` 的一等组件，注册于引擎 `editors` 注册表。
+- **Core**：`types/schema.ts` 新增 `SideEffectsConfig` + `BaseSchemaNode.sideEffects` + `FieldState.meta.sideEffects` + `NexusPlugin.editors` + `FormEngine.registerEditors/getEditor`；`engine.ts` 维护 `editorRegistry`，`use()` 注册 `plugin.editors`，`destroy()` 清空；`schema-parser.ts` 透传 `sideEffects` 进 meta（独立槽位，不进字段 props）。
+- **React**：`NexusField` 透传 `sideEffects/value/onChange/dataPath` 给 `FieldWrapper` → `FieldWrapper` 非布局字段额外渲染 `SideEffectsEditor`。
+- **UI**：`side-effects-editor.tsx`（触发按钮 + Modal/Drawer，编辑器查找 `engine.getEditor(name)` 回退内置 textarea）；`registerAntdUI` 内置注册 `textarea` 编辑器。
+- **Designer**：`property/basic-property.ts` 加入 `sideEffects` 配置项（`sideEffects` widget：editor/title/mode 下拉）。
+- **测试**：`core/tests/side-effects.test.ts`（6 用例：解析/透传/独立槽位/registerEditors/plugin.editors/destroy）+ `ui/tests/widgets.test.tsx`（4 用例：渲染入口/编辑写回/取消不写/drawer 模式）。
+
 ---
 
 ## P2 — 增强
@@ -106,4 +114,4 @@
 
 ## 执行顺序
 
-T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T1-6 ✅ → T1-7 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T3-1 ✅ → T3-2 ✅
+T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T1-6 ✅ → T1-7 ✅ → T1-8 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T3-1 ✅ → T3-2 ✅

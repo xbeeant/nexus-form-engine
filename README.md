@@ -16,6 +16,7 @@
 - 🔀 **数据绑定**：`bind` 支持路径重映射（`"user.name"`）、数组拆分（`["a.b", "c.d"]`）与 `false`（不提交）；提交支持 `omitNil` 空值过滤
 - 🕐 **字符串传输格式**：`date`/`time`/`dateRange`/`timeRange` 统一存字符串（`dateString` / `timeString` / `dateRangeString` / `timeRangeString`，JSON 安全，x-render 对齐）
 - 🌿 **条件分支容器**：`oneOf` / `anyOf` 布局透明分支渲染（Key 不进数据路径）
+- ✏️ **附带编辑器（`sideEffects`）**：字段旁渲染「编辑」入口，点击弹出 Modal/Drawer 内嵌编辑器（textarea/html/JSON 等，`registerEditors` 扩展），保存写回字段（x-render `onClickAction` 对齐）
 - 🔄 **远程选项**：`remoteData` 异步加载 + `reloadRemoteData()` 手动重载
 - 📡 **值变化回调**：`onValuesChange` 标准回调（changedValue, allValues, changedPath）
 - ⏳ **提交状态**：`getSubmitting()` / `useFormSubmitting` 展示提交 loading

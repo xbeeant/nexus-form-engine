@@ -117,8 +117,7 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
       },
       submit: () => form.submit(),
       resetFields: () => form.resetFields(),
-      setSchema: (s: Record<string, unknown>) =>
-        form.setSchema(s as any),
+      setSchema: (s: Record<string, unknown>) => form.setSchema(s as any),
       setSchemaByPath: (p: string, patch: Record<string, unknown>) =>
         form.setSchemaByPath(p, patch),
       getSchema: () => form.getSchema(),
@@ -212,6 +211,11 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
     displayType: fieldDisplayType,
     labelWidth: fieldLabelWidth,
     column: fieldColumn,
+    // 附带编辑器/点击动作：FieldWrapper 渲染「编辑」入口（sideEffects meta 对齐）
+    sideEffects: state.meta.sideEffects,
+    value: state.value,
+    onChange: handleChange,
+    dataPath,
   };
 
   // widget 仅接收控件相关 props（value/onChange/状态/选项/表单引用/自有 props）

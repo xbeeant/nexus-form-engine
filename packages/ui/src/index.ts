@@ -8,6 +8,7 @@ import type { NexusEngine, NexusPlugin } from '@xbeeant/form-engine';
 import { antdLayouts } from './layouts';
 import { antdWidgets } from './widgets';
 import { FieldWrapper } from './widgets/_shared';
+import { textAreaWidget } from './widgets/textarea';
 
 // ── 布局组件导出 ───────────────────────────────────────────────────────────────
 export { antdLayouts } from './layouts';
@@ -131,6 +132,7 @@ export { radioWidget } from './widgets/radio';
 export { rateWidget } from './widgets/rate';
 export { segmentedWidget } from './widgets/segmented';
 export { selectWidget } from './widgets/select';
+export { SideEffectsEditor } from './widgets/side-effects-editor';
 export { simpleListWidget } from './widgets/simple-list';
 export { sliderWidget } from './widgets/slider';
 export { switchWidget } from './widgets/switch';
@@ -158,6 +160,9 @@ export function registerAntdUI(engine: NexusEngine): void {
   engine.registerFieldWrapper(FieldWrapper);
   engine.registerWidgets(antdWidgets);
   engine.registerLayouts(antdLayouts);
+  // 附带编辑器（sideEffects.editor 引用，x-render editor 对齐）：
+  // textarea —— 多行文本编辑器（默认回退实现，FieldWrapper 也内置一份兜底）
+  engine.registerEditors({ textarea: textAreaWidget });
 }
 
 /**

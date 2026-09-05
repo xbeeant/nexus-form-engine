@@ -59,6 +59,12 @@ export const commonPropertyFields: Record<string, SchemaNode> = {
     type: 'string',
     title: '隐藏（hidden）',
   },
+  // ── 附带编辑器 / 点击动作（x-render sideEffects / onClickAction 对齐）
+  sideEffects: {
+    widget: 'sideEffects',
+    title: '附带编辑器（sideEffects）',
+    extra: '字段旁渲染「编辑」入口，点击弹出编辑器',
+  },
   // ── 布局尺寸（x-render 对齐）──────────────────────────────────────────
   width: {
     widget: 'input',

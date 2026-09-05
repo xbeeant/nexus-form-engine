@@ -12,6 +12,7 @@ import { expressionSwitchWidget } from './expression-switch';
 import { optionsEditorWidget } from './options-editor';
 import { reactionsEditorWidget } from './reactions-editor';
 import { remoteDataEditorWidget } from './remote-data-editor';
+import { sideEffectsEditorWidget } from './side-effects-editor';
 import { validateEditorWidget } from './validate-editor';
 
 /** 属性面板专用的 widget 集合，注册到属性表单的引擎实例中 */
@@ -27,6 +28,7 @@ export const propertyWidgets: Record<string, (props: any) => ReactNode> = {
   propertyRemoteData: remoteDataEditorWidget,
   propertyCodeEditor: codeEditorWidget,
   propertyDefault: defaultEditorWidget,
+  sideEffects: sideEffectsEditorWidget,
 };
 
 export { bindEditorWidget } from './bind-editor';
@@ -41,5 +43,6 @@ export { expressionSwitchWidget } from './expression-switch';
 export { optionsEditorWidget } from './options-editor';
 export { reactionsEditorWidget } from './reactions-editor';
 export { remoteDataEditorWidget } from './remote-data-editor';
+export { sideEffectsEditorWidget } from './side-effects-editor';
 export { useFormDataFields } from './use-form-data-fields';
 export { validateEditorWidget } from './validate-editor';

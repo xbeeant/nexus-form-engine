@@ -215,6 +215,8 @@ export class NexusEngine implements IFormEngine {
   private widgetRegistry: Map<string, NexusComponent> = new Map();
   /** 自定义布局组件注册表，key 为布局名称（UI 无关，Renderer 层注入） */
   private layoutRegistry: Map<string, NexusComponent> = new Map();
+  /** 编辑器组件注册表，key 为编辑器名称（UI 无关，Renderer 层注入；`sideEffects.editor` 引用） */
+  private editorRegistry: Map<string, NexusComponent> = new Map();
   /** 字段包裹组件（UI 无关，Renderer 层注入；渲染层默认包裹所有 widget，label=false 时跳过） */
   private fieldWrapper: NexusComponent | undefined;
   /**
@@ -1845,6 +1847,13 @@ export class NexusEngine implements IFormEngine {
       }
     }
 
+    // 注册插件提供的编辑器组件（`sideEffects.editor` 引用，x-render `editor` 对齐）
+    if (plugin.editors) {
+      for (const [name, editor] of Object.entries(plugin.editors)) {
+        this.editorRegistry.set(name, editor);
+      }
+    }
+
     // 注册插件提供的字段包裹组件（渲染层默认包裹所有 widget）
     if (plugin.fieldWrapper) {
       this.fieldWrapper = plugin.fieldWrapper;
@@ -1950,6 +1959,30 @@ export class NexusEngine implements IFormEngine {
   }
 
   /**
+   * 批量注册编辑器组件（UI 无关，Renderer 层注入）
+   *
+   * 编辑器是接收 value/onChange 的一等组件（x-render `editor` 对齐），
+   * 供字段 `sideEffects.editor` 引用的编辑入口使用。
+   *
+   * @param editors - 编辑器映射表，key 为编辑器名称
+   */
+  registerEditors(editors: Record<string, NexusComponent>): void {
+    for (const [name, editor] of Object.entries(editors)) {
+      this.editorRegistry.set(name, editor);
+    }
+  }
+
+  /**
+   * 根据名称获取已注册的编辑器组件
+   *
+   * @param name - 编辑器名称
+   * @returns 编辑器组件函数或 undefined
+   */
+  getEditor(name: string): NexusComponent | undefined {
+    return this.editorRegistry.get(name);
+  }
+
+  /**
    * 批量注册布局组件（UI 无关，Renderer 层注入）
    *
    * @param layouts - 布局映射表，key 为布局名称
@@ -2035,6 +2068,7 @@ export class NexusEngine implements IFormEngine {
     this.customValidators.clear();
     this.widgetRegistry.clear();
     this.layoutRegistry.clear();
+    this.editorRegistry.clear();
     this.fieldWrapper = undefined;
     this.widgetMetas = {};
     // 从注册表注销 + 清理跨表单联动订阅
