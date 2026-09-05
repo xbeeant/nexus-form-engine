@@ -1266,7 +1266,7 @@ export interface ArrayOperationOptions {
   /** 数组字段路径 */
   path: string;
   /** 操作类型 */
-  operation: 'push' | 'pop' | 'remove' | 'update' | 'insert' | 'move';
+  operation: 'push' | 'pop' | 'remove' | 'update' | 'insert' | 'move' | 'copy';
   /** 数组值（push/insert/update时需要） */
   value?: unknown;
   /** 索引（remove/update/insert/move时需要） */

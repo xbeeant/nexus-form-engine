@@ -1,6 +1,6 @@
 // ============================================================================
 // array-list - 数组字段操作插件
-// 目标：通过 engine.use() 注入，承载数组字段的 push/pop/remove/update/insert/move
+// 目标：通过 engine.use() 注入，承载数组字段的 push/pop/remove/update/insert/move/copy
 // 严禁在 Core 主类中硬编码数组变换逻辑
 // ============================================================================
 
@@ -38,6 +38,10 @@ export type ArrayOperation =
       operation: 'move';
       index: number;
       toIndex: number;
+    }
+  | {
+      operation: 'copy';
+      index: number;
     };
 
 /**
@@ -179,6 +183,21 @@ export class ArrayOperationsPlugin implements NexusPlugin {
     toIndex: number,
   ): Array<unknown> | undefined {
     return this.apply(path, { operation: 'move', index, toIndex });
+  }
+
+  /**
+   * 复制指定索引项到其后方（对齐 x-render 数组复制）
+   *
+   * 复制一份 index 项的新副本，紧跟在原项之后。对象/数组项做深拷贝
+   * （structuredClone 优于 JSON 序列化：保留 undefined/Date/Map 等类型），
+   * 避免副本与原项共享引用导致编辑互相影响。
+   *
+   * @param path - 数组字段路径
+   * @param index - 要复制的索引
+   * @returns 操作后的新数组
+   */
+  copy(path: string, index: number): Array<unknown> | undefined {
+    return this.apply(path, { operation: 'copy', index });
   }
 
   /**
@@ -348,6 +367,23 @@ export class ArrayOperationsPlugin implements NexusPlugin {
         const [moved] = next.splice(index, 1);
         next.splice(toIndex, 0, moved);
         result = next;
+        break;
+      }
+      case 'copy': {
+        const index = options.index;
+        if (index === undefined || index < 0 || index >= arr.length) {
+          console.warn(
+            `[ArrayOperationsPlugin] Invalid index for copy: ${index}`,
+          );
+          return undefined;
+        }
+        const item = arr[index];
+        // 对象/数组项深拷贝，避免副本与原项共享引用
+        const copied =
+          item !== null && typeof item === 'object'
+            ? structuredClone(item)
+            : item;
+        result = [...arr.slice(0, index + 1), copied, ...arr.slice(index + 1)];
         break;
       }
       default: {

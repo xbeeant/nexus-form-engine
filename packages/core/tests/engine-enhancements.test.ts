@@ -98,6 +98,68 @@ describe('数组操作 minItems/maxItems 约束（rjsf / formily 对齐）', () 
     expect(result).toEqual(['a', 'b']);
     expect(engine.getFieldValue('items')).toEqual(['a', 'b']);
   });
+
+  it('copy 复制指定索引项到其后（对齐 x-render 数组复制）', () => {
+    const { engine, plugin } = makeEngine(listSchema());
+    engine.setFieldValue('items', ['a', 'b', 'c']);
+
+    // 复制索引 1（'b'）→ 新副本紧跟其后
+    const result = plugin.copy('items', 1);
+    expect(result).toEqual(['a', 'b', 'b', 'c']);
+    expect(engine.getFieldValue('items')).toEqual(['a', 'b', 'b', 'c']);
+  });
+
+  it('copy 对对象项做深拷贝，副本与原项不共享引用', () => {
+    const { engine, plugin } = makeEngine({
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          widget: 'list',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', widget: 'input' },
+              tags: {
+                type: 'array',
+                widget: 'list',
+                items: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    });
+    const original = { name: 'a', tags: ['x'] };
+    engine.setFieldValue('items', [original]);
+
+    plugin.copy('items', 0);
+    const arr = engine.getFieldValue('items') as Array<{
+      name: string;
+      tags: string[];
+    }>;
+    expect(arr).toHaveLength(2);
+    // 值相等但引用独立
+    expect(arr[1].name).toBe('a');
+    expect(arr[1].tags).toEqual(['x']);
+    expect(arr[1]).not.toBe(arr[0]);
+    expect(arr[1].tags).not.toBe(arr[0].tags);
+    // 修改副本不影响原项
+    arr[1].name = 'a-copy';
+    expect(arr[0].name).toBe('a');
+  });
+
+  it('copy 越界索引返回 undefined 且不修改数组', () => {
+    const { engine, plugin } = makeEngine(listSchema());
+    engine.setFieldValue('items', ['a']);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(plugin.copy('items', 5)).toBeUndefined();
+    expect(plugin.copy('items', -1)).toBeUndefined();
+    expect(engine.getFieldValue('items')).toEqual(['a']);
+
+    warn.mockRestore();
+  });
 });
 
 describe('reloadRemoteData 远程选项重载（x-render 对齐）', () => {
