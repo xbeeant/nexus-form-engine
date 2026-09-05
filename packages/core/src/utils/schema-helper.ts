@@ -3,6 +3,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import type {
+  BranchSchema,
   DataArraySchema,
   DataFieldSchema,
   DataNode,
@@ -72,6 +73,11 @@ export const LAYOUT_TYPES: ReadonlySet<LayoutType> = new Set([
  * @returns 如果是 DataFieldSchema 返回 true
  */
 export function isDataField(node: SchemaNode): node is DataFieldSchema {
+  // 条件分支容器（oneOf/anyOf）先排除：本身可能是 object + properties 形态，
+  // 但应视为「布局透明」节点（Key 不进路径），而非数据字段
+  if (isBranchNode(node)) {
+    return false;
+  }
   // DataArraySchema 也可能有 widget，需排除
   if ('items' in node) {
     return false;
@@ -108,6 +114,10 @@ export function isDataField(node: SchemaNode): node is DataFieldSchema {
  * @return True if the node is a DataObjectSchema, false otherwise.
  */
 export function isDataObject(node: SchemaNode): node is DataObjectSchema {
+  // 条件分支容器（oneOf/anyOf）不视为数据对象容器（布局透明，Key 不进路径）
+  if (isBranchNode(node)) {
+    return false;
+  }
   const hasWidget = (n: SchemaNode) =>
     'widget' in n && typeof n.widget === 'string' && n.widget.length > 0;
   return node.type === 'object' && !hasWidget(node) && 'properties' in node;
@@ -131,7 +141,40 @@ export function isDataArray(node: SchemaNode): node is DataArraySchema {
  * @returns 如果是 DataNode 返回 true
  */
 export function isDataNode(node: SchemaNode): node is DataNode {
+  // 条件分支容器先排除（布局透明，不视为数据节点）
+  if (isBranchNode(node)) {
+    return false;
+  }
   return isDataField(node) || isDataObject(node) || isDataArray(node);
+}
+
+/**
+ * 判断给定的 schema 节点是否为条件分支容器（oneOf / anyOf）
+ *
+ * 分支容器特征：存在 `oneOf`/`anyOf` 键，且值为非空分支数组。
+ * 分支容器是「布局透明」节点：Key 不进数据路径，由引擎决定活动分支渲染。
+ *
+ * @param node - Schema 节点
+ * @returns 如果是分支容器返回 true
+ */
+export function isBranchNode(node: SchemaNode): node is BranchSchema {
+  if (!node || typeof node !== 'object' || Array.isArray(node)) {
+    return false;
+  }
+  const oneOf = (node as { oneOf?: unknown }).oneOf;
+  const anyOf = (node as { anyOf?: unknown }).anyOf;
+  const branches = (node as { branches?: unknown }).branches ?? oneOf ?? anyOf;
+  return (
+    Array.isArray(branches) &&
+    branches.length > 0 &&
+    branches.every(
+      (b) =>
+        typeof b === 'object' &&
+        b !== null &&
+        typeof (b as { properties?: unknown }).properties === 'object' &&
+        (b as { properties?: unknown }).properties !== null,
+    )
+  );
 }
 
 /**
@@ -139,13 +182,13 @@ export function isDataNode(node: SchemaNode): node is DataNode {
  *
  * 布局节点特征：
  * - 不是数据节点
- * - 有 properties 属性
+ * - 有 properties 属性（布局容器/面板），或是条件分支容器（oneOf/anyOf）
  *
  * @param node - Schema 节点
  * @returns 如果是 LayoutNode 返回 true
  */
 export function isLayoutNode(node: SchemaNode): node is LayoutNode {
-  return !isDataNode(node) && 'properties' in node;
+  return isBranchNode(node) || (!isDataNode(node) && 'properties' in node);
 }
 
 // ============================================================================

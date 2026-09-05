@@ -13,6 +13,7 @@ import { defaultFormRegistry, type FormRegistry } from './form-registry';
 import * as SchemaParser from './schema-parser';
 import type {
   ArrayOperationOptions,
+  BranchSchema,
   CrossFormLinkOptions,
   DataFieldSchema,
   DefaultRuleMessages,
@@ -2186,6 +2187,11 @@ export class NexusEngine implements IFormEngine {
     formData?: Record<string, unknown>,
     dependValuesOverride?: unknown[],
   ): void {
+    // 条件分支切换 reaction（oneOf/anyOf）：依赖字段变化时重算激活分支
+    if (reaction._oneOfBranch) {
+      this.syncBranchFromSource(targetPath);
+      return;
+    }
     // 跨表单场景：依赖值由调用方（源表单引擎）注入，本表单不反查源字段
     const dependValues =
       dependValuesOverride ??
@@ -2247,6 +2253,233 @@ export class NexusEngine implements IFormEngine {
         data,
       );
     }
+  }
+
+  /**
+   * 同步分支容器激活状态（oneOf / anyOf 切换）
+   *
+   * 分支选择字段（branchNode.dependencies 指向的源字段）变化时触发：
+   * 1. 依据源字段值重新判定激活分支索引
+   *    - anyOf 语义（配置 conditions）：逐条求值，首个满足条件的分支激活
+   *    - oneOf 语义（无 conditions）：默认沿用当前 activeIndex（由调用方显式 setOneOfActiveIndex 切换）
+   * 2. 翻转各分支字段的 visible（旧分支隐藏，新分支显示）
+   * 3. 清除仅在旧分支存在、新分支不存在的字段值（对齐 BranchSchema 数据对齐语义）
+   * 4. 标记 formData 缓存失效 + bump + 通知订阅方
+   *
+   * 渲染树不做重建（RenderBranchNode.branches 静态分组，Renderer 读取 activeIndex 选择子组），
+   * 维持「结构变动 bump() / 数据变动 bumpStore()」版本分裂红线。
+   *
+   * @param containerPath - 分支容器路径（容器自身 FieldState 所在路径）
+   */
+  private syncBranchFromSource(containerPath: string): void {
+    const container = this._inst().fieldStates.get(containerPath);
+    if (!container?.meta.oneOf) {
+      return;
+    }
+
+    // 依据源字段值重算激活分支（anyOf 条件导向）
+    const activeIndex = this.resolveConditionalBranchIndex(containerPath);
+
+    // 实际索引未变：仅同步字段可见性（防御，源字段值变化但仍命中同一分支）
+    this.syncBranchFields(containerPath, activeIndex);
+  }
+
+  /**
+   * 解析分支容器当前应激活的分支索引
+   *
+   * 优先级：
+   * 1. anyOf 条件（conditions：分支索引 → 表达式）：逐条求值，首个为 true 的分支激活
+   * 2. 无有效条件：沿用容器当前 activeIndex
+   *
+   * @param containerPath - 分支容器路径
+   * @returns 解析出的激活分支索引（越界时钳制到合法范围）
+   */
+  private resolveConditionalBranchIndex(containerPath: string): number {
+    const container = this._inst().fieldStates.get(containerPath);
+    const oneOfMeta = container?.meta.oneOf;
+    if (!oneOfMeta) {
+      return 0;
+    }
+    const branchCount = oneOfMeta.branches?.length ?? 0;
+    if (branchCount === 0) {
+      return 0;
+    }
+
+    const schemaNode = container.meta.schema as
+      | (BranchSchema & { conditions?: Record<number, string> })
+      | undefined;
+    const conditions = schemaNode?.conditions;
+    const sourceData = this.getFormDataInternal();
+
+    // anyOf 条件：逐条求值，首个为 true 的分支激活
+    if (conditions && Object.keys(conditions).length > 0) {
+      const evaluator = this.evaluateExpression.bind(this);
+      const baseCtx = { $form: this };
+      for (const idxStr of Object.keys(conditions)) {
+        const idx = Number(idxStr);
+        if (!Number.isInteger(idx) || idx < 0 || idx >= branchCount) {
+          continue;
+        }
+        try {
+          const hit = evaluator(conditions[idx] as string, {
+            ...baseCtx,
+            $deps: this.getBranchSourceValues(containerPath),
+            $self: container,
+            formData: sourceData,
+            rootValue: sourceData,
+            $index: undefined,
+          });
+          if (hit) {
+            return idx;
+          }
+        } catch {}
+      }
+    }
+
+    // 无有效条件（oneOf 语义）：沿用当前激活索引（越界钳制）
+    const current = oneOfMeta.activeIndex ?? 0;
+    return Math.min(Math.max(current, 0), branchCount - 1);
+  }
+
+  /**
+   * 读取分支容器依赖的源字段值（dependencies 指向的字段）
+   *
+   * @param containerPath - 分支容器路径
+   * @returns 源字段值数组（按 dependencies 顺序）
+   */
+  private getBranchSourceValues(containerPath: string): unknown[] {
+    const container = this._inst().fieldStates.get(containerPath);
+    const schemaNode = container?.meta.schema as BranchSchema | undefined;
+    const deps = schemaNode?.dependencies ?? [];
+    return deps.map((dep) => this.getFieldValue(dep));
+  }
+
+  /**
+   * 依据目标激活索引翻转分支字段可见性并清理失效值
+   *
+   * 依赖 meta.oneOf.fieldBranches（字段数据路径 → 包含它的分支索引列表，
+   * 静态构建于解析期）精确判定每个字段的可见性成员关系，避免
+   * 跨分支同名键在 fieldStates 中合并（各分支共享父路径）导致的误判：
+   * - 字段包含于活动分支 → visible = true
+   * - 字段不包含于活动分支 → visible = false
+   * - 字段含旧分支但含新分支 → 共享字段，保留值
+   * - 字段仅含旧分支 → 离开分支，清除值（还原初始值）
+   *
+   * 同时更新容器 meta.oneOf.activeIndex 与容器自身可见性（父级联动）并通知。
+   *
+   * @param containerPath - 分支容器路径
+   * @param targetIndex - 目标激活分支索引
+   */
+  private syncBranchFields(containerPath: string, targetIndex: number): void {
+    const container = this._inst().fieldStates.get(containerPath);
+    const oneOfMeta = container?.meta.oneOf;
+    if (!container || !oneOfMeta) {
+      return;
+    }
+    const branchCount = oneOfMeta.branches?.length ?? 0;
+    if (branchCount === 0) {
+      return;
+    }
+    const fromIndex = oneOfMeta.activeIndex ?? 0;
+    const clamped = Math.min(
+      Math.max(targetIndex, 0),
+      Math.max(branchCount - 1, 0),
+    );
+    const fieldBranches = oneOfMeta.fieldBranches ?? {};
+    const fromSet = new Set([fromIndex]);
+    const targetSet = new Set([clamped]);
+
+    // 收集受影响字段：进分支（含新分支）/ 离开分支（含旧分支但不再含新分支）
+    const enteredFields: string[] = [];
+    const leavingFields: string[] = [];
+    for (const [path, branchList] of Object.entries(fieldBranches)) {
+      const inFrom = branchList.some((i) => fromSet.has(i));
+      const inTarget = branchList.some((i) => targetSet.has(i));
+      if (inTarget) {
+        enteredFields.push(path);
+      }
+      if (inFrom && !inTarget) {
+        leavingFields.push(path);
+      }
+    }
+
+    // 翻转可见性：进入新分支的字段显示，离开的隐藏
+    for (const path of enteredFields) {
+      const state = this._inst().fieldStates.get(path);
+      if (state) {
+        state.visible = true;
+      }
+    }
+    for (const path of leavingFields) {
+      const state = this._inst().fieldStates.get(path);
+      if (state) {
+        state.visible = false;
+        // 离开分支的叶子数据字段清除值（还原初始值）
+        if (!state.meta.itemOf && !state.meta.containerOnly) {
+          state.value = state.initialValue;
+          state.touched = false;
+          state.dirty = false;
+        }
+      }
+    }
+
+    // 通知受影响字段（可见性/值变化的订阅方）
+    for (const path of enteredFields) {
+      this.notifyField(path);
+    }
+    for (const path of leavingFields) {
+      this.notifyField(path);
+    }
+
+    // 更新容器 activeIndex + 可见性 + 缓存失效 + bump + 通知
+    if (oneOfMeta.activeIndex !== clamped) {
+      oneOfMeta.activeIndex = clamped;
+    }
+    container.visible = true;
+    this.markFormDataDirty();
+    this.bumpStore();
+    this.notifyField(containerPath);
+  }
+
+  // =========================================================================
+  // 分支容器公开 API：主动切换 / 查询
+  // =========================================================================
+
+  /**
+   * 主动切换分支容器的激活分支
+   *
+   * 场景：UI 上以外部控件（Tab、Step 组件等）切换分支时调用。
+   * 若容器配置了 anyOf conditions，切换仍会驱动源字段值重算，但显式设置优先。
+   *
+   * @param containerPath - 分支容器路径（布局 key）
+   * @param index - 目标激活分支索引
+   * @returns 是否切换成功
+   */
+  setOneOfActiveIndex(containerPath: string, index: number): boolean {
+    const container = this._inst().fieldStates.get(containerPath);
+    const oneOfMeta = container?.meta.oneOf;
+    if (!container || !oneOfMeta) {
+      console.warn(
+        `[NexusEngine] Branch container not found: ${containerPath}`,
+      );
+      return false;
+    }
+    const branchCount = oneOfMeta.branches?.length ?? 0;
+    if (branchCount === 0) {
+      return false;
+    }
+    this.syncBranchFields(containerPath, index);
+    return true;
+  }
+
+  /**
+   * 查询分支容器的当前激活分支索引
+   *
+   * @param containerPath - 分支容器路径
+   * @returns 激活分支索引；容器不存在或无分支返回 undefined
+   */
+  getOneOfActiveIndex(containerPath: string): number | undefined {
+    return this._inst().fieldStates.get(containerPath)?.meta.oneOf?.activeIndex;
   }
 
   /**

@@ -38,6 +38,15 @@
 - UI：`useRemoteOptions` 增加 reloadToken 参数（变化即清缓存重取）；select/multiSelect/autoComplete/cascader/mentions/treeSelect 接入。
 - FormController：`reloadRemoteData(path?)` 聚合转发。
 
+### ✅ T1-6 条件分支容器 oneOf / anyOf（x-render `oneOf` / formily 子表单对齐）
+- **设计决策**：分支容器 Key 不进入 formData 数据路径（布局透明，对齐 AGENTS.MD 红线），仅活动分支字段收集数据。
+- **Parser**：`processBranchNode` 预解析全部分支字段（`visible=["branchOf" 标记]`），渲染树分出 `RenderBranchNode.branches: RenderTreeNode[][]`（各分支独立分组）。支持 `oneOf` / `anyOf` / `branches` 三种键形态；`fieldBranches`（字段→所属分支集合）从渲染分组静态构建，跨分支同名键精确归并。
+- **Engine**：`_oneOfBranch` reaction 边（容器依赖选择字段）→ `syncBranchFromSource` 依据 `conditions` 重算激活分支（anyOf）或沿用 `activeIndex`（oneOf）；`syncBranchFields` 翻转成员可见性、清除离开分支字段的值、保留共享字段值、标记 formData 失效 + bumpStore（不重建渲染树）。
+- **公开 API**：`setOneOfActiveIndex(path, index)` / `getOneOfActiveIndex(path)`。
+- **React**：`NexusBranch` 组件（`engine.subscribeField(dataPath)` + `getFieldVersion` 精准订阅），按 `meta.oneOf.activeIndex` 渲染 `node.branches[activeIndex]`，容器 disabled/readOnly/hidden 经 FieldInheritContext 下发。
+- **schema-lifecycle**：`collectFieldPaths` / `getSchemaFieldPaths` / `getInitialValues` 支持分支容器（各分支字段在父路径收集）。
+- **测试**：`core/tests/oneof-branch.test.ts`（11 用例：解析/布局透明/anyOf 自动切换/oneOf 手动切换/共享键保留/独占值清除/嵌套布局分支）。
+
 ---
 
 ## P2 — 增强

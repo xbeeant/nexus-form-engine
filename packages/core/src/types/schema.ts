@@ -43,7 +43,7 @@ export type LayoutContainerType =
 export type LayoutPaneType = 'tabPane' | 'step' | 'collapsePanel';
 
 /**
- * 所有布局类型合集
+ * 所有布局类型的合集
  */
 export type LayoutType = LayoutContainerType | LayoutPaneType;
 
@@ -211,6 +211,11 @@ export interface Reaction {
   crossForm?: string;
   /** 内部标记：自动生成的 reaction（由 SchemaParser 从表达式字段转换而来） */
   _autoExpr?: boolean;
+  /**
+   * 内部标记：由 SchemaParser 为 oneOf/anyOf 条件分支容器生成的分支切换 reaction
+   * dependencies 指向分支选择字段，其值变化时引擎重算激活分支
+   */
+  _oneOfBranch?: boolean;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -534,10 +539,90 @@ export interface LayoutPaneSchema extends LayoutBaseProps {
   properties: Record<string, SchemaNode>;
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// 5.1 条件分支容器（oneOf / anyOf）— 布局透明，Key 不进数据路径
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * oneOf / anyOf 的单个分支定义
+ *
+ * 分支通过 properties 声明子字段。分支数据语义（对齐引擎「布局透明」红线）：
+ * - 分支容器 Key **不进入** formData 数据路径，仅活动分支的 properties 字段收集数据
+ * - 切换分支只影响「哪个分支渲染」，不改变数据 Key 结构（selected/plan 等 Key 不落数据）
+ */
+export interface OneOfBranchOption {
+  /** 分支标题（展示用，如「信用卡」/「银行卡」） */
+  title?: string;
+  /** 分支描述 */
+  description?: string;
+  /** 分支子字段定义 */
+  properties: Record<string, SchemaNode>;
+}
+
+/**
+ * 条件分支容器 Schema（oneOf / anyOf）
+ *
+ * 为 anyOf 定义每个分支的条件（对齐 JSON Schema `anyOf` 语义）；
+ * `anyOf` 未配置 `conditions` 时等价于 currentOption（当前激活分支字段渲染分支属性）。
+ *
+ * 语义：
+ * - 任意时刻至多一个分支激活，渲染其 properties 子字段
+ * - 容器 Key 不进入 formData 路径（布局透明），仅活动分支字段收集数据
+ * - 切换分支时，引擎将该分支的属性与**上一分支**对齐：重复字段保留值，
+ *   消失字段的重叠值清除 —— 保证数据合法性（实际字段随分支切换对齐）
+ */
+export interface BranchSchema {
+  /**
+   * 分支容器的渲染 trait：
+   * - 期望 `oneOf` 为「当前激活分支」语义（配合字段级 `currentOption`）
+   * - 期望 `anyOf` 为「条件分支」语义（配合 `conditions`）
+   */
+  type: string;
+  /** oneOf / anyOf 分支列表 */
+  branches: OneOfBranchOption[];
+  /** 当前激活分支索引（仅 oneOf 语义下使用） */
+  activeIndex?: number;
+  /** anyOf 分支选择字段（源字段），分支按其 for/against 条件激活 */
+  dependencies?: string[];
+  /** anyOf 分支条件：分支索引 → 条件表达式 */
+  conditions?: Record<number, string>;
+  /** 单元素宽度（x-render 对齐，作用于容器包装层） */
+  width?: string;
+}
+
+/**
+ * 条件分支容器的运行时元数据（挂在 FieldState.meta 上）
+ *
+ * 除标准 UI 状态（visible/disabled/readOnly/loading）外，分支容器额外维护：
+ * - 当前激活分支索引（meta.oneOf.activeIndex）
+ * - 分支定义（meta.oneOf.branches）
+ * - 字段→所属分支成员关系（meta.oneOf.fieldBranches）
+ */
+export interface OneOfMeta {
+  /** 当前激活分支索引 */
+  activeIndex: number;
+  /** oneOf / anyOf 分支定义 */
+  branches: OneOfBranchOption[];
+  /**
+   * 字段数据路径 → 包含它的分支索引列表
+   *
+   * 分支容器布局透明（Key 不进路径），各分支字段共享同一父路径，
+   * 因此跨分支同名键会在 fieldStates 中合并为同一字段。该表记录每个字段
+   * 出现在哪些分支，供引擎切换分支时判定：
+   * - visible = 活动分支是否包含该字段
+   * - 若字段同时属于旧分支与新分支（membership 含两者）→ 共享字段，保留值
+   * - 若字段仅属旧分支 → 离开分支，清除值
+   */
+  fieldBranches?: Record<string, number[]>;
+}
+
 /**
  * 所有布局节点的联合类型
  */
-export type LayoutNode = LayoutContainerSchema | LayoutPaneSchema;
+export type LayoutNode =
+  | LayoutContainerSchema
+  | LayoutPaneSchema
+  | BranchSchema;
 
 // ────────────────────────────────────────────────────────────────────────────
 // 6. Schema 联合类型
@@ -737,6 +822,21 @@ export interface FieldState {
      * @deprecated
      */
     schema?: SchemaNode;
+
+    /**
+     * 条件分支容器（oneOf / anyOf）元数据：激活分支索引 + 分支定义
+     * 存在时该字段是分支容器（meta.containerOnly 语义类似），
+     * meta.oneOf.branches 供 Renderer 渲染活动分支字段。
+     */
+    oneOf?: OneOfMeta;
+
+    /**
+     * 所属条件分支的索引（oneOf/anyOf 分支的属性字段携带）
+     * 存在时该字段是某分支的属性字段：
+     * - 分支容器切换时引擎据此设置各分支字段的 visible 标志
+     * - 非活动分支字段 visible=false，不参与数据收集与校验
+     */
+    branchOf?: number;
   };
 }
 
@@ -806,12 +906,36 @@ export interface RenderLayoutNode {
 }
 
 /**
+ * 渲染树节点 - 条件分支容器（oneOf / anyOf）
+ *
+ * 分支容器本身承载 UI 状态（visible/disabled/readOnly + activeIndex，存于容器 FieldState），
+ * `branches` 按分支索引分组保存各分支的渲染子节点 —— 所有分支的字段都已在 Parser
+ * 阶段预解析进 fieldStates（非活动分支字段 visible=false），因此：
+ * - 切换分支只更新容器 FieldState.activeIndex + 各分支字段的 visible 标志，
+ *   不会触发渲染树重建（Rendere 据此 O(1) 重渲染活动分支）。
+ * - 容器 Key 不进入数据路径（布局透明），仅活动分支的字段收集数据。
+ */
+export interface RenderBranchNode {
+  /** 节点类型 */
+  type: 'branch';
+  /** 分支容器的布局 key（不进入数据路径） */
+  layoutKey: string;
+  /** 分支容器自身的状态路径（containerOnly FieldState 所在路径，订阅用） */
+  dataPath: string;
+  /** 布局属性（width / colSpan / displayType 等） */
+  props: LayoutBaseProps & Record<string, unknown>;
+  /** 各分支的渲染子节点：分支索引 → 该分支子字段渲染节点 */
+  branches: RenderTreeNode[][];
+}
+
+/**
  * 所有渲染树节点的联合类型
  */
 export type RenderTreeNode =
   | RenderFieldNode
   | RenderLayoutNode
-  | RenderObjectNode;
+  | RenderObjectNode
+  | RenderBranchNode;
 
 // ────────────────────────────────────────────────────────────────────────────
 // 9. 插件系统
@@ -990,6 +1114,8 @@ export interface ReadonlyFormEngine {
   getFormData(): Record<string, unknown>;
   /** 获取所有字段状态 */
   getAllFieldStates(): Map<string, FieldState>;
+  /** 查询分支容器的当前激活分支索引（oneOf/anyOf） */
+  getOneOfActiveIndex(containerPath: string): number | undefined;
 }
 
 /**
@@ -1011,6 +1137,8 @@ export interface FormEngine extends ReadonlyFormEngine {
   setFieldValues(values: Record<string, unknown>): void;
   /** 局部更新字段状态 */
   setFieldState(path: string, patch: FieldStatePatch): void;
+  /** 主动切换分支容器的激活分支（oneOf/anyOf） */
+  setOneOfActiveIndex(containerPath: string, index: number): boolean;
   /** 获取表单数据 */
   getFormData(): Record<string, unknown>;
   /** 获取隐藏字段的值 */

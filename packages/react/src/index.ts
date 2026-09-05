@@ -6,6 +6,7 @@
 import './styles.css';
 
 export { FormController } from './components/form-controller';
+export { NexusBranch } from './components/nexus-branch';
 export { NexusField } from './components/nexus-field';
 export type { NexusFormConfig, NexusFormProps } from './components/nexus-form';
 export { NexusForm } from './components/nexus-form';

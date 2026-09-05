@@ -12,8 +12,9 @@
 // - 数组 items 子字段：属于数组项作用域，不参与收集（数组整体是一个字段）
 // ============================================================================
 
-import type { SchemaNode } from '../types/schema';
+import type { BranchSchema, SchemaNode } from '../types/schema';
 import {
+  isBranchNode,
   isDataArray,
   isDataField,
   isDataObject,
@@ -98,6 +99,27 @@ function collectFieldPaths(
   entries: SchemaFieldEntry[],
 ): void {
   if (!node || typeof node !== 'object') {
+    return;
+  }
+  // 条件分支容器（oneOf/anyOf）：布局透明，Key 不进路径。
+  // 每个分支在「分支的父路径」下收集自身的 properties 子字段
+  // （各分支子字段直接拼 parentPath，避免收集到分支容器自身的 key）。
+  if (isBranchNode(node)) {
+    const bnode = node as BranchSchema & {
+      oneOf?: unknown;
+      anyOf?: unknown;
+      branches?: unknown;
+    };
+    const list = bnode.branches ?? bnode.oneOf ?? bnode.anyOf;
+    const all = Array.isArray(list)
+      ? (list as Array<{ properties?: Record<string, SchemaNode> }>)
+      : [];
+    for (const branch of all) {
+      for (const [key, child] of Object.entries(branch.properties ?? {})) {
+        const childPath = parentPath ? `${parentPath}.${key}` : key;
+        collectFieldPaths(child as SchemaNode, childPath, entries);
+      }
+    }
     return;
   }
   // 布局节点：自身 Key 不进路径，子字段在布局的父路径下按自身 Key 拼接

@@ -35,6 +35,7 @@ export * from './schema-parser';
 // 类型定义
 export type {
   BindSchema,
+  BranchSchema,
   CrossFormLinkOptions,
   DataArraySchema,
   DataFieldSchema,
@@ -63,6 +64,8 @@ export type {
   NexusFormValidator,
   NexusPlugin,
   NexusSchema,
+  OneOfBranchOption,
+  OneOfMeta,
   Reaction,
   ReactionContext,
   ReactionSchemaPatch,
@@ -71,6 +74,7 @@ export type {
   RenderFieldNode,
   RenderLayoutNode,
   RenderObjectNode,
+  RenderBranchNode,
   RenderTreeNode,
   RuleType,
   SchemaNode,
@@ -92,6 +96,7 @@ export {
 } from './utils/data-converters';
 export {
   getNestedValue,
+  isBranchNode,
   isDataArray,
   isDataField,
   isDataNode,
