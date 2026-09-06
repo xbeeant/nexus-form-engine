@@ -112,19 +112,24 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
 
   // 从 enum + enumNames 构建选项（x-render 对齐）。
   // meta/props 引用在状态更新时保持稳定，useMemo 避免每次渲染重建数组（破坏子组件 memo）。
-  // 必须在所有 early return 之前调用（Hooks 顺序规则），state 未定义时安全降级
-  const options = useMemo(
-    () =>
-      state?.meta.enum
-        ? state.meta.enum.map((value: any, index: number) => ({
-            value,
-            label: state.meta.enumNames?.[index] ?? String(value),
-          }))
-        : (state?.props.options as
-            | Array<{ label: string; value: unknown } | string | number>
-            | undefined),
-    [state?.meta.enum, state?.meta.enumNames, state?.props.options],
-  );
+  // 必须在所有 early return 之前调用（Hooks 顺序规则），state 未定义时安全降级。
+  // enum/enumNames 可为 ExpressionOr（{{ }} 表达式，P2-C），此处归一为数组安全构建。
+  const options = useMemo(() => {
+    const enumValues = Array.isArray(state?.meta.enum)
+      ? (state?.meta.enum as Array<string | number>)
+      : undefined;
+    if (enumValues) {
+      return enumValues.map((value, index) => ({
+        value,
+        label: Array.isArray(state?.meta.enumNames)
+          ? (state.meta.enumNames[index] ?? String(value))
+          : String(value),
+      }));
+    }
+    return state?.props.options as
+      | Array<{ label: string; value: unknown } | string | number>
+      | undefined;
+  }, [state?.meta.enum, state?.meta.enumNames, state?.props.options]);
 
   // 从 reactions 依赖构建 dependValues，供 widget 获取关联字段值。
   // reactions 引用稳定，值在 memo 执行时读取；避免每次渲染新建对象

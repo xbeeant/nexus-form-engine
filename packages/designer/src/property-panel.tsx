@@ -278,8 +278,9 @@ export function PropertyPanel() {
   // 仅在切换节点（widget/type 改变）时重新计算，避免每次输入都重建 schema
   // （selectedNode 的 object identity 会随每次 edit 变化，不能直接依赖）
   const selectedWidgetKey = selectedNode
-    ? (selectedNode.widget as string | undefined) ||
-      (selectedNode.type as string)
+    ? ('widget' in selectedNode
+        ? (selectedNode.widget as string | undefined)
+        : undefined) || (selectedNode.type as string)
     : null;
 
   // 构建属性表单 schema：
@@ -423,7 +424,9 @@ export function PropertyPanel() {
   // 节点类型徽标：字段取 widget，布局/对象取 type
   const nodeKind = selectedNode
     ? (
-        (selectedNode.widget as string) ||
+        ('widget' in selectedNode
+          ? (selectedNode.widget as string)
+          : undefined) ||
         (selectedNode.type as string) ||
         ''
       ).toLowerCase()

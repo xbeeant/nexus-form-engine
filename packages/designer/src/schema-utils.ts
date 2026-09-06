@@ -104,9 +104,9 @@ export function collectDataFieldOptions(
   const walk = (node: SchemaNode, parentPath: string, key: string): void => {
     // 数据节点路径 = 父路径 + 自身 key；布局节点不计算（Key 被丢弃）
     const ownPath = parentPath ? `${parentPath}.${key}` : key;
-    const title = node.title || key;
+    const title = 'title' in node ? node.title : undefined;
     if (isDataArray(node)) {
-      result.push({ value: ownPath, label: title });
+      result.push({ value: ownPath, label: title || key });
       const items = node.items;
       if (items && typeof items === 'object') {
         if (isDataObject(items)) {
@@ -118,7 +118,7 @@ export function collectDataFieldOptions(
       return;
     }
     if (isDataField(node)) {
-      result.push({ value: ownPath, label: title });
+      result.push({ value: ownPath, label: title || key });
       return;
     }
     if (isDataObject(node)) {
@@ -126,8 +126,19 @@ export function collectDataFieldOptions(
       return;
     }
     if (isLayoutNode(node)) {
-      // 布局节点 Key 不进入路径：子节点沿用父路径
-      walkProperties(node.properties, parentPath);
+      // 布局节点 Key 不进入路径：子节点沿用父路径。
+      // 分支容器（BranchSchema）无 properties，其字段在 branches[].properties，
+      // 统一展开收集（分支容器 Key 同样不进入路径）。
+      if ('branches' in node) {
+        for (const b of node.branches) {
+          walkProperties(b.properties, parentPath);
+        }
+        return;
+      }
+      walkProperties(
+        'properties' in node ? node.properties : undefined,
+        parentPath,
+      );
     }
   };
 
@@ -623,5 +634,6 @@ export function generateKey(
  * 节点显示标签：title || key || type
  */
 export function getNodeLabel(node: SchemaNode, key: string): string {
-  return node.title || key || node.type || '';
+  const title = 'title' in node ? node.title : undefined;
+  return title || key || node.type || '';
 }

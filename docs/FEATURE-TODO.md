@@ -122,6 +122,15 @@
 ### ✅ T3-2 文档同步
 - README 特性清单 + FormController API 表格 + 布局白名单补充 passThrough。
 
+### ✅ T3-3 示例补齐（P2 增强特性演示页）
+- 新增 `examples/src/pages/p2-features-page.tsx`：五个独立表单演示 P2-A~E（函数式 run / display 三态 / 动态 enum / 字段级 hooks / 数组折叠+拖拽），含提交结果展示与代码片段。
+
+### ✅ T3-4 类型回归修复（P1/P2 引入，阻塞 `tsc -b`）
+- **react/nexus-field.tsx**：`meta.enum`/`enumNames` 改为 `ExpressionOr` 后，options useMemo 先归一数组再 `.map`（未解析的 `{{ }}` 字符串安全降级）。
+- **ui/_list-shared.tsx**：`buildItemOptions` / `formatFieldValue` 处理 `ExpressionOr enum`（字符串形态不 `.indexOf` / 不 `.map`）。
+- **designer**：`SchemaNode` 联合引入 `BranchSchema`（P1-1 分支容器）后，`node.widget`/`node.title`/`node.properties` 直读报错 —— 改为 `'widget' in node` / `'title' in node` 窄化；`collectDataFieldOptions` 对分支容器展开 `branches[].properties` 收集字段（分支容器 Key 同样不进路径）。
+- 全仓 `bunx tsc -b` 零错误；Vite 构建通过；323 用例全绿。
+
 ---
 
 ## 对比依据（主流引擎能力矩阵）
@@ -148,4 +157,4 @@
 
 ## 执行顺序
 
-T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T1-6 ✅ → T1-7 ✅ → T1-8 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T2-4 ✅ → T2-5 ✅ → T2-6 ✅ → T2-7 ✅ → T2-8 ✅ → T3-1 ✅ → T3-2 ✅
+T0-1 ✅ → T1-1 ✅ → T1-2 ✅ → T1-3 ✅ → T1-4 ✅ → T1-5 ✅ → T1-6 ✅ → T1-7 ✅ → T1-8 ✅ → T2-1 ✅ → T2-2 ✅ → T2-3 ✅ → T2-4 ✅ → T2-5 ✅ → T2-6 ✅ → T2-7 ✅ → T2-8 ✅ → T3-1 ✅ → T3-2 ✅ → T3-3 ✅ → T3-4 ✅

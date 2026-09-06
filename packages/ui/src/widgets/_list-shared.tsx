@@ -146,16 +146,20 @@ export function inferWidget(field: {
 }
 
 /** 从 enum / enumNames 构建选项（与 NexusField 一致） */
+/** 将 enum/enumNames（ExpressionOr，可能是 {{ }} 表达式字符串）归一为数组再构建选项 */
 function buildItemOptions(
-  enumValues?: Array<string | number>,
-  enumNames?: Array<string>,
+  enumValues?: Array<string | number> | string,
+  enumNames?: Array<string> | string,
 ) {
-  return enumValues
-    ? enumValues.map((v, i) => ({
-        value: v,
-        label: enumNames?.[i] ?? String(v),
-      }))
-    : undefined;
+  const values = Array.isArray(enumValues) ? enumValues : undefined;
+  if (!values) {
+    return undefined;
+  }
+  const names = Array.isArray(enumNames) ? enumNames : undefined;
+  return values.map((v, i) => ({
+    value: v,
+    label: names?.[i] ?? String(v),
+  }));
 }
 
 /**
@@ -260,10 +264,17 @@ export function formatFieldValue(
   if (value === undefined || value === null || value === '') {
     return '-';
   }
-  if (fieldSchema?.enum && fieldSchema.enumNames) {
-    const idx = fieldSchema.enum.indexOf(value as string | number);
-    if (idx >= 0 && fieldSchema.enumNames[idx]) {
-      return fieldSchema.enumNames[idx];
+  // enum/enumNames 可为 ExpressionOr（{{ }} 表达式），静态展示时仅用数组形态查找文案
+  const enumValues = Array.isArray(fieldSchema?.enum)
+    ? (fieldSchema.enum as Array<string | number>)
+    : undefined;
+  const enumNames = Array.isArray(fieldSchema?.enumNames)
+    ? (fieldSchema.enumNames as Array<string>)
+    : undefined;
+  if (enumValues && enumNames) {
+    const idx = enumValues.indexOf(value as string | number);
+    if (idx >= 0 && enumNames[idx]) {
+      return enumNames[idx];
     }
   }
   if (typeof value === 'boolean') {

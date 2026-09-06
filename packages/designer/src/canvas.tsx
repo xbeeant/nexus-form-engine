@@ -364,7 +364,7 @@ const CanvasNode = memo(
     const childProps = getPropertiesOf(node);
     const hasChildren = childProps !== undefined;
     const label = getNodeLabel(node, path[path.length - 1]);
-    const badge = node.widget || node.type;
+    const badge = 'widget' in node ? node.widget || node.type : node.type;
     // 计算数据路径：布局节点 key 不进入数据路径（与 SchemaParser 对齐）
     const isLayout = isLayoutNode(node);
     const dataPath = isLayout

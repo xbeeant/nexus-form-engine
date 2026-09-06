@@ -17,6 +17,7 @@ import { MdxDocsPage } from './pages/mdx-docs-page';
 import ModalPage from './pages/modal-page';
 import MultiFormPage from './pages/multi-form-page';
 import MultiInstancePage from './pages/multi-instance-page';
+import { P2FeaturesPage } from './pages/p2-features-page';
 import SideEffectsPage from './pages/side-effects-page';
 import WidgetValidationPage from './pages/widget-validation-page';
 import { WidgetDocsPage } from './widget-docs/components/widget-docs-page';
@@ -36,6 +37,7 @@ function buildTree(): Root {
       { type: 'page', name: '同一 form 多 schema', url: '/multi-instance' },
       { type: 'page', name: '模态框示例', url: '/modal' },
       { type: 'page', name: '附带编辑器', url: '/side-effects' },
+      { type: 'page', name: 'P2 增强特性', url: '/p2-features' },
       { type: 'page', name: '组件文档', url: '/widget-docs' },
       { type: 'page', name: '组件内校验', url: '/widget-validation' },
       { type: 'page', name: '高级组件', url: '/advanced-widgets' },
@@ -80,6 +82,9 @@ function PageRouter({ path }: { path: string }) {
   }
   if (path === '/side-effects') {
     return <SideEffectsPage />;
+  }
+  if (path === '/p2-features') {
+    return <P2FeaturesPage />;
   }
   if (path === '/designer') {
     return <DesignerPage />;
