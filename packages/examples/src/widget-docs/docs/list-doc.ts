@@ -79,5 +79,35 @@ export const listDoc: WidgetDoc = {
         },
       },
     },
+    {
+      title: '折叠卡片 + 拖拽排序',
+      description:
+        '缺省每项为可折叠卡片（collapsible）；props.dragSort: true 开启拖拽排序，拖动标题左侧 ⇅ 手柄换序，与上移/下移按钮并存。',
+      schema: {
+        type: 'object',
+        properties: {
+          order: {
+            type: 'array',
+            widget: 'list',
+            title: '执行顺序（拖拽换序）',
+            props: { dragSort: true },
+            items: {
+              type: 'object',
+              properties: {
+                step: { type: 'string', widget: 'input', title: '步骤' },
+                owner: { type: 'string', widget: 'input', title: '负责人' },
+              },
+            },
+          },
+        },
+      },
+      initialValues: {
+        order: [
+          { step: '需求收集', owner: '张三' },
+          { step: '原型设计', owner: '李四' },
+          { step: '开发联调', owner: '王五' },
+        ],
+      },
+    },
   ],
 };
