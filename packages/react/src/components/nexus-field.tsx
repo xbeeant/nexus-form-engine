@@ -116,7 +116,7 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
   const { engine, config, form } = useNexusContext();
   // 按路径精准订阅：仅该字段版本变化时重渲染（reaction 影响其他字段不会触发本组件）
   // 第三个参数 getServerSnapshot 与 getSnapshot 一致（引擎状态同步，SSR 必需）
-  useSyncExternalStore(
+  const fieldVersion = useSyncExternalStore(
     (onStoreChange) => engine.subscribeField(dataPath, onStoreChange),
     () => engine.getFieldVersion(dataPath),
     () => engine.getFieldVersion(dataPath),
@@ -168,7 +168,8 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
   // 从 enum + enumNames 构建选项（x-render 对齐）。
   // meta/props 引用在状态更新时保持稳定，useMemo 避免每次渲染重建数组（破坏子组件 memo）。
   // 必须在所有 early return 之前调用（Hooks 顺序规则），state 未定义时安全降级。
-  // enum/enumNames 可为 ExpressionOr（{{ }} 表达式，P2-C），此处归一为数组安全构建。
+  // enum/enumNames 可为 ExpressionOr（{{ }} 表达式，P2-C），此处归一为数组安全构建；
+  // props.options 仅接受数组（表达式/原始值防泄漏：core 层已求值，此处兜底剔除异常值）。
   const options = useMemo(() => {
     const enumValues = Array.isArray(state?.meta.enum)
       ? (state?.meta.enum as Array<string | number>)
@@ -181,14 +182,23 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
           : String(value),
       }));
     }
-    return state?.props.options as
-      | Array<{ label: string; value: unknown } | string | number>
-      | undefined;
+    const propsOptions = state?.props.options;
+    return Array.isArray(propsOptions)
+      ? (propsOptions as
+          | Array<{ label: string; value: unknown } | string | number>
+          | undefined)
+      : undefined;
   }, [state?.meta.enum, state?.meta.enumNames, state?.props.options]);
 
   // 从 reactions 依赖构建 dependValues，供 widget 获取关联字段值。
-  // reactions 引用稳定，值在 memo 执行时读取；避免每次渲染新建对象
+  // reactions 引用稳定，值在 memo 执行时读取；避免每次渲染新建对象。
+  // fieldVersion 作为依赖：依赖字段更新触发本字段 reaction（notifyField → 版本+1）
+  // 后重算，保证 widget 拿到的是依赖字段的最新（已计算）值，而非首次渲染的旧快照。
   const dependValues = useMemo(() => {
+    // 显式消费 fieldVersion：字段版本变化时强制重算 getFieldValue 快照。
+    // reaction 数组引用稳定，deps 无法捕获依赖字段值的更新；不依赖版本号将返回
+    // 首次渲染的旧 dependValues（staleness）。void 使该依赖被显式声明。
+    void fieldVersion;
     const values: Record<string, unknown> = {};
     if (state?.reactions) {
       for (const reaction of state.reactions) {
@@ -200,7 +210,7 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
       }
     }
     return values;
-  }, [state?.reactions, engine]);
+  }, [state?.reactions, engine, fieldVersion]);
 
   // x-render addons 由 buildWidgetProps 统一构造，此处仅需计算 addon 依赖的值
   const arrayPath = state?.meta.itemOf;

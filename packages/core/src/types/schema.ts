@@ -260,6 +260,13 @@ export interface ReactionStatePatch {
   /** 字段标题旁的气泡提示（动态设置，对齐 title/description） */
   tooltip?: ExpressionOr<string>;
   /**
+   * 输入框占位符（支持静态字段直写 `{{ }}` 表达式的自动求值）
+   * 解析结果写入 meta.placeholder（渲染层透传给 widget）
+   */
+  placeholder?: ExpressionOr<string>;
+  /** 额外说明信息（支持静态字段直写 `{{ }}` 表达式的自动求值），写入 meta.extra */
+  extra?: ExpressionOr<string>;
+  /**
    * 动态选项值列表（P2-C 依赖驱动的动态 enum）
    * 支持表达式：如 `enum: "{{ $deps[0] === 'CN' ? ['北京','上海'] : ['NY','LA'] }}"`
    * 解析结果写入 meta.enum（渲染层据此构建下拉选项）

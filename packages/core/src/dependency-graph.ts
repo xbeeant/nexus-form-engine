@@ -53,6 +53,46 @@ export class DependencyGraph {
   }
 
   /**
+   * 移除一条依赖边：target 不再依赖 source
+   *
+   * 用于运行时重建的字段（如数组项子字段随数组值增减而重建）：
+   * 重建时先移除旧边的依赖关系，再为新的字段路径注册依赖边，
+   * 保证依赖关系始终指向最新 fieldStates（移除后相关的空 Set 一并清理）。
+   *
+   * @param target - 目标字段路径
+   * @param source - 源字段路径
+   */
+  removeDependency(target: string, source: string): void {
+    const depSet = this.dependenciesOf.get(target);
+    if (depSet) {
+      depSet.delete(source);
+      if (depSet.size === 0) {
+        this.dependenciesOf.delete(target);
+      }
+    }
+
+    const depSet2 = this.dependentsOf.get(source);
+    if (depSet2) {
+      depSet2.delete(target);
+      if (depSet2.size === 0) {
+        this.dependentsOf.delete(source);
+      }
+    }
+  }
+
+  /**
+   * 批量移除依赖边
+   *
+   * @param target - 目标字段路径
+   * @param sources - 源字段路径集合
+   */
+  removeDependencies(target: string, sources: Iterable<string>): void {
+    for (const source of sources) {
+      this.removeDependency(target, source);
+    }
+  }
+
+  /**
    * 返回依赖指定字段的所有字段集合（副本，供外部安全使用）
    *
    * source 变化时，这些字段的 reactions 需要重新执行

@@ -814,7 +814,29 @@ export class NexusEngine implements IFormEngine {
     }
     if (patch.props !== undefined) {
       // 合并 props，不覆盖未传入的属性
-      state.props = { ...state.props, ...patch.props };
+      // 表达式防泄漏：props 值若为 {{ }} 表达式，先求值再合并，
+      // 保证 widget 收到计算后的值而非表达式字符串（resolveValue 对静态值原样返回）
+      const patchProps = patch.props as Record<string, unknown>;
+      const hasExprProp = Object.values(patchProps).some(
+        (v) => typeof v === 'string' && v.startsWith('{{'),
+      );
+      if (hasExprProp) {
+        const context: ReactionContext = {
+          $deps: [],
+          $self: state,
+          formData: this.getFormDataInternal(),
+          rootValue: this.getFormDataInternal(),
+          $form: this,
+          $index: this.extractIndexFromPath(path),
+        };
+        const resolved: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(patchProps)) {
+          resolved[key] = this.resolveValue(value, context);
+        }
+        state.props = { ...state.props, ...resolved };
+      } else {
+        state.props = { ...state.props, ...patchProps };
+      }
     }
 
     this.markFormDataDirty();
@@ -2150,6 +2172,37 @@ export class NexusEngine implements IFormEngine {
   }
 
   /**
+   * 对新创建/重建的字段状态立即执行其初始 reactions
+   *
+   * 用于运行时重建的字段（如数组项子字段 syncArrayItemStates 重建 items[0].name 等）：
+   * 这些字段在解析期 buildDependencyGraph 时已建立静态依赖边，但重建 state 节点后
+   * 未经过 runAllReactions（其依赖源当前值可能已初始化）。立即执行一次确保 schema 中
+   * `{{ }}` 表达式求值结果（placeholder/props/enum/visible 等）在创建当下即写入 state，
+   * 表达式字符串永不直达 UI 层。
+   *
+   * @param paths - 新创建字段的路径列表
+   */
+  private runInitialReactionsForPaths(paths: string[]): void {
+    if (paths.length === 0) {
+      return;
+    }
+    const formData = this.getFormDataInternal();
+    for (const path of paths) {
+      const state = this._inst().fieldStates.get(path);
+      if (!state?.reactions) {
+        continue;
+      }
+      for (const reaction of state.reactions) {
+        // 跨表单 reaction 由源表单变化触发，不在此处初始执行
+        if (reaction.crossForm) {
+          continue;
+        }
+        this.executeReaction(path, reaction, formData);
+      }
+    }
+  }
+
+  /**
    * 执行指定源字段变更所触发的 reactions
    *
    * 通过依赖图查找所有依赖该字段的目标字段（O(k) 查询），
@@ -2872,6 +2925,17 @@ export class NexusEngine implements IFormEngine {
     if (patch.tooltip !== undefined) {
       state.meta.tooltip = this.resolveValue(patch.tooltip, context) as string;
     }
+    // 处理输入框占位符（静态字段直写 {{ }} 表达式经 reaction 求值后写入 meta）
+    if (patch.placeholder !== undefined) {
+      state.meta.placeholder = this.resolveValue(
+        patch.placeholder,
+        context,
+      ) as string;
+    }
+    // 处理额外说明（同上，静态表达式求值后写入 meta）
+    if (patch.extra !== undefined) {
+      state.meta.extra = this.resolveValue(patch.extra, context) as string;
+    }
     // 处理动态选项（P2-C 依赖驱动的动态 enum）：
     // 表达式经 resolveValue 求值后写入 meta.enum，渲染层据此重建下拉选项
     if (patch.enum !== undefined) {
@@ -2966,6 +3030,18 @@ export class NexusEngine implements IFormEngine {
               ? undefined
               : String(resolved);
           break;
+        case 'placeholder':
+          state.meta.placeholder =
+            resolved === undefined || resolved === null
+              ? undefined
+              : String(resolved);
+          break;
+        case 'extra':
+          state.meta.extra =
+            resolved === undefined || resolved === null
+              ? undefined
+              : String(resolved);
+          break;
         case 'props': {
           // props.xxx → state.props.xxx（支持多级点路径）
           if (segments.length > 1) {
@@ -3023,26 +3099,39 @@ export class NexusEngine implements IFormEngine {
       }
     }
     for (const key of stale) {
+      // 同步移除旧项的依赖边（防止残留 target 悬空）
+      const old = this._inst().fieldStates.get(key);
+      if (old?.reactions) {
+        for (const r of old.reactions) {
+          if (r.crossForm) {
+            continue;
+          }
+          this._inst().dependencyGraph.removeDependencies(key, r.dependencies);
+        }
+      }
       this._inst().fieldStates.delete(key);
     }
 
     // 依据当前数组值重建项子字段状态
     const arr = Array.isArray(state.value) ? state.value : [];
+    const createdPaths: string[] = [];
     if (items.type === 'object' && items.properties) {
       arr.forEach((item, index) => {
         const itemPath = `${arrayPath}[${index}]`;
         const obj = (item ?? {}) as Record<string, unknown>;
         for (const [itemKey, itemNode] of Object.entries(items.properties)) {
           const sub = itemNode as DataFieldSchema;
+          const subPath = `${itemPath}.${itemKey}`;
           this._inst().fieldStates.set(
-            `${itemPath}.${itemKey}`,
+            subPath,
             SchemaParser.createArrayItemState(
-              `${itemPath}.${itemKey}`,
+              subPath,
               sub,
               obj[itemKey],
               arrayPath,
             ),
           );
+          createdPaths.push(subPath);
         }
       });
     } else {
@@ -3057,7 +3146,34 @@ export class NexusEngine implements IFormEngine {
             arrayPath,
           ),
         );
+        createdPaths.push(itemPath);
       });
+    }
+
+    // 重建后的项子字段立即执行初始 reactions：schema 中 {{ }} 表达式
+    // （placeholder/props/enum/visible 等）在创建当下即求值写回 state，
+    // 保证表达式字符串不会作为落伍值残留在 widget 接收路径上
+    this.runInitialReactionsForPaths(createdPaths);
+
+    // 为重建的项子字段注册依赖边（其 reaction 依赖解析期已提取，此处按实际路径补边）：
+    // 源字段（如 checked）变化时依赖图能按 O(k) 查询到并重新求值这些项，联动不失效
+    for (const path of createdPaths) {
+      const st = this._inst().fieldStates.get(path);
+      if (!st?.reactions) {
+        continue;
+      }
+      const deps = new Set<string>();
+      for (const r of st.reactions) {
+        if (r.crossForm) {
+          continue;
+        }
+        for (const dep of r.dependencies) {
+          deps.add(dep);
+        }
+      }
+      if (deps.size > 0) {
+        this._inst().dependencyGraph.addDependencies(path, deps);
+      }
     }
 
     // 通知被重建的项子字段订阅者（同步其版本号）

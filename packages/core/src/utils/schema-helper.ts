@@ -370,6 +370,23 @@ export function toBoolean(value: unknown): boolean {
 }
 
 /**
+ * 判断字符串是否为完整的 `{{ }}` 模板表达式
+ *
+ * 与 Engine.evaluateExpression 提取语义一致（完全包裹的表达式才会被求值）：
+ * - `"{{ formData.a * 2 }}"` → true（表达式，运行期求值）
+ * - `"静态文本"` / `"前缀 {{ formData.a }}"` → false（原样透传）
+ *
+ * 渲染层/解析器用它识别「表达式字符串」，确保表达式的值在到达 UI 前已被求值，
+ * 而非把 `{{ }}` 字面量直接传给 widget。
+ *
+ * @param value - 待判定值
+ * @returns 是完整模板表达式字符串返回 true
+ */
+export function isExpressionString(value: unknown): value is string {
+  return typeof value === 'string' && /^\{\{[\s\S]+\}\}$/.test(value);
+}
+
+/**
  * omitNilDeep — 递归移除空值（undefined / null / ''）
  *
  * ProForm omitNil 对齐：提交/取值时过滤掉未填写的空值字段。

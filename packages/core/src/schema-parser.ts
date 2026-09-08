@@ -33,6 +33,7 @@ import {
   isDataArray,
   isDataField,
   isDataObject,
+  isExpressionString,
   isLayoutNode,
   setNestedValue,
 } from './utils/schema-helper';
@@ -107,6 +108,24 @@ const REACTION_EXPR_FIELDS = [
  * 表达式经 reaction 动态求值写入 meta.enum/meta.enumNames（渲染层据此重建选项）。
  */
 const REACTION_OPTION_FIELDS = ['enum', 'enumNames'] as const;
+
+/**
+ * 可自动转 _autoExpr reaction 的「文本/元数据字段」
+ *
+ * 与状态字段不同：这些字段在 schema 上声明为 string，但同样允许直接书写
+ * `{{ }}` 表达式（如 `placeholder: "{{ formData.needTime ? '请选择时间' : '' }}"`）。
+ * 解析器把表达式转成 reaction 求值后写入 meta（渲染层拿到的是计算后的文本，
+ * 而非 `{{ }}` 字面量）。
+ *
+ * 注意：非表达式字符串（普通静态文本）原样保留，不进 reaction。
+ */
+const REACTION_TEXT_FIELDS = [
+  'placeholder',
+  'title',
+  'description',
+  'extra',
+  'tooltip',
+] as const;
 
 /**
  * 解析字段的显示状态（formily `display` 三态对齐）
@@ -369,6 +388,14 @@ export function extractDepsFromExpression(expr: string): string[] {
  * 4. 移除之前自动生成的表达式 reaction（避免重复累积）
  * 5. 添加新的 reaction
  *
+ * 自动转换覆盖两类（判定顺序不可颠倒）：
+ * - 状态字段（required/disabled/readOnly/hidden/display）
+ * - 选项字段（enum/enumNames）
+ * - 文本/元数据字段（placeholder/title/description/extra/tooltip）
+ * - props.*（如 `props: { options: "{{ formData.xxx }}" }`）
+ *   任一值声明为 {{ }} 表达式时，自动转 reaction 求值后写入 state.props，
+ *   确保 widget 收到计算后的值而非表达式字符串。
+ *
  * @param node - Schema 节点
  */
 export function collectExpressionReactions(node: {
@@ -379,6 +406,12 @@ export function collectExpressionReactions(node: {
   display?: unknown;
   enum?: unknown;
   enumNames?: unknown;
+  placeholder?: string;
+  title?: string;
+  description?: string;
+  extra?: string;
+  tooltip?: string;
+  props?: Record<string, unknown>;
   dependencies?: string[];
   reactions?: Reaction[];
 }): void {
@@ -413,6 +446,32 @@ export function collectExpressionReactions(node: {
     const val = node[field];
     if (typeof val === 'string') {
       applyExpression(field, val);
+    }
+  }
+
+  // 文本/元数据字段：placeholder/title/description/extra/tooltip 为完整 {{ }} 表达式
+  // 时自动求值（普通静态文本原样保留）。这样 widget 收到的是计算后的文本。
+  for (const field of REACTION_TEXT_FIELDS) {
+    const val = node[field];
+    if (val !== undefined && isExpressionString(val)) {
+      applyExpression(field, val);
+    }
+  }
+
+  // props.*：遍历所有 props 值，表达式字符串自动转 reaction 求值
+  // （如 `props: { options: "{{ formData.categories }}" }` → patch.props.options）
+  if (node.props && typeof node.props === 'object') {
+    for (const [key, val] of Object.entries(node.props)) {
+      if (isExpressionString(val)) {
+        const patch = state as Record<string, unknown>;
+        const propsPatch = (patch.props ?? {}) as Record<string, unknown>;
+        propsPatch[key] = val;
+        patch.props = propsPatch;
+        hasExpr = true;
+        for (const dep of extractDepsFromExpression(val)) {
+          allDeps.add(dep);
+        }
+      }
     }
   }
 

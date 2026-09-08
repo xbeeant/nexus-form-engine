@@ -4,6 +4,7 @@
 // ============================================================================
 
 import type { DataFieldSchema, DataObjectSchema } from '@xbeeant/form-engine';
+import { isExpressionString } from '@xbeeant/form-engine';
 import { useNexusContext } from '@xbeeant/form-engine-react/contexts/nexus-context';
 import { buildWidgetProps } from '@xbeeant/form-engine-react/utils/build-widget-props';
 import { useSyncExternalStore } from 'react';
@@ -163,6 +164,31 @@ function buildItemOptions(
   }));
 }
 
+/** 引擎状态缺失时回退 schema 静态值时，剔除仍以 `{{ }}` 表达式形式出现的值，
+ * 避免把表达式字符串（而非计算后的值）传给 widget（正常路径由 core 求值）。 */
+function safeSchemaString(value: unknown): string | undefined {
+  if (typeof value === 'string' && !isExpressionString(value)) {
+    return value;
+  }
+  return undefined;
+}
+
+function safeSchemaProps(
+  props: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!props) {
+    return undefined;
+  }
+  const filtered: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(props)) {
+    if (isExpressionString(value)) {
+      continue;
+    }
+    filtered[key] = value;
+  }
+  return filtered;
+}
+
 /**
  * 单项输入控件渲染组件
  * 字段属性能力与 NexusField 保持一致：
@@ -223,8 +249,13 @@ export function RenderItemControl({
   const finalReadOnly = readOnly || fieldState?.readOnly || false;
   const finalDisabled = disabled || fieldState?.disabled || false;
   const finalPlaceholder =
-    fieldState?.meta.placeholder ?? placeholder ?? fieldSchema.placeholder;
-  const finalProps = fieldState?.props ?? fieldSchema.props ?? {};
+    fieldState?.meta.placeholder ??
+    placeholder ??
+    safeSchemaString(fieldSchema.placeholder);
+  const finalProps =
+    fieldState?.props ?? safeSchemaProps(fieldSchema.props) ?? {};
+  // enum/enumNames 回退 schema 时，表达式字符串经 buildItemOptions 归一（非数组→undefined），
+  // 保证 widget 不会收到 `{{ }}` 字面量
   const finalOptions = buildItemOptions(
     fieldState?.meta.enum ?? fieldSchema.enum,
     fieldState?.meta.enumNames ?? fieldSchema.enumNames,

@@ -107,6 +107,7 @@ export {
   isDataObject,
   isDeepEqual,
   isEmptyValue,
+  isExpressionString,
   isLayoutNode,
   isThenable,
   LAYOUT_CONTAINER_TYPES,
