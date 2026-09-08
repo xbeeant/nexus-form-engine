@@ -6,9 +6,7 @@ import './styles.css';
 
 import type { NexusEngine, NexusPlugin } from '@xbeeant/form-engine';
 import { antdLayouts } from './layouts';
-import { antdWidgets } from './widgets';
-import { FieldWrapper } from './widgets/_shared';
-import { textAreaWidget } from './widgets/textarea';
+import { antdWidgets, FieldWrapper, textAreaWidget } from './widgets';
 
 // ── 布局组件导出 ───────────────────────────────────────────────────────────────
 export { antdLayouts } from './layouts';
@@ -71,7 +69,7 @@ export {
 // ── Widget 组件导出 ─────────────────────────────────────────────────────────────
 // 所有可用的表单组件，支持双向绑定、表单验证和自定义渲染
 export { antdWidgets } from './widgets';
-export type { NexusAddons, WidgetProps } from './widgets/_shared';
+export type { WidgetProps } from './widgets/_shared';
 export {
   FieldWrapper,
   mapOptions, // 将选项数据映射为 Select/Option 格式

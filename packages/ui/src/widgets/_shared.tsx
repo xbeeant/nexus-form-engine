@@ -6,7 +6,11 @@ import type {
   SideEffectsConfig,
 } from '@xbeeant/form-engine';
 import { toBoolean } from '@xbeeant/form-engine/utils/schema-helper';
-import { NexusContext, useFormConfig } from '@xbeeant/form-engine-react';
+import {
+  type NexusAddons,
+  NexusContext,
+  useFormConfig,
+} from '@xbeeant/form-engine-react';
 import { ConfigProvider, Form } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
@@ -43,8 +47,9 @@ export interface WidgetProps<T = Record<string, any>> {
   /** 是否显示 label（默认 true；字段级覆盖表单级，见 FieldState.meta.label） */
   label?: boolean;
   options?: Array<{ label: string; value: unknown } | string | number>;
-  /** 额外说明信息，展示在元素下方（x-render 对齐） */
-  extra?: string;
+  /** 额外说明信息，展示在元素下方（x-render 对齐）。支持传字符串或 ReactNode，
+   *  字符串可能携带 HTML 标签（如链接/加粗），由渲染层处理为真实节点 */
+  extra?: React.ReactNode;
   /** 单元素展示宽度，如 '20%'（x-render 对齐） */
   width?: string;
   /** 字段级布局方向，覆盖表单级 displayType */
@@ -65,49 +70,6 @@ export interface WidgetProps<T = Record<string, any>> {
   items?: DataFieldSchema | DataObjectSchema;
   [key: string]: unknown;
   props: T;
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// NexusAddons — x-render addons 对齐
-// 为 widget 组件提供统一的表单数据访问、校验、Schema 操作入口，
-// 对齐 x-render 自定义组件的 addons API
-// ────────────────────────────────────────────────────────────────────────────
-
-export interface NexusAddons {
-  /** 表单全部可见数据 */
-  formData: Record<string, unknown>;
-  /** 根级表单数据（与 formData 等价，x-render 对齐） */
-  rootValue: Record<string, unknown>;
-  /** 当前字段值 */
-  value: unknown;
-  /** 当前字段路径 */
-  dataPath: string;
-  /** 当前字段路径（dataPath 别名） */
-  path: string;
-  /** 数组项索引（字段在数组内时有值） */
-  index?: number;
-  /** 父级值（数组项→父数组，对象字段→父对象） */
-  parentValues?: unknown;
-  /** 按路径取值 */
-  getValue(path: string): unknown;
-  /** 按路径设值 */
-  setValue(path: string, value: unknown): void;
-  /** 按路径设值（x-render 别名） */
-  onItemChange(path: string, value: unknown): void;
-  /** 校验单个/全部字段 */
-  validate(path?: string): Promise<void>;
-  /** 校验多个字段 */
-  validateFields(paths?: string[]): Promise<void>;
-  /** 触发提交 */
-  submit(): Promise<void>;
-  /** 重置表单 */
-  resetFields(): void;
-  /** 替换 Schema */
-  setSchema(schema: Record<string, unknown>): void;
-  /** 按路径更新 Schema */
-  setSchemaByPath(path: string, patch: Record<string, unknown>): void;
-  /** 获取 Schema */
-  getSchema(): Record<string, unknown> | null;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -393,7 +355,8 @@ export interface FieldWrapperProps {
   tooltip?: string;
   errors?: string[];
   required?: boolean;
-  extra?: string;
+  /** 额外说明信息（可能为携带 HTML 标签的字符串或 ReactNode） */
+  extra?: React.ReactNode;
   width?: string;
   displayType?: 'row' | 'column' | 'inline';
   labelWidth?: number | string;

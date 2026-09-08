@@ -878,7 +878,7 @@ function processDataField(
     ),
     reactions,
     meta: {
-      title: node.title || key,
+      title: node.title,
       widget: widgetName,
       readOnlyWidget: node.readOnlyWidget,
       sideEffects: node.sideEffects,
@@ -1002,7 +1002,7 @@ function processDataObject(
     props: node.props || {},
     reactions: (node.reactions as Reaction[] | undefined) || [],
     meta: {
-      title: node.title || key,
+      title: node.title,
       widget: '',
       type: 'object',
       rules: [],
@@ -1014,6 +1014,7 @@ function processDataObject(
       colSpan: node.colSpan,
       containerOnly: true,
       branchOf: branchContext?.branchIndex,
+      schema: node,
     },
   } satisfies FieldState);
 
@@ -1124,7 +1125,7 @@ function processDataArray(
     props: mergeWidgetProps(widgetMeta?.props, node.props),
     reactions,
     meta: {
-      title: node.title || key,
+      title: node.title,
       widget: widgetName,
       type: node.type,
       rules,
@@ -1200,6 +1201,9 @@ function processLayoutNode(
     title: layoutNode.title,
     props: extractLayoutProps(layoutNode as unknown as Record<string, unknown>),
     children,
+    meta: {
+      schema: node,
+    },
   } satisfies RenderLayoutNode);
 }
 
@@ -1381,7 +1385,7 @@ function processBranchNode(
     props: bnode.props || {},
     reactions,
     meta: {
-      title: bnode.title || key,
+      title: bnode.title,
       widget: '',
       type: 'object',
       rules: [],
@@ -1547,15 +1551,14 @@ function buildDependencyGraph(fieldStates: Map<string, FieldState>): {
  * 注意：itemOf 标记的字段不参与 formData 收集（数组整体由数组字段序列化）。
  *
  * @param path - 数组项子字段的完整路径（如 "items[0].name"）
- * @param key - 子字段 key（用于缺省 title）
  * @param node - 子字段 Schema 定义
  * @param value - 当前值
  * @param arrayPath - 所属数组的路径（如 "items"）
+ * @param widgetMetas
  * @returns 数组项子字段的 FieldState
  */
 export function createArrayItemState(
   path: string,
-  key: string,
   node: DataFieldSchema,
   value: unknown,
   arrayPath: string,
@@ -1616,7 +1619,7 @@ export function createArrayItemState(
     ),
     reactions,
     meta: {
-      title: node.title || key,
+      title: node.title,
       widget: widgetName,
       type: node.type,
       rules,
@@ -1666,7 +1669,6 @@ function processArrayItems(
           `${itemPath}.${itemKey}`,
           createArrayItemState(
             `${itemPath}.${itemKey}`,
-            itemKey,
             sub,
             obj[itemKey],
             arrayPath,
@@ -1680,7 +1682,6 @@ function processArrayItems(
         itemPath,
         createArrayItemState(
           itemPath,
-          node.title || arrayPath,
           items as DataFieldSchema,
           item,
           arrayPath,

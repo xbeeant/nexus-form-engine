@@ -7,3 +7,26 @@
 @source "../../designer/src";
 @source "../../react/src";
 @source "../../ui/src";
+
+/* ────────────────────────────────────────────────────────────────
+ * 与 @xbeeant/form-engine-react 的 styles.css / 设计器 designer.css
+ * 保持一致的运行时布局规则：
+ * - 非栅格容器（card/flex/普通流式）内字段/layout 为 inline-block 满宽，
+ *   显式 width（内联样式 + flex-shrink:0）按配置字面生效，可同行并排
+ * - flex 布局容器内恢复 flex item 的内容宽度语义
+ * 24 栅格容器内的字段由 React 内联 gridColumn: span 控制，无需此处样式。
+ * ──────────────────────────────────────────────────────────────── */
+[data-nexus-field],
+[data-nexus-branch],
+[data-nexus-layout] {
+  display: inline-block;
+  vertical-align: top;
+  width: 100%;
+}
+
+.ant-flex > [data-nexus-field],
+.ant-flex > [data-nexus-branch],
+.ant-flex > [data-nexus-layout] {
+  flex: 0 1 auto;
+  width: auto;
+}

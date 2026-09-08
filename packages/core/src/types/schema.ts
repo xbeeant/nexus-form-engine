@@ -536,14 +536,19 @@ export interface BaseSchemaNode {
    * 可声明为表达式（{{ }}）或经 reactions `fulfill.state.display` 联动
    */
   display?: ExpressionOr<'visible' | 'none' | 'hidden'>;
-  /** 单元素展示宽度，如 '20%'（x-render 对齐） */
-  width?: string;
+  /**
+   * 字段在整个表单 24 栅格中的宽度占比（百分比字符串如 '50%'，或 0~1 数值比例）。
+   * 表单顶层为统一 24 栅格容器，字段按占比换算 `gridColumn: span` 跨度，
+   * 跨满 24 格自动换行；未设置时按表单级 column 均分默认占位。
+   */
+  width?: number | string;
   /** 排序权重，越小越靠前（x-render 对齐） */
   order?: number;
   /** 额外说明信息，展示在元素下方（x-render 对齐） */
   extra?: string;
   /**
-   * 在父 Grid 布局中横跨多少列（gridColumn: span N）
+   * 在父 Grid 布局中横跨多少列（24 栅格单位，gridColumn: span N）。
+   * 显式 colSpan 优先于 width 百分比解析。
    */
   colSpan?: number;
   /** 字段级布局方向，覆盖表单级 displayType */
@@ -552,7 +557,7 @@ export interface BaseSchemaNode {
   label?: boolean;
   /** 字段级 label 宽度，覆盖表单级 labelWidth */
   labelWidth?: number | string;
-  /** 字段级列数，覆盖表单级 column（用于 grid 布局） */
+  /** 字段级列数，覆盖表单级 column（24 栅格均分基准，未设 width 时默认占位 = round(24/column)） */
   column?: number;
 }
 
@@ -639,13 +644,13 @@ export interface LayoutBaseProps {
    * 可选：省略时 Parser 按 type 推断布局容器类型
    */
   widget?: string;
-  /** 布局列数（Grid 布局） */
+  /** 布局列数（24 栅格均分基准，未设 width 时子项默认占位 = round(24/column)） */
   column?: number;
   /** 间距（Flex/Grid 布局） */
   gap?: number;
   /** 是否显示边框 */
   bordered?: boolean;
-  /** 占据的列数（Grid 布局） */
+  /** 占据的列数（Grid 布局，24 栅格单位） */
   span?: number;
   /** 布局容器内子元素的布局方向，覆盖表单级 displayType */
   displayType?: 'row' | 'column' | 'inline';
@@ -666,12 +671,11 @@ export interface LayoutBaseProps {
   /** Flex 是否换行 */
   wrap?: boolean;
   /**
-   * 在父 Grid 布局中横跨多少列（gridColumn: span N）
-   * tailwind 风格：colSpan 相对父 Grid 的 column 数
-   * （例：3 列 grid 中 colSpan: 2 = 占 2/3 宽）
+   * 在父 Grid 布局中横跨多少列（24 栅格单位，gridColumn: span N）。
+   * 显式 colSpan 优先于 width 百分比解析。
    */
   colSpan?: number;
-  /** 在父 Flex 布局中的宽度（百分比或固定值） */
+  /** 布局容器在整个表单 24 栅格中的宽度（百分比，如 '50%'；或 0~1 数值比例），未设时按父级 column 均分 */
   width?: number | string;
   /**
    * 是否移除隐藏字段占位符
@@ -759,8 +763,8 @@ export interface BranchSchema {
   dependencies?: string[];
   /** anyOf 分支条件：分支索引 → 条件表达式 */
   conditions?: Record<number, string>;
-  /** 单元素宽度（x-render 对齐，作用于容器包装层） */
-  width?: string;
+  /** 分支容器在父 Grid 中的宽度占比（x-render 对齐，百分比或 0~1 数值，作用于包装层） */
+  width?: number | string;
 }
 
 /**
@@ -955,7 +959,7 @@ export interface FieldState {
   reactions?: Reaction[];
   /** 字段元数据（标题、widget、类型、规则等） */
   meta: {
-    title: string;
+    title?: string;
     widget: string;
     /** 只读时切换渲染的 widget（x-render readOnlyWidget 对齐） */
     readOnlyWidget?: string;
@@ -973,9 +977,9 @@ export interface FieldState {
     min?: number;
     max?: number;
     extra?: string;
-    width?: string;
+    width?: number | string;
     order?: number;
-    /** 在父 Grid 布局中横跨多少列（tailwind 风格） */
+    /** 字段在父 Grid 中横跨的 24 栅格数 */
     colSpan?: number;
     displayType?: 'row' | 'column' | 'inline';
     /** 是否显示 label（默认 true，字段级覆盖表单级） */
@@ -1003,7 +1007,7 @@ export interface FieldState {
      * 原始 Schema 节点（供 widget 组件读取完整声明）
      * @deprecated
      */
-    schema?: SchemaNode;
+    schema: SchemaNode;
 
     /**
      * 条件分支容器（oneOf / anyOf）元数据：激活分支索引 + 分支定义
@@ -1097,6 +1101,13 @@ export interface RenderLayoutNode {
   props: LayoutBaseProps & Record<string, unknown>;
   /** 子节点列表 */
   children: RenderTreeNode[];
+  meta: {
+    /**
+     * 原始 Schema 节点（供 widget 组件读取完整声明）
+     * @deprecated
+     */
+    schema: SchemaNode;
+  };
 }
 
 /**

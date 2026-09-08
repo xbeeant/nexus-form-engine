@@ -13,6 +13,7 @@ import DesignerPage from './pages/designer-page';
 import DevToolsPage from './pages/dev-tools-page';
 import ExamplesPage from './pages/examples-page';
 import ExtensionsPage from './pages/extensions-page';
+import LayoutDemoPage from './pages/layout-demo-page';
 import { MdxDocsPage } from './pages/mdx-docs-page';
 import ModalPage from './pages/modal-page';
 import MultiFormPage from './pages/multi-form-page';
@@ -41,6 +42,7 @@ function buildTree(): Root {
       { type: 'page', name: '组件文档', url: '/widget-docs' },
       { type: 'page', name: '组件内校验', url: '/widget-validation' },
       { type: 'page', name: '高级组件', url: '/advanced-widgets' },
+      { type: 'page', name: '表单布局', url: '/layout' },
       { type: 'page', name: '设计器', url: '/designer' },
     ],
   };
@@ -73,6 +75,9 @@ function PageRouter({ path }: { path: string }) {
   }
   if (path === '/advanced-widgets') {
     return <AdvancedWidgetsPage />;
+  }
+  if (path === '/layout') {
+    return <LayoutDemoPage />;
   }
   if (path === '/extensions') {
     return <ExtensionsPage />;

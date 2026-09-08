@@ -6,7 +6,7 @@ import { FieldInheritContext } from '../contexts/field-inherit-context';
 import { GridContext } from '../contexts/grid-context';
 import { useNexusContext } from '../contexts/nexus-context';
 import { renderTreeNode } from '../utils/render-tree-node';
-import { resolveColSpan } from '../utils/resolve-col-span';
+import { resolveGridSpan } from '../utils/resolve-grid-span';
 
 interface NexusBranchProps {
   node: RenderBranchNode;
@@ -58,10 +58,18 @@ export function NexusBranch({ node }: NexusBranchProps) {
   const hidden = inherit.visible === false;
 
   const gridCtx = useContext(GridContext);
-  const effectiveColSpan = resolveColSpan(node.props.colSpan, gridCtx);
+  // width（占比：百分比/0~1 数值）在栅格内换算为 gridColumn span，
+  // 非栅格（Flex/inline）场景字面生效（flexShrink:0 防压缩）
+  const effectiveSpan = resolveGridSpan(
+    node.props.width,
+    node.props.colSpan,
+    gridCtx,
+  );
   const wrapperStyle: CSSProperties = {
-    ...(effectiveColSpan ? { gridColumn: `span ${effectiveColSpan}` } : {}),
-    ...(node.props.width ? { width: node.props.width, flexShrink: 0 } : {}),
+    ...(node.props.width && effectiveSpan === undefined
+      ? { width: node.props.width, flexShrink: 0 }
+      : {}),
+    ...(effectiveSpan ? { gridColumn: `span ${effectiveSpan}` } : {}),
   };
 
   return (

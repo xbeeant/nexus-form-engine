@@ -16,7 +16,7 @@ import {
 } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { Canvas } from './canvas';
-import './Designer.css';
+import './designer.css';
 import { layoutCatalog, widgetCatalog } from './catalog';
 import { DesignerProvider, useDesigner } from './designer-context';
 import { Palette } from './palette';

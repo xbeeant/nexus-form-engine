@@ -17,6 +17,7 @@
       "import": "./dist/es/index.js",
       "require": "./dist/cjs/index.cjs"
     },
+    "./index.css": "./dist/es/styles.css",
     "./package.json": "./package.json"
   },
   "files": [

@@ -1012,7 +1012,7 @@ export class NexusEngine implements IFormEngine {
    * @returns 解析后的消息字符串
    */
   private resolveRuleMessage(state: FieldState, rule: ValidationRule): string {
-    const title = state.meta.title;
+    const title = state.meta.title ?? state.path.split('.').pop();
     let key: keyof DefaultRuleMessages;
     if (rule.required) {
       key = 'required';
@@ -1051,7 +1051,7 @@ export class NexusEngine implements IFormEngine {
    * @returns 必填错误消息
    */
   private getRequiredMessage(state: FieldState): string {
-    const title = state.meta.title;
+    const title = state.meta.title ?? state.path.split('.').pop();
     const template =
       this.messageTemplates.required ?? DEFAULT_MESSAGES.required;
     return interpolateMessage(template, { title, field: title });
@@ -2807,17 +2807,13 @@ export class NexusEngine implements IFormEngine {
       $index: this.extractIndexFromPath(path),
     };
 
-    // 计算字段值（formily x-reactions state.value 对齐）：
-    // 赋值 → 重建数组项子字段 → 实时重校验 → 沿依赖图继续传播
-    if (patch.value !== undefined) {
-      const resolved = this.resolveValue(patch.value, context);
-      state.value = resolved;
-      state.touched = true;
-      state.dirty = !isDeepEqual(resolved, state.initialValue);
-      this.syncArrayItemStates(path);
-      this.validateFieldRealtime(path, state);
-      this.runReactionsForSource(path);
-      this.markFormDataDirty();
+    // 处理只读状态（必须在 value 之前处理，否则 reaction 同时赋值时校验会跳过 readOnly 检查）
+    if (patch.readOnly !== undefined) {
+      state.readOnly = toBoolean(this.resolveValue(patch.readOnly, context));
+    }
+    // 处理禁用状态
+    if (patch.disabled !== undefined) {
+      state.disabled = toBoolean(this.resolveValue(patch.disabled, context));
     }
     // 处理可见性（visible 优先于 hidden）
     if (patch.visible !== undefined) {
@@ -2839,14 +2835,18 @@ export class NexusEngine implements IFormEngine {
       state.visible = state.display !== 'hidden';
       this.markFormDataDirty();
     }
-    // 处理禁用状态
-    if (patch.disabled !== undefined) {
-      state.disabled = toBoolean(this.resolveValue(patch.disabled, context));
-    }
 
-    // 处理只读状态
-    if (patch.readOnly !== undefined) {
-      state.readOnly = toBoolean(this.resolveValue(patch.readOnly, context));
+    // 计算字段值（formily x-reactions state.value 对齐）：
+    // 赋值 → 重建数组项子字段 → 实时重校验 → 沿依赖图继续传播
+    if (patch.value !== undefined) {
+      const resolved = this.resolveValue(patch.value, context);
+      state.value = resolved;
+      state.touched = true;
+      state.dirty = !isDeepEqual(resolved, state.initialValue);
+      this.syncArrayItemStates(path);
+      this.validateFieldRealtime(path, state);
+      this.runReactionsForSource(path);
+      this.markFormDataDirty();
     }
     // 处理必填状态（同时同步校验规则）
     if (patch.required !== undefined) {
@@ -3038,7 +3038,6 @@ export class NexusEngine implements IFormEngine {
             `${itemPath}.${itemKey}`,
             SchemaParser.createArrayItemState(
               `${itemPath}.${itemKey}`,
-              itemKey,
               sub,
               obj[itemKey],
               arrayPath,
@@ -3053,7 +3052,6 @@ export class NexusEngine implements IFormEngine {
           itemPath,
           SchemaParser.createArrayItemState(
             itemPath,
-            (items as DataFieldSchema).title || arrayPath,
             items as DataFieldSchema,
             item,
             arrayPath,

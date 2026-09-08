@@ -204,3 +204,56 @@
   > .ant-collapse-content-box {
   padding: 8px 10px 4px;
 }
+
+/* ────────────────────────────────────────────────────────────────
+ * 设计态画布：按 width 自动并排（与运行时预览同语义）
+ *
+ * 块级流容器（.nexus-canvas-flow：根画布 / 卡片 / 折叠 / 标签页等
+ * 拖放区）为 flex-wrap 行流：节点卡片默认整行宽度（width:100% →
+ * flex base 100%，纵向堆叠）；设置了 width（内联样式，如 50%）的
+ * 卡片 flex base 收缩，同行按 base 尺寸排列——50% + 50% 恰好放满
+ * 一行（flex 断行依据 base 尺寸之和，不受亚像素舍入影响，且节点
+ * 卡片不带任何水平 margin，不会因 100% + N px 换行）。
+ * flex 预览容器（.nexus-canvas-flex，对应运行时 .ant-flex）内卡片
+ * 作为 flex item 恢复内容宽度分布，显式 width 仍按配置生效；
+ * grid 容器为标准 grid 布局，colSpan/gridColumn 不受影响。
+ * ──────────────────────────────────────────────────────────────── */
+.nexus-canvas-flow {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.nexus-canvas-node {
+  display: inline-block;
+  vertical-align: top;
+  width: 100%;
+}
+
+.nexus-canvas-flex > .nexus-canvas-node {
+  flex: 0 1 auto;
+  width: auto;
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * 预览态（运行时 NexusForm 渲染）同语义的 width 自动并排
+ *
+ * 规则与 @xbeeant/form-engine-react 的 styles.css 保持一致；示例
+ * 应用（examples）为规避库内 Tailwind 会话与文档站样式冲突，构建时
+ * 跳过了 react/ui 包自带的 styles.css（见 vite.config.ts
+ * skipLibStyles），而预览表单渲染在设计器页面内，故在此补齐，
+ * 保证设计画布与「最终展示」预览布局完全一致。
+ * ──────────────────────────────────────────────────────────────── */
+[data-nexus-field],
+[data-nexus-branch],
+[data-nexus-layout] {
+  display: inline-block;
+  vertical-align: top;
+  width: 100%;
+}
+
+.ant-flex > [data-nexus-field],
+.ant-flex > [data-nexus-branch],
+.ant-flex > [data-nexus-layout] {
+  flex: 0 1 auto;
+  width: auto;
+}

@@ -37,6 +37,7 @@
       "import": "./dist/es/utils/*.js",
       "require": "./dist/cjs/utils/*.cjs"
     },
+    "./index.css": "./dist/es/styles.css",
     "./package.json": "./package.json"
   },
   "files": [
@@ -70,6 +71,7 @@
     }
   },
   "dependencies": {
-    "@xbeeant/form-engine": "^0.0.5"
+    "@xbeeant/form-engine": "^0.0.5",
+    "dompurify": "^3.4.15"
   }
 }

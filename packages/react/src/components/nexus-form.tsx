@@ -8,6 +8,7 @@ import {
   useRef,
   useSyncExternalStore,
 } from 'react';
+import { GRID_TOTAL, GridContext } from '../contexts/grid-context';
 import { useFormSubmitting } from '../hooks';
 import {
   clearPersisted,
@@ -36,7 +37,7 @@ export interface NexusFormConfig {
   displayType?: 'row' | 'column' | 'inline';
   /** 整个表单只读，所有字段以文本展示 */
   readOnly?: boolean;
-  /** 表单每行显示多少列 */
+  /** 表单在 24 栅格下均分显示多少列（未显式设置 width 的字段默认占 round(24/column) 格，一行放满自动换行） */
   column?: number;
   /** 表单语言标识（如 'zh-CN' / 'en-US'，ui 层消费：antd locale + 内置文案） */
   locale?: string;
@@ -137,7 +138,7 @@ export interface NexusFormProps {
   displayType?: 'row' | 'column' | 'inline';
   /** 整个表单只读，所有字段以文本展示 */
   readOnly?: boolean;
-  /** 表单每行显示多少列 */
+  /** 表单在 24 栅格下均分显示多少列（未显式设置 width 的字段默认占 round(24/column) 格，一行放满自动换行） */
   column?: number;
 }
 
@@ -403,26 +404,38 @@ export function NexusForm({
     ],
   );
 
+  // 顶层统一 24 栅格容器：
+  // - form 整体按 `gridTemplateColumns: repeat(24, minmax(0,1fr))` 划分栅格
+  // - 子项（字段/布局/对象/分支）经 GridContext 解析 width（占比）换算 gridColumn span，
+  //   span 累加超过 24 自动换行；未设 width/colSpan 时按 column 均分默认占位
+  // - inline 布局保持行内流式（inline-block + 字面 width），不套栅格，避免冲突
+  const isInlineLayout = finalDisplayType === 'inline';
+  const formGridStyle: CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${GRID_TOTAL}, minmax(0, 1fr))`,
+    gap: '0 16px',
+  };
+  const renderFormRows = () =>
+    isInlineLayout ? (
+      renderTree.map((node, index) => renderTreeNode(node, index))
+    ) : (
+      <GridContext.Provider value={{ column: Math.max(1, finalColumn ?? 1) }}>
+        <div data-nexus-form-grid style={formGridStyle}>
+          {renderTree.map((node, index) => renderTreeNode(node, index))}
+        </div>
+      </GridContext.Provider>
+    );
+
   return (
     <NexusFormProvider engine={engine} config={formConfig} form={form}>
       <form
         ref={formElRef}
         onSubmit={handleSubmit}
         className={className}
-        style={{
-          ...style,
-          // 当配置了 column 时，使用 CSS Grid 布局
-          ...(finalColumn && finalColumn > 1
-            ? {
-                display: 'grid',
-                gridTemplateColumns: `repeat(${finalColumn}, 1fr)`,
-                gap: '0 16px',
-              }
-            : {}),
-        }}
+        style={style}
         noValidate
       >
-        {renderTree.map((node, index) => renderTreeNode(node, index))}
+        {renderFormRows()}
         {!readOnly && footerNode}
         {children}
       </form>

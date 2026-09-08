@@ -3,9 +3,13 @@
 // ============================================================================
 
 import type { NexusSchema, SchemaNode } from '@xbeeant/form-engine';
-import { isDataField, isLayoutNode } from '@xbeeant/form-engine';
+import { isDataField, isDataObject, isLayoutNode } from '@xbeeant/form-engine';
 import {
+  GRID_TOTAL,
   GridContext,
+  type GridContextValue,
+  LayoutConfigContext,
+  type LayoutConfigContextValue,
   NexusField,
   NexusForm,
   type NexusFormConfig,
@@ -14,7 +18,14 @@ import {
 } from '@xbeeant/form-engine-react';
 import { Button, Empty, Modal, Space, Tag, Typography } from 'antd';
 import type React from 'react';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { useDesigner } from './designer-context';
 import {
   generateKey,
@@ -42,6 +53,15 @@ interface CanvasDragPayload {
 type DragPayload = PaletteDragPayload | FieldDefDragPayload | CanvasDragPayload;
 
 const DRAG_MIME = 'application/json';
+
+/**
+ * 设计态画布的布局配置：字段的布局项样式（width / colSpan）由节点卡片
+ * （grid/flex/块级容器的直接子项）承接，NexusField 内层包装不再重复应用。
+ * 静态值，模块级常量保证引用稳定，不触发额外重渲染。
+ */
+const DESIGN_LAYOUT_CONFIG: LayoutConfigContextValue = {
+  suppressFieldItemLayout: true,
+};
 
 // ── Drop 目标类型 ───────────────────────────────────────────────────────────
 type DropTarget =
@@ -308,6 +328,37 @@ function toPathKey(path: string[]): string {
   return JSON.stringify(path);
 }
 
+/**
+ * 解析节点卡片在父 grid 容器中的跨列数 — 与 react 层 resolveGridSpan 同语义：
+ * 显式 colSpan（24 栅格单位）优先；width（占比百分比/0~1 数值）换算为
+ * round(24 × 比例)；均未设置时按 grid 的 column 均分 round(24/column)。
+ * 画布中节点卡片本身是 grid 容器的直接子项（布局项），colSpan/width 作用于卡片。
+ */
+function resolveItemColSpan(
+  width: string | number | undefined,
+  colSpan: number | undefined,
+  gridCtx: GridContextValue | null,
+): number | undefined {
+  if (colSpan !== undefined) {
+    return colSpan;
+  }
+  if (width !== undefined) {
+    const ratio =
+      typeof width === 'number'
+        ? width
+        : width.trim().endsWith('%')
+          ? parseFloat(width) / 100
+          : Number(width);
+    if (Number.isFinite(ratio) && ratio > 0) {
+      return Math.max(1, Math.round(GRID_TOTAL * ratio));
+    }
+  }
+  if (gridCtx && gridCtx.column > 0) {
+    return Math.max(1, Math.round(GRID_TOTAL / gridCtx.column));
+  }
+  return undefined;
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // CanvasActions — 下发给 CanvasNode 的回调集合
 // 全部 useCallback 稳定化：schema/catalog 未变时引用不变，
@@ -361,6 +412,9 @@ const CanvasNode = memo(
     actions,
   }: CanvasNodeProps) {
     const path = useMemo(() => JSON.parse(pathKey) as string[], [pathKey]);
+    // 父级 grid 容器上下文（画布手动构建的 grid 容器经 GridContext 下发列数）：
+    // 用于解析本卡片在 grid 中的 colSpan，消费方式与运行时 NexusField/NexusLayout 一致
+    const gridCtx = useContext(GridContext);
     const childProps = getPropertiesOf(node);
     const hasChildren = childProps !== undefined;
     const label = getNodeLabel(node, path[path.length - 1]);
@@ -374,12 +428,42 @@ const CanvasNode = memo(
         : path[path.length - 1];
     const childEntries = childProps ? Object.entries(childProps) : [];
     const isField = isDataField(node);
+    // 纯数据对象容器：运行时由 NexusObject 渲染，其包装层不消费 width/colSpan
+    // （字段/数组/布局节点的包装层才应用布局项样式），画布与之保持一致
+    const isPureObject = isDataObject(node);
+
+    // 布局项尺寸（与运行时 NexusField/NexusLayout 包装层样式对齐）：
+    // 画布中节点「卡片」本身就是父级 block/grid/flex 容器的直接子项（布局项），
+    // 因此 width/colSpan 必须作用在卡片上——属性面板修改后画布即时预览。
+    // 内层 NexusField 包装层经 LayoutConfigContext.suppressFieldItemLayout
+    // 关闭重复的 width/gridColumn，避免宽度被二次收缩（如 44% × 44%）。
+    // 纯数据对象容器例外：运行时 NexusObject 包装层不消费这两个属性。
+    const itemWidth = isPureObject ? undefined : node.width;
+    const itemColSpan = isPureObject
+      ? undefined
+      : ((node as { colSpan?: number }).colSpan ?? undefined);
+    // width 在栅格容器内换算为 gridColumn span（与运行时 resolveGridSpan 一致），
+    // 非栅格（Flex）场景字面生效；显式 colSpan 优先
+    const effectiveColSpan = resolveItemColSpan(
+      itemWidth,
+      itemColSpan,
+      gridCtx,
+    );
+    // 注意：不可添加水平 margin——百分比宽度下 margin 会计入行内占位，
+    // 两个 50% 节点会因额外像素（100% + N px）换行；嵌套缩进由
+    // 容器拖放区自身的 mx-2 / p-2 / 边框表达。
+    const itemStyle: React.CSSProperties = {
+      ...(itemWidth && effectiveColSpan === undefined
+        ? { width: itemWidth, flexShrink: 0 }
+        : {}),
+      ...(effectiveColSpan ? { gridColumn: `span ${effectiveColSpan}` } : {}),
+    };
 
     return (
       <div
         key={pathKey}
-        className='mb-1.5 relative'
-        style={{ marginLeft: depth }}
+        className='nexus-canvas-node mb-1.5 relative'
+        style={itemStyle}
       >
         {/* before 插入指示线 — 显示在容器上方 */}
         {dropTargetType === 'before' && (
@@ -479,9 +563,11 @@ const CanvasNode = memo(
               if (isGridNode) {
                 const column = Math.max(1, (node as any).column ?? 2);
                 const gap = (node as any).gap ?? 12;
+                // grid 容器统一为 24 栅格：子项默认跨度 round(24/column) ，
+                // 显式 width（占比）/colSpan 换算为栅格跨度从而实现不等宽排布
                 containerStyle = {
                   display: 'grid',
-                  gridTemplateColumns: `repeat(${column}, 1fr)`,
+                  gridTemplateColumns: `repeat(${GRID_TOTAL}, minmax(0, 1fr))`,
                   gap: `${gap}px`,
                 };
                 gridContextValue = { column };
@@ -529,7 +615,7 @@ const CanvasNode = memo(
                     );
                   })}
                   {childEntries.length === 0 && (
-                    <div className='text-[#bfbfbf] text-xs text-center py-2'>
+                    <div className='w-full text-[#bfbfbf] text-xs text-center py-2'>
                       拖拽组件到此处
                     </div>
                   )}
@@ -538,7 +624,9 @@ const CanvasNode = memo(
 
               const childDiv = (
                 <div
-                  className='mx-2 mb-2 p-2 border border-dashed rounded min-h-8 bg-[rgba(250,250,250,0.6)] border-[#d9d9d9]'
+                  className={`mx-2 mb-2 p-2 border border-dashed rounded min-h-8 bg-[rgba(250,250,250,0.6)] border-[#d9d9d9]${
+                    isFlexNode ? ' nexus-canvas-flex' : ''
+                  }${!isGridNode && !isFlexNode ? ' nexus-canvas-flow' : ''}`}
                   style={containerStyle}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1068,44 +1156,78 @@ export function Canvas() {
 
   const rootEntries = Object.entries(schema.properties);
 
+  // 画布根容器与运行时 NexusForm 顶层对齐：表单级 column 定义 24 栅格均分列数，
+  // 未设置时保持块级流式（nexus-canvas-flow）。栅格模式下根容器呈统一 24 栅格，
+  // 顶层节点卡片按 resolveItemColSpan（width/colSpan/column）计算默认跨度。
+  const rootColumn = Math.max(1, (schema as any).column ?? 1);
+  const rootIsGrid = ((schema as any).column ?? 0) > 0;
+  const rootContainerStyle: React.CSSProperties = rootIsGrid
+    ? {
+        display: 'grid',
+        gridTemplateColumns: `repeat(${GRID_TOTAL}, minmax(0, 1fr))`,
+        gap: '0 16px',
+      }
+    : {};
+  const rootNodes = rootEntries.map(([key, node]) => (
+    <CanvasNode
+      key={toPathKey([key])}
+      node={node}
+      pathKey={toPathKey([key])}
+      depth={0}
+      parentDataPath=''
+      isSelected={pathEquals(selectedPath, [key])}
+      dropTargetType={
+        dropTarget &&
+        (dropTarget.type === 'before' || dropTarget.type === 'after') &&
+        pathEquals(dropTarget.path, [key])
+          ? dropTarget.type
+          : null
+      }
+      selectedPathKey={selectedPath ? toPathKey(selectedPath) : null}
+      dropTarget={dropTarget}
+      actions={actions}
+    />
+  ));
+
   return (
     <NexusFormProvider
       form={designForm}
       engine={designEngine}
       config={formConfig}
     >
-      <div
-        className='flex-1 overflow-y-auto p-4 bg-[#f5f5f5] min-h-full border border-transparent box-border'
-        onClick={() => selectNode(null)}
-        onDragOver={handleContainerDragOver}
-        onDrop={(e) => handleContainerDrop(e, [])}
-      >
-        <div>
-          {rootEntries.map(([key, node]) => (
-            <CanvasNode
-              key={toPathKey([key])}
-              node={node}
-              pathKey={toPathKey([key])}
-              depth={0}
-              parentDataPath=''
-              isSelected={pathEquals(selectedPath, [key])}
-              dropTargetType={
-                dropTarget &&
-                (dropTarget.type === 'before' || dropTarget.type === 'after') &&
-                pathEquals(dropTarget.path, [key])
-                  ? dropTarget.type
-                  : null
-              }
-              selectedPathKey={selectedPath ? toPathKey(selectedPath) : null}
-              dropTarget={dropTarget}
-              actions={actions}
-            />
-          ))}
-          {rootEntries.length === 0 && (
-            <Empty description='拖拽组件到此处开始设计' />
-          )}
+      {/* 设计态：width/colSpan 由节点卡片承接（卡片是布局容器的直接子项），
+          NexusField 内层包装不再重复应用布局项样式 */}
+      <LayoutConfigContext.Provider value={DESIGN_LAYOUT_CONFIG}>
+        <div
+          className='flex-1 overflow-y-auto p-4 bg-[#f5f5f5] min-h-full border border-transparent box-border'
+          onClick={() => selectNode(null)}
+          onDragOver={handleContainerDragOver}
+          onDrop={(e) => handleContainerDrop(e, [])}
+        >
+          <div
+            className='nexus-canvas-flow'
+            style={
+              Object.keys(rootContainerStyle).length > 0
+                ? rootContainerStyle
+                : undefined
+            }
+          >
+            {rootIsGrid ? (
+              <GridContext.Provider value={{ column: rootColumn }}>
+                {rootNodes}
+              </GridContext.Provider>
+            ) : (
+              rootNodes
+            )}
+            {rootEntries.length === 0 && (
+              <Empty
+                description='拖拽组件到此处开始设计'
+                style={rootIsGrid ? { gridColumn: 'span 24' } : undefined}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      </LayoutConfigContext.Provider>
     </NexusFormProvider>
   );
 }

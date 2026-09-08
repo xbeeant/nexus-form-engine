@@ -57,10 +57,10 @@ import {
 | `errors` | `string[]` | 错误信息 |
 | `required` | `boolean` | 是否必填 |
 | `extra` | `string` | 额外说明信息 |
-| `width` | `string` | 单元素展示宽度 |
+| `width` | `string` | 字段在整个表单 24 栅格中的宽度占比（百分比字符串如 `'50%'`，或 0~1 数值比例） |
 | `displayType` | `'row' \| 'column' \| 'inline'` | 字段级布局方向 |
 | `labelWidth` | `number \| string` | 字段级 label 宽度 |
-| `column` | `number` | 字段级列数 |
+| `column` | `number` | 字段级列数（24 栅格均分基准，未设 width 时默认占位 = `round(24/column)`） |
 | `form` | `NexusFormInstance` | 表单实例 |
 | `dependValues` | `Record<string, unknown>` | 依赖字段的值映射 |
 | `items` | `DataFieldSchema \| DataObjectSchema` | 数组节点的 items 定义 |

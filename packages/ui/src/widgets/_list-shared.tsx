@@ -5,6 +5,7 @@
 
 import type { DataFieldSchema, DataObjectSchema } from '@xbeeant/form-engine';
 import { useNexusContext } from '@xbeeant/form-engine-react/contexts/nexus-context';
+import { buildWidgetProps } from '@xbeeant/form-engine-react/utils/build-widget-props';
 import { useSyncExternalStore } from 'react';
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -201,6 +202,11 @@ export function RenderItemControl({
   // 读取引擎维护的字段状态（含表达式联动解析后的 readOnly/disabled/required 等）
   const fieldState = path ? engine.getFieldState(path) : undefined;
 
+  // 计算 addon 依赖的值（buildWidgetProps 统一构造 addons）
+  const indexMatch = path?.match(/\[(\d+)\]/);
+  const index = indexMatch ? Number(indexMatch[1]) : undefined;
+  const arrayPath = path ? path.slice(0, path.indexOf('[')) : undefined;
+
   // widget 名：优先引擎解析结果，其次显式声明 / type / format 推断
   // （x-render schema 中 items 子字段常无 widget）
   const effectiveWidget =
@@ -227,21 +233,28 @@ export function RenderItemControl({
   if (Widget) {
     // required/errors 等元数据属于列表容器（列头/行级校验由列表自行展示），
     // 不透传给裸 item widget，避免透传到底层 antd 控件产生 DOM 警告
-    return (
-      <Widget
-        dataPath={path}
-        path={path}
-        value={value}
-        onChange={onChange}
-        disabled={finalDisabled}
-        readOnly={finalReadOnly}
-        loading={fieldState?.loading}
-        placeholder={finalPlaceholder}
-        options={finalOptions}
-        form={form}
-        {...finalProps}
-      />
+    const widgetProps = buildWidgetProps(
+      {
+        schema: fieldSchema,
+        disabled: finalDisabled,
+        readOnly: finalReadOnly,
+        required: fieldState?.required,
+        loading: fieldState?.loading,
+        placeholder: finalPlaceholder,
+        options: finalOptions,
+        addonsValue: value,
+        addonsIndex: index,
+        addonsItemOf: arrayPath,
+      },
+      {
+        dataPath: path,
+        path,
+        value,
+        onChange,
+        form,
+      },
     );
+    return <Widget {...widgetProps} {...finalProps} />;
   }
 
   // 未注册 widget：回退为轻量内联基础控件

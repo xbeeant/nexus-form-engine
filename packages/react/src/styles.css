@@ -4,3 +4,34 @@
  */
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities";
+
+/* ────────────────────────────────────────────────────────────────
+ * 预览态（运行时 NexusForm 渲染）同语义的 width 自动并排
+ *
+ * 规则与 @xbeeant/form-engine-react 的 styles.css 保持一致；示例
+ * 应用（examples）为规避库内 Tailwind 会话与文档站样式冲突，构建时
+ * 跳过了 react/ui 包自带的 styles.css（见 vite.config.ts
+ * skipLibStyles），而预览表单渲染在设计器页面内，故在此补齐，
+ * 保证设计画布与「最终展示」预览布局完全一致。
+ * ──────────────────────────────────────────────────────────────── */
+[data-nexus-field],
+[data-nexus-branch],
+[data-nexus-layout] {
+  display: inline-block;
+  vertical-align: top;
+  width: 100%;
+}
+
+/* flex 布局容器内：恢复 flex item 的内容宽度语义，
+ * 显式 width（内联样式 + flex-shrink:0）仍按配置生效 */
+.ant-flex > [data-nexus-field],
+.ant-flex > [data-nexus-branch],
+.ant-flex > [data-nexus-layout] {
+  flex: 0 1 auto;
+  width: auto;
+}
+
+/** 临时 readonly还显示了字段异常信息 */
+.nexus-field-readonly .ant-form-item-explain-error {
+  display: none;
+}

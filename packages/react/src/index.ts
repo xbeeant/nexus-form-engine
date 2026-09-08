@@ -7,6 +7,7 @@ import './styles.css';
 
 export { FormController } from './components/form-controller';
 export { NexusBranch } from './components/nexus-branch';
+export type { NexusAddons } from './components/nexus-field';
 export { NexusField } from './components/nexus-field';
 export type { NexusFormConfig, NexusFormProps } from './components/nexus-form';
 export { NexusForm } from './components/nexus-form';
@@ -16,10 +17,10 @@ export { NexusObject } from './components/nexus-object';
 export type { FieldInheritValue } from './contexts/field-inherit-context';
 export { FieldInheritContext } from './contexts/field-inherit-context';
 export type { GridContextValue } from './contexts/grid-context';
-export { GridContext } from './contexts/grid-context';
+export { GRID_TOTAL, GridContext } from './contexts/grid-context';
 export type { LayoutConfigContextValue } from './contexts/layout-config-context';
 export { LayoutConfigContext } from './contexts/layout-config-context';
-export { NexusContext } from './contexts/nexus-context';
+export { NexusContext, useNexusContext } from './contexts/nexus-context';
 
 export { useEngine } from './hooks/use-engine';
 export { useFieldState } from './hooks/use-field-state';
@@ -33,3 +34,10 @@ export { useWatch } from './hooks/use-watch';
 export { useWatchAll } from './hooks/use-watch-all';
 export { useWatchMultiple } from './hooks/use-watch-multiple';
 export { useWatchState } from './hooks/use-watch-state';
+
+export {
+  pureHtmlString,
+  reactNodeFromString,
+} from './utils/react-node-from-string';
+
+export { buildWidgetProps } from './utils/build-widget-props';

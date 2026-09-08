@@ -114,8 +114,11 @@ export class FormController implements NexusFormInstance {
    * 内部：解析方法作用的目标实例视图（聚合全部实例，无实例时回退宿主引擎）
    */
   private resolveViews(): NexusEngine[] {
-    const views = Array.from(this.views.values());
-    return views.length > 0 ? views : [this.engine];
+    const views = this.views;
+    if (!views || views.size === 0) {
+      return [this.engine];
+    }
+    return Array.from(views.values());
   }
 
   /** 内部：首次绑定的实例 DOM（兼容既有 scrollToPath/focusFirstError 单实例行为） */

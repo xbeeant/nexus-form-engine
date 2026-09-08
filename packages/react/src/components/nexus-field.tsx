@@ -1,15 +1,70 @@
 import type { FieldHooks } from '@xbeeant/form-engine';
-import type { CSSProperties, FocusEvent, ReactElement } from 'react';
+import type { CSSProperties, FocusEvent, ReactElement, ReactNode } from 'react';
 import { useCallback, useContext, useMemo, useSyncExternalStore } from 'react';
 import { FieldInheritContext } from '../contexts/field-inherit-context';
 import { GridContext } from '../contexts/grid-context';
 import { LayoutConfigContext } from '../contexts/layout-config-context';
 import { useNexusContext } from '../contexts/nexus-context';
-import { resolveColSpan } from '../utils/resolve-col-span';
+import { buildWidgetProps } from '../utils/build-widget-props';
+import { reactNodeFromString } from '../utils/react-node-from-string';
+import { resolveGridSpan } from '../utils/resolve-grid-span';
 
 interface NexusFieldProps {
   dataPath: string;
   layoutKey: string;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// NexusAddons — x-render addons 对齐
+// 为 widget 组件提供统一的表单数据访问、校验、Schema 操作入口，
+// 对齐 x-render 自定义组件的 addons API
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface NexusAddons {
+  /** 表单全部可见数据 */
+  formData: Record<string, unknown>;
+  /** 根级表单数据（与 formData 等价，x-render 对齐） */
+  rootValue: Record<string, unknown>;
+  /** 当前字段值 */
+  value: unknown;
+  /** 当前字段路径 */
+  dataPath: string;
+  /** 当前字段路径（dataPath 别名） */
+  path: string;
+  /** 数组项索引（字段在数组内时有值） */
+  index?: number;
+  /** 父级值（数组项→父数组，对象字段→父对象） */
+  parentValues?: unknown;
+  /** 按路径取值 */
+  getValue(path: string): unknown;
+
+  getFieldsValue(
+    paths?: string[],
+    options?: { omitNil?: boolean },
+  ): Record<string, unknown>;
+  getHiddenValues(): Record<string, unknown>;
+  getValues(
+    paths?: string[],
+    options?: { omitNil?: boolean },
+  ): Record<string, unknown>;
+  /** 按路径设值 */
+  setValue(path: string, value: unknown): void;
+  /** 按路径设值（x-render 别名） */
+  onItemChange(path: string, value: unknown): void;
+  /** 校验单个/全部字段 */
+  validate(path?: string): Promise<void>;
+  /** 校验多个字段 */
+  validateFields(paths?: string[]): Promise<void>;
+  /** 触发提交 */
+  submit(): Promise<void>;
+  /** 重置表单 */
+  resetFields(): void;
+  /** 替换 Schema */
+  setSchema(schema: Record<string, unknown>): void;
+  /** 按路径更新 Schema */
+  setSchemaByPath(path: string, patch: Record<string, unknown>): void;
+  /** 获取 Schema */
+  getSchema(): Record<string, unknown> | null;
 }
 
 /**
@@ -147,47 +202,11 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
     return values;
   }, [state?.reactions, engine]);
 
-  // x-render addons — 为 widget 组件提供统一的表单数据访问、校验、Schema 操作入口
-  // 对齐 x-render 自定义组件的 addons API
-  const addons = useMemo(() => {
-    const arrayPath = state?.meta.itemOf;
-    const isItemField = !!arrayPath;
-    const indexMatch = isItemField ? dataPath.match(/\[(\d+)\]/) : undefined;
-    const index = indexMatch ? Number(indexMatch[1]) : undefined;
-
-    return {
-      get formData() {
-        return form.getValues();
-      },
-      get rootValue() {
-        return form.getValues();
-      },
-      value: state?.value,
-      dataPath,
-      path: dataPath,
-      index,
-      parentValues: arrayPath ? form.getValueByPath(arrayPath) : undefined,
-      getValue: (p: string) => form.getValueByPath(p),
-      setValue: (p: string, v: unknown) => form.setValueByPath(p, v),
-      onItemChange: (p: string, v: unknown) => form.setValueByPath(p, v),
-      validate: async (p?: string) => {
-        if (p) {
-          await form.validateFields([p]);
-        } else {
-          await form.validateFields([dataPath]);
-        }
-      },
-      validateFields: async (paths?: string[]) => {
-        await form.validateFields(paths);
-      },
-      submit: () => form.submit(),
-      resetFields: () => form.resetFields(),
-      setSchema: (s: Record<string, unknown>) => form.setSchema(s as any),
-      setSchemaByPath: (p: string, patch: Record<string, unknown>) =>
-        form.setSchemaByPath(p, patch),
-      getSchema: () => form.getSchema(),
-    };
-  }, [form, dataPath, state?.value, state?.meta.itemOf]);
+  // x-render addons 由 buildWidgetProps 统一构造，此处仅需计算 addon 依赖的值
+  const arrayPath = state?.meta.itemOf;
+  const isItemField = !!arrayPath;
+  const indexMatch = isItemField ? dataPath.match(/\[(\d+)\]/) : undefined;
+  const index = indexMatch ? Number(indexMatch[1]) : undefined;
 
   if (!state) {
     // 仅当引擎已初始化（version > 0）但字段仍未找到时才发出警告
@@ -248,15 +267,29 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
   const fieldLabelWidth = state.meta.labelWidth ?? config.labelWidth;
   const fieldColumn = state.meta.column ?? config.column;
 
-  // 布局属性作用于 NexusField 包装层而非 DOM 控件
+  // 布局属性作用于 NexusField 包装层而非 DOM 控件：
+  // - width（state.meta.width）：字段在整个表单 24 栅格中的宽度占比（如 '50%'）
+  //   - 在 24 栅格容器内换算为 gridColumn: span（见 resolveGridSpan）
+  //   - 在 Flex 等非栅格容器中字面生效（width + flexShrink:0 防压缩）
+  // - colSpan：在父 Grid 中横跨多少 24 栅格（gridColumn: span N，优先级高于 width）
   // - column（fieldColumn）：字段内部子元素分列数（如 checkboxes/radio），传给 Widget
-  // - colSpan：在父 Grid 中横跨多少列（tailwind 风格：gridColumn: span N）
-  // - width：在父 Flex 布局中自身宽度（百分比或固定值），flexShrink:0 防压缩
-  const effectiveColSpan = resolveColSpan(state.meta.colSpan, gridCtx);
-  const wrapperStyle: CSSProperties = {
-    ...(state.meta.width ? { width: state.meta.width, flexShrink: 0 } : {}),
-    ...(effectiveColSpan ? { gridColumn: `span ${effectiveColSpan}` } : {}),
-  };
+  // 嵌入方（如设计器画布）通过 LayoutConfigContext.suppressFieldItemLayout
+  // 声明布局项样式由其外层容器承接时，包装层不再重复应用（避免二次收缩）
+  const effectiveSpan = resolveGridSpan(
+    state.meta.width,
+    state.meta.colSpan,
+    gridCtx,
+  );
+  const wrapperStyle: CSSProperties = layoutConfig.suppressFieldItemLayout
+    ? {}
+    : {
+        // 栅格容器内 width 已换算为 span，避免字面 width 与 track 双重收缩；
+        // 非栅格（如 Flex / inline 流式）场景回到字面 width 生效
+        ...(state.meta.width && effectiveSpan === undefined
+          ? { width: state.meta.width, flexShrink: 0 }
+          : {}),
+        ...(effectiveSpan ? { gridColumn: `span ${effectiveSpan}` } : {}),
+      };
 
   // 默认包裹：所有 widget 统一由 FieldWrapper 包裹（引擎注册，UI 层提供），
   // 仅当 label === false（字段级或表单级）时 FieldWrapper 不包裹 Form.Item。
@@ -270,6 +303,18 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
   // width / colSpan / displayType / labelWidth / column 是布局属性，
   // 由 NexusField 外层 <div> 的 wrapperStyle 统一消费，不透传给 FieldWrapper（Form.Item），
   // 避免外层 div 与 Form.Item 重复设置 width。
+
+  let extra: ReactNode = state.meta.extra;
+  // 异常判断，历史数据中存在 { extra: { tableOrder : 0 }} 的数据，需要进行过滤
+  if (typeof extra !== 'string') {
+    extra = undefined;
+  }
+  // extra 字符串可能携带 HTML 标签（如链接/加粗/着色），处理成 ReactNode
+  // 传递到下层（FieldWrapper / Form.Item），否则 HTML 会以纯文本原样展示
+  if (typeof extra === 'string') {
+    extra = reactNodeFromString(extra);
+  }
+
   const fieldWrapperProps = {
     label: state.meta.label,
     title: state.meta.title,
@@ -277,7 +322,7 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
     tooltip: state.meta.tooltip,
     errors: state.errors,
     required: state.required,
-    extra: state.meta.extra,
+    extra: extra,
     displayType: fieldDisplayType,
     labelWidth: fieldLabelWidth,
     column: fieldColumn,
@@ -290,22 +335,31 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
 
   // widget 仅接收控件相关 props（value/onChange/状态/选项/表单引用/自有 props）
   const widgetProps = {
-    dataPath,
-    path: dataPath,
-    value: state.value,
-    onChange: handleChange,
-    disabled,
-    readOnly,
-    loading: state.loading,
-    placeholder: state.meta.placeholder,
-    options,
-    form,
-    addons,
-    dependValues,
-    items: state.meta.items,
-    schema: state.meta.schema,
-    // 远程选项数据版本：reloadRemoteData 后变化，widget 据此跳过缓存重新请求
-    remoteVersion: engine.getRemoteDataVersion(dataPath),
+    // ...state.props 在构建后展开，避免 props 中的键覆盖 meta 值
+    ...buildWidgetProps(
+      {
+        schema: state.meta.schema,
+        disabled,
+        readOnly,
+        required: state.required,
+        loading: state.loading,
+        placeholder: state.meta.placeholder,
+        options,
+        dependValues,
+        items: state.meta.items,
+        remoteVersion: engine.getRemoteDataVersion(dataPath),
+        addonsValue: state?.value,
+        addonsIndex: index,
+        addonsItemOf: arrayPath,
+      },
+      {
+        dataPath,
+        path: dataPath,
+        value: state.value,
+        onChange: handleChange,
+        form,
+      },
+    ),
     ...state.props,
   };
 
