@@ -20,7 +20,7 @@ export interface NexusFormConfig {
   displayType?: 'row' | 'column' | 'inline';
   /** 整个表单只读，所有字段以文本展示 */
   readOnly?: boolean;
-  /** 表单每行显示多少列 */
+  /** 表单在 24 栅格下均分显示多少列（未显式设置 width 的字段默认占 round(24/column) 格） */
   column?: number;
   /** 表单语言标识（如 'zh-CN' / 'en-US'，ui 层消费：antd locale + 内置文案） */
   locale?: string;

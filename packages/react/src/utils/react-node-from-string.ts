@@ -2,10 +2,15 @@ import DOMPurify from 'dompurify';
 import type { ReactNode } from 'react';
 import { createElement } from 'react';
 
-// 简单 HTML 标签识别：匹配形如 <xxx ...>...</xxx> 或自闭合 <xxx .../>
+// ────────────────────────────────────────────────────────────────────────────
+// HTML 字符串 → ReactNode 安全渲染
+// 供 NexusField.extra 等场景将 HTML 字符串安全渲染为 React 节点
+// ────────────────────────────────────────────────────────────────────────────
+
+// HTML 标签检测正则：匹配形如 <xxx ...>...</xxx> 或自闭合 <xxx .../> 的标签
 const HTML_TAG_PATTERN = /<\/?[a-zA-Z][^>]*>/;
 
-// Hook 只注册一次
+// DOMPurify afterSanitizeAttributes Hook 全局注册一次（为所有 <a> 标签添加安全属性）
 let hookRegistered = false;
 
 function ensureHook() {
@@ -43,6 +48,12 @@ const PURIFY_CONFIG = {
   ALLOWED_URI_REGEXP: /^(?:https?|mailto):/i,
 };
 
+/**
+ * 对 HTML 字符串进行安全清洗（DOMPurify），移除危险标签与属性
+ *
+ * @param value - 待清洗的 HTML 字符串
+ * @returns 清洗后的安全 HTML 字符串
+ */
 export function pureHtmlString(value: string): string {
   ensureHook();
   return DOMPurify.sanitize(value, PURIFY_CONFIG);

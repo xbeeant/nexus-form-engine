@@ -5,6 +5,12 @@ import { NexusContext } from '../contexts/nexus-context';
 import type { FormController } from './form-controller';
 import type { NexusFormConfig } from './nexus-form';
 
+/**
+ * NexusFormProvider — NexusContext 上下文提供者
+ *
+ * 将引擎视图、表单配置、FormController 实例注入 React Context，
+ * 供子树内的 NexusField / NexusLayout / NexusObject / Hooks 消费。
+ */
 interface NexusFormProviderProps {
   engine: NexusEngine;
   config: NexusFormConfig;

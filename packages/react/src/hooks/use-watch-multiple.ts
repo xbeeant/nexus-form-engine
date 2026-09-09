@@ -7,7 +7,9 @@ import { useEffect, useRef } from 'react';
  * @param engine - NexusEngine实例
  * @param paths - 字段路径数组
  * @param callback - 变化回调函数
- * @param deep - 是否深度比较值（默认false，仅浅比较）
+ * @param options - 配置项
+ * @param options.deep - 是否深度比较值（默认false，仅浅比较）
+ * @returns 被监听字段的当前值（以路径为键的对象）
  *
  * @example
  * ```tsx

@@ -110,10 +110,7 @@ export function buildWidgetProps(
         validateFields: async (paths?: string[]) => {
           await form.validateFields(paths);
         },
-        getFieldsValue: (
-          paths?: string[],
-          options?: { omitNil?: boolean },
-        ) => {
+        getFieldsValue: (paths?: string[], options?: { omitNil?: boolean }) => {
           return form.getValues(paths, options);
         },
         getValues: (paths?: string[], options?: { omitNil?: boolean }) => {

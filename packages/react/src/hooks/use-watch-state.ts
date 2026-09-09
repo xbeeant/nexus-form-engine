@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react';
  * @param engine - NexusEngine实例
  * @param path - 字段路径
  * @param callback - 状态变化回调函数
+ * @returns 字段当前状态（FieldState），未找到时返回空对象
  *
  * @example
  * ```tsx

@@ -3,7 +3,11 @@ import type {
   NexusFormInstance,
   NexusSchema,
 } from '@xbeeant/form-engine';
-import { AsyncValidatorPlugin, NexusEngine, omitNilDeep } from '@xbeeant/form-engine';
+import {
+  AsyncValidatorPlugin,
+  NexusEngine,
+  omitNilDeep,
+} from '@xbeeant/form-engine';
 
 /** 已被某个 FormController 占用为「首个挂载视图」的引擎宿主（防止多 form 共享宿主时抢占 default 实例） */
 const claimedHosts = new WeakSet<NexusEngine>();
@@ -120,7 +124,7 @@ export class FormController implements NexusFormInstance {
     return Array.from(views.values());
   }
 
-  /** 内部：首次绑定的实例 DOM（兼容既有 scrollToPath/focusFirstError 单实例行为） */
+  /** 内部：获取首个实例绑定的 DOM 元素（用于 scrollToPath / focusFirstError 定位） */
   private getPrimaryFormEl(): HTMLFormElement | null {
     const first = this.instanceBindings.values().next().value;
     return first?.formEl ?? null;
@@ -238,6 +242,10 @@ export class FormController implements NexusFormInstance {
     return this.engine;
   }
 
+  /**
+   * 触发表单提交（校验 + onFinish 全流程）
+   * @param options - 提交选项：validateFirst 首个失败字段短路，omitNil 递归移除空值
+   */
   async submit(options?: {
     validateFirst?: boolean;
     omitNil?: boolean;
@@ -263,6 +271,7 @@ export class FormController implements NexusFormInstance {
     };
   }
 
+  /** 内部：设置提交中状态并通知订阅者 */
   private setSubmitting(value: boolean): void {
     if (this.submitting === value) {
       return;
@@ -381,36 +390,42 @@ export class FormController implements NexusFormInstance {
     requestAnimationFrame(focus);
   }
 
+  /** 重置全部实例的字段状态（值/错误/touched/dirty 归零） */
   resetFields(): void {
     for (const view of this.resolveViews()) {
       view.reset();
     }
   }
 
+  /** 批量设置外部校验错误（用于服务端校验结果回填） */
   setErrorFields(errors: Array<{ path: string; errors: string[] }>): void {
     for (const view of this.resolveViews()) {
       view.setErrorFields(errors);
     }
   }
 
+  /** 批量设置字段值（合并写入，不影响未传入的字段） */
   setValues(values: Record<string, unknown>): void {
     for (const view of this.resolveViews()) {
       view.setFieldValues(values);
     }
   }
 
+  /** 按路径设置单个字段值 */
   setValueByPath(path: string, value: unknown): void {
     for (const view of this.resolveViews()) {
       view.setFieldValue(path, value);
     }
   }
 
+  /** 按路径局部更新 Schema（深度合并） */
   setSchemaByPath(path: string, patch: Record<string, unknown>): void {
     for (const view of this.resolveViews()) {
       view.setSchemaByPath(path, patch);
     }
   }
 
+  /** 替换整个 Schema 并重新初始化 */
   setSchema(schema: NexusSchema): void {
     for (const view of this.resolveViews()) {
       view.setSchema(schema);
@@ -434,6 +449,7 @@ export class FormController implements NexusFormInstance {
     return merged;
   }
 
+  /** 获取 hidden 字段的值（removeHiddenData=false 时可用） */
   getHiddenValues(): Record<string, unknown> {
     const merged: Record<string, unknown> = {};
     for (const view of this.resolveViews()) {
@@ -451,6 +467,7 @@ export class FormController implements NexusFormInstance {
     return merged;
   }
 
+  /** 获取指定路径的字段值（多实例时返回首个非 undefined 的值） */
   getValueByPath(path: string): unknown {
     for (const view of this.resolveViews()) {
       const value = view.getFieldValue(path);
@@ -463,8 +480,8 @@ export class FormController implements NexusFormInstance {
 
   /**
    * 注册字段校验逻辑
-   * @param path 字段路径（如 'username'）
-   * @param validator 校验函数，返回错误消息数组（空数组表示通过）
+   * @param path - 字段路径（如 'username'）
+   * @param validator - 校验函数，接收 (value, formData)，返回错误消息数组（空数组表示通过）
    */
   registerValidator(
     path: string,
@@ -505,22 +522,26 @@ export class FormController implements NexusFormInstance {
     }
   }
 
+  /** 获取当前 Schema（多实例时返回首个实例的 Schema） */
   getSchema(): NexusSchema | null {
     return this.resolveViews()[0]?.getSchema() ?? null;
   }
 
+  /** 移除指定字段的校验错误 */
   removeErrorField(path: string): void {
     for (const view of this.resolveViews()) {
       view.removeErrorField(path);
     }
   }
 
+  /** 滚动到指定字段并居中显示 */
   scrollToPath(path: string): void {
     const formEl = this.getPrimaryFormEl();
     const el = formEl?.querySelector(`[data-nexus-field="${path}"]`);
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
+  /** 获取指定字段的校验错误消息（多实例时返回首个非空结果） */
   getFieldError(path: string): string[] {
     for (const view of this.resolveViews()) {
       const errors = view.getFieldError(path);
@@ -531,6 +552,7 @@ export class FormController implements NexusFormInstance {
     return [];
   }
 
+  /** 获取全部字段的校验错误（多实例合并） */
   getFieldsError(): Map<string, string[]> {
     const merged = new Map<string, string[]>();
     for (const view of this.resolveViews()) {
@@ -541,6 +563,11 @@ export class FormController implements NexusFormInstance {
     return merged;
   }
 
+  /**
+   * 校验指定字段（多实例并行校验并合并错误）
+   * @param paths - 要校验的字段路径，缺省校验全部
+   * @param options - 校验选项：validateFirst 首个失败即短路
+   */
   validateFields(
     paths?: string[],
     options?: { validateFirst?: boolean },
@@ -563,6 +590,7 @@ export class FormController implements NexusFormInstance {
     );
   }
 
+  /** 获取指定字段的状态（多实例时返回首个找到的状态） */
   getFieldState(path: string): FieldState | undefined {
     for (const view of this.resolveViews()) {
       const state = view.getFieldState(path);

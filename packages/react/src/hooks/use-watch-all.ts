@@ -6,7 +6,9 @@ import { useEffect, useRef } from 'react';
  *
  * @param engine - NexusEngine实例
  * @param callback - 变化回调函数
- * @param deep - 是否深度比较值（默认false，仅浅比较）
+ * @param options - 配置项
+ * @param options.deep - 是否深度比较值（默认false，仅浅比较）
+ * @returns 当前表单数据快照
  *
  * @example
  * ```tsx

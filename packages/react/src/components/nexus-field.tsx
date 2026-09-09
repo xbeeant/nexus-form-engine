@@ -38,11 +38,14 @@ export interface NexusAddons {
   /** 按路径取值 */
   getValue(path: string): unknown;
 
+  /** 按路径列表取值（getValues 别名，x-render getFieldsValue 对齐） */
   getFieldsValue(
     paths?: string[],
     options?: { omitNil?: boolean },
   ): Record<string, unknown>;
+  /** 获取 hidden 字段的值 */
   getHiddenValues(): Record<string, unknown>;
+  /** 按路径列表取值 */
   getValues(
     paths?: string[],
     options?: { omitNil?: boolean },
@@ -242,7 +245,6 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
     return <div className='hidden' data-nexus-hidden={dataPath} />;
   }
 
-  // 从 enum + enumNames 构建选项（x-render 对齐）
   const readOnly =
     config.readOnly || inherit.readOnly === true || state.readOnly;
   // 对象容器继承 disabled（父级激活时优先），与字段级 disabled 合并
@@ -257,7 +259,7 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
   const widgetName = wantReadOnlyWidget
     ? state.meta.readOnlyWidget!
     : state.meta.widget;
-  /** 获取UI组件库 进行渲染 **/
+  /** 获取已注册的 UI 组件库进行渲染 */
   let Widget = engine.getWidget(widgetName);
   // readOnlyWidget 未注册时优雅降级：退回原 widget，沿用现有只读渲染方式
   if (!Widget && wantReadOnlyWidget) {

@@ -7,7 +7,13 @@ import { NexusLayout } from '../components/nexus-layout';
 import { NexusObject } from '../components/nexus-object';
 
 /**
- * renderTreeNode — 递归渲染
+ * renderTreeNode — 递归渲染渲染树节点
+ *
+ * 根据节点类型分发到对应渲染器：
+ * - field → NexusField（数据字段）
+ * - object → NexusObject（可折叠数据对象容器）
+ * - branch → NexusBranch（条件分支容器，oneOf/anyOf）
+ * - 其余 → NexusLayout（布局容器：card/tabs/flex/grid 等）
  */
 export function renderTreeNode(
   node: RenderTreeNode,

@@ -64,8 +64,8 @@ export interface UseFieldValidatorOptions {
  *   校验逻辑总能读到当前渲染的组件 state
  * - 传入 dependsOn 时，订阅依赖字段变化并实时重校验目标字段
  *
- * @param form - 表单实例（widget 的 props.form）
- * @param path - 字段路径（widget 的 props.dataPath）
+ * @param form - 表单实例（widget 的 props.form，可为 undefined 时跳过注册）
+ * @param path - 字段路径（widget 的 props.dataPath，可为 undefined 时跳过注册）
  * @param validator - 校验函数，返回错误消息数组（空数组 = 通过）
  * @param options - 配置（dependsOn 依赖字段联动 / deps 闭包依赖的组件 state）
  */
