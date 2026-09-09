@@ -132,7 +132,7 @@ engine.destroy();
 ### 工具导出
 
 - 类型：`NexusSchema`、`FieldState`、`Reaction`、`ValidationRule`、`RenderTreeNode` 等全部协议类型
-- Schema 判定：`isDataArray` / `isDataField` / `isDataObject` / `isLayoutNode` / `getNestedValue` / `setNestedValue` 等
+- Schema 判定：`isDataArray` / `isDataField` / `isDataObject` / `isLayoutNode` / `getPathValue` / `setPathValue` 等
 - 序列化：`serialize` / `deserialize` / `diff` / `compress` / `compressToBase64` 等
 - 数据转换：`toFormData` / `toMultipart` / `toSearchParams` / `formatField`
 

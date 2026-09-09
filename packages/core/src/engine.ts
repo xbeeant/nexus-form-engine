@@ -36,13 +36,13 @@ import type {
   WidgetDescriptors,
 } from './types/schema';
 import {
-  getNestedValue,
+  getPathValue,
   isDeepEqual,
   isEmptyValue,
   isThenable,
-  setNestedValue,
+  setPathValue,
   toBoolean,
-} from './utils/schema-helper';
+} from './utils/value-utils';
 
 /**
  * 订阅监听器类型：无参数的普通回调函数
@@ -328,7 +328,7 @@ export class NexusEngine implements IFormEngine {
     if (pendingValues) {
       initialValues = { ...(initialValues ?? {}) };
       for (const [path, value] of Object.entries(pendingValues)) {
-        setNestedValue(initialValues, path, value);
+        setPathValue(initialValues, path, value);
       }
       this._inst().pendingValues = undefined;
     }
@@ -469,13 +469,13 @@ export class NexusEngine implements IFormEngine {
         continue;
       } else if (typeof bind === 'string' && bind.length > 0) {
         // bind: string — 从 bind 路径读取（空字符串视为未配置）
-        newValue = getNestedValue(values, bind);
+        newValue = getPathValue(values, bind);
       } else if (Array.isArray(bind)) {
         // bind: string[] — 从多个路径读取并组装成数组
-        newValue = bind.map((b) => getNestedValue(values, b));
+        newValue = bind.map((b) => getPathValue(values, b));
       } else {
         // 无 bind — 从字段原始路径读取
-        newValue = getNestedValue(values, path);
+        newValue = getPathValue(values, path);
       }
 
       if (newValue !== undefined) {
@@ -689,7 +689,7 @@ export class NexusEngine implements IFormEngine {
 
     if (typeof bind === 'string' && bind.length > 0) {
       // bind: string — 写入 bind 路径（空字符串视为未配置，回落字段原始路径）
-      setNestedValue(data, bind, value);
+      setPathValue(data, bind, value);
       return;
     }
 
@@ -697,13 +697,13 @@ export class NexusEngine implements IFormEngine {
       // bind: string[] — 字段值数组按顺序写入多个路径
       const arr = Array.isArray(value) ? value : [];
       for (let i = 0; i < bind.length; i++) {
-        setNestedValue(data, bind[i], arr[i]);
+        setPathValue(data, bind[i], arr[i]);
       }
       return;
     }
 
     // 无 bind — 写入字段原始路径
-    setNestedValue(data, path, value);
+    setPathValue(data, path, value);
   }
 
   /**
@@ -1670,10 +1670,6 @@ export class NexusEngine implements IFormEngine {
   // 订阅系统
   // =========================================================================
 
-  // =========================================================================
-  // 订阅系统
-  // =========================================================================
-
   /**
    * 订阅单个字段的状态变化
    *
@@ -1812,10 +1808,6 @@ export class NexusEngine implements IFormEngine {
   // 渲染树
   // =========================================================================
 
-  // =========================================================================
-  // 渲染树
-  // =========================================================================
-
   /**
    * 获取当前渲染树
    *
@@ -1827,10 +1819,6 @@ export class NexusEngine implements IFormEngine {
   getRenderTree(): RenderTreeNode[] {
     return this._inst().renderTree;
   }
-
-  // =========================================================================
-  // 插件 & 注册
-  // =========================================================================
 
   // =========================================================================
   // 插件 & 注册
@@ -1896,7 +1884,14 @@ export class NexusEngine implements IFormEngine {
     return this.plugins.some((p) => p.name === name);
   }
 
-  /** 注册值变更回调（由 FormController 使用，用于 watch 功能） */
+  /**
+   * 注册值变更回调（由 FormController 使用，用于触发 watch 功能）
+   *
+   * 字段值变更（setFieldValue / setFieldValues 内部路径）时回调触达，
+   * 携带变更路径与最新值；同一时间仅持有一个回调（后注册覆盖先注册）。
+   *
+   * @param callback - 值变更回调（path - 变更字段路径, value - 最新值）
+   */
   registerOnFieldValueChange(
     callback: (path: string, value: unknown) => void,
   ): void {
@@ -3274,10 +3269,6 @@ export class NexusEngine implements IFormEngine {
     }
     return this.expressionSandbox.evaluate(match[1].trim(), context);
   }
-
-  // =========================================================================
-  // 内部：通知
-  // =========================================================================
 
   // =========================================================================
   // 内部：通知

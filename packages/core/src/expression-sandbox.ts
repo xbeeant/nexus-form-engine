@@ -60,7 +60,14 @@ const BLACKLIST = new Set([
 
 /**
  * 白名单：允许访问的上下文变量
- * 这些变量由调用方注入，不包含任何危险API
+ * 这些变量由调用方注入，不包含任何危险API。
+ * 表达式只能读取以下受限成员，任何其他全局标识符都会被黑名单拦截：
+ * - $deps    依赖字段的值数组（reaction 的 dependencies 按序取值）
+ * - $self    目标字段自身的 FieldState（联动的当前状态）
+ * - $form    表单引擎实例（仅供调用受控方法，如 getFieldValue / getFieldState）
+ * - $index   数组项索引（数组项子字段联动时可用）
+ * - formData 当前表单数据快照（值联动 / 条件判断）
+ * - rootValue 根级表单数据（与 formData 等价，兼容不同协议命名）
  */
 const CONTEXT_WHITELIST = new Set([
   '$deps',
@@ -130,7 +137,11 @@ export class ExpressionSandbox {
   /**
    * 创建安全的求值上下文
    *
-   * @param context - ReactionContext
+   * 仅从原始 context 中摘取白名单内的键，其余字段一律丢弃：
+   * 即使调用方传入携带危险引用（如 window / document 的字段），
+   * 传给编译函数的安全上下文也不会包含它们，从源头避免泄漏。
+   *
+   * @param context - ReactionContext（调用方注入的完整上下文）
    * @returns 暴露给表达式的上下文对象（白名单过滤）
    */
   createContext(context: ReactionContext): Record<string, unknown> {

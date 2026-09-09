@@ -3,11 +3,19 @@ import { describe, expect, it } from 'vitest';
 import {
   diffSchemas,
   getInitialValues,
-  getPathValue,
   getSchemaFieldPaths,
+  isBranchNode,
+  isDataArray,
+  isDataField,
+  isDataObject,
+  isLayoutNode,
+  LAYOUT_CONTAINER_TYPES,
+  LAYOUT_TYPES,
   migrateValues,
-  setPathValue,
+  resolveNodePath,
+  walkSchemaTree,
 } from '../src/utils/schema-lifecycle';
+import { getPathValue, setPathValue } from '../src/utils/value-utils';
 
 // ── 夹具：含布局节点 / 对象 / 数组的 Schema ──────────────────────────────
 const baseSchema = {
@@ -48,6 +56,36 @@ describe('getSchemaFieldPaths（数据字段收集）', () => {
         'phone',
       ].sort(),
     );
+  });
+
+  it('分支容器内嵌套布局节点：布局 Key 与分支 Key 均不进路径', () => {
+    const branchSchema = {
+      type: 'object',
+      properties: {
+        payment: {
+          type: 'object',
+          oneOf: [
+            {
+              properties: {
+                card: {
+                  type: 'card', // 布局节点
+                  properties: {
+                    cardNo: { type: 'string', widget: 'input' },
+                  },
+                },
+              },
+            },
+            {
+              properties: {
+                cashAmount: { type: 'number', widget: 'number' },
+              },
+            },
+          ],
+        },
+      },
+    };
+    const paths = getSchemaFieldPaths(branchSchema as never);
+    expect(paths.sort()).toEqual(['cardNo', 'cashAmount'].sort());
   });
 });
 
@@ -193,5 +231,114 @@ describe('migrateValues（Schema 变更后迁移值）', () => {
     expect('website' in (migrated.profile as Record<string, unknown>)).toBe(
       false,
     );
+  });
+});
+
+// ── 节点类型守卫 & 路径解析 ───────────────────────────────────────────────
+
+describe('布局类型常量', () => {
+  it('包含所有布局容器/面板类型', () => {
+    expect(LAYOUT_CONTAINER_TYPES.has('card')).toBe(true);
+    expect(LAYOUT_CONTAINER_TYPES.has('tabs')).toBe(true);
+    expect(LAYOUT_TYPES.has('tabPane')).toBe(true);
+  });
+});
+
+describe('节点类型守卫', () => {
+  it('isBranchNode 判定条件分支容器', () => {
+    expect(
+      isBranchNode({
+        type: 'object',
+        oneOf: [
+          {
+            properties: {
+              a: { type: 'string', widget: 'input' },
+            },
+          },
+        ],
+      } as never),
+    ).toBe(true);
+    expect(isBranchNode({ type: 'string', widget: 'input' } as never)).toBe(
+      false,
+    );
+  });
+
+  it('isLayoutNode / isDataField / isDataObject / isDataArray', () => {
+    const layout = { type: 'card', properties: {} };
+    const field = { type: 'string', widget: 'input' };
+    const obj = { type: 'object', properties: { a: field } };
+    const arr = { type: 'array', items: { type: 'string' } };
+
+    expect(isLayoutNode(layout as never)).toBe(true);
+    expect(isDataField(field as never)).toBe(true);
+    expect(isDataObject(obj as never)).toBe(true);
+    expect(isDataArray(arr as never)).toBe(true);
+  });
+});
+
+describe('resolveNodePath', () => {
+  it('布局节点透传父路径', () => {
+    const layout = { type: 'card', properties: {} };
+    expect(resolveNodePath('root', 'x', layout as never)).toBe('root');
+  });
+
+  it('数据节点拼接路径', () => {
+    const field = { type: 'string', widget: 'input' };
+    expect(resolveNodePath('root', 'x', field as never)).toBe('root.x');
+    expect(resolveNodePath('', 'x', field as never)).toBe('x');
+  });
+});
+
+describe('walkSchemaTree（通用遍历器）', () => {
+  it('收集数据节点路径（布局 Key 不进路径）', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        name: { type: 'string', widget: 'input' },
+        extra: {
+          type: 'card',
+          properties: {
+            cardNo: { type: 'string', widget: 'input' },
+          },
+        },
+      },
+    };
+    const paths: string[] = [];
+    walkSchemaTree(schema as never, '', {
+      onDataField(_node, path) {
+        paths.push(path);
+      },
+    });
+    expect(paths.sort()).toEqual(['cardNo', 'name'].sort());
+  });
+
+  it('分支容器 Key 不进路径', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        select: {
+          type: 'object',
+          oneOf: [
+            {
+              properties: {
+                modeA: { type: 'string', widget: 'input' },
+              },
+            },
+            {
+              properties: {
+                modeB: { type: 'number', widget: 'number' },
+              },
+            },
+          ],
+        },
+      },
+    };
+    const paths: string[] = [];
+    walkSchemaTree(schema as never, '', {
+      onDataField(_node, path) {
+        paths.push(path);
+      },
+    });
+    expect(paths.sort()).toEqual(['modeA', 'modeB'].sort());
   });
 });

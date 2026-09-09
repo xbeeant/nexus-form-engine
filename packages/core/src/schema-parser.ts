@@ -28,15 +28,17 @@ import type {
   WidgetValidationDescriptor,
 } from './types/schema';
 import {
-  getNestedValue,
   isBranchNode,
   isDataArray,
   isDataField,
   isDataObject,
-  isExpressionString,
   isLayoutNode,
-  setNestedValue,
-} from './utils/schema-helper';
+} from './utils/schema-lifecycle';
+import {
+  getPathValue,
+  isExpressionString,
+  setPathValue,
+} from './utils/value-utils';
 
 // ────────────────────────────────────────────────────────────────────────────
 // 解析结果
@@ -132,6 +134,9 @@ const REACTION_TEXT_FIELDS = [
  * - 声明了 display 表达式/布尔时取声明值（'none'/'hidden'/'visible'）
  * - 未声明 display，但 hidden: true / visible: false → 'hidden'
  * - 其余默认 'visible'
+ *
+ * @param node - Schema 节点（读取 hidden / display 字段）
+ * @returns 解析后的显示状态
  */
 function resolveDisplay(node: {
   hidden?: unknown;
@@ -149,6 +154,16 @@ function resolveDisplay(node: {
   return 'visible';
 }
 
+/**
+ * 提取布局节点透传给布局组件的 props
+ *
+ * 从节点中剔除数据相关字段（DATA_KEYS 白名单外的键），
+ * 剩余的键作为布局属性（如 colSpan / displayType / labelWidth 等）透传到布局组件；
+ * 节点 props 中的 UI 属性一并合并，使布局面板（如 collapsePanel）的 props 可达布局组件。
+ *
+ * @param node - 布局节点原始对象
+ * @returns 布局属性集合（含 UI props）
+ */
 function extractLayoutProps(
   node: Record<string, unknown>,
 ): LayoutBaseProps & Record<string, unknown> {
@@ -170,6 +185,17 @@ function extractLayoutProps(
 // 默认值生成
 // ────────────────────────────────────────────────────────────────────────────
 
+/**
+ * 生成数据字段的默认值（未声明 default 时的类型兜底）
+ *
+ * - string → ''（空字符串，常见于输入类控件）
+ * - number / integer → undefined（无符号的数值不设默认，避免误填 0）
+ * - boolean → false
+ * - 其他类型 → undefined
+ *
+ * @param node - 数据字段 Schema 节点
+ * @returns 默认值；节点显式声明 default 时以其为准
+ */
 function getDefaultValue(node: DataFieldSchema): unknown {
   if (node.default !== undefined) {
     return node.default;
@@ -240,6 +266,27 @@ export function parse(
 // 递归遍历 properties
 // ────────────────────────────────────────────────────────────────────────
 
+/**
+ * 递归遍历 Schema 的 properties，按节点判定顺序分派到各处理函数
+ *
+ * 判定顺序（不可颠倒，见 AGENTS.md §2.1）：
+ * 1. isDataArray（type=array 且有 items）→ processDataArray
+ * 2. isBranchNode（oneOf/anyOf 分支容器）→ processBranchNode
+ * 3. isDataField（有 widget 或基础类型）→ processDataField
+ * 4. isDataObject（object + properties，无 widget）→ processDataObject
+ * 5. isLayoutNode（非数据节点且有 properties）→ processLayoutNode
+ *
+ * 数据节点拼接 key（currentPath = parent.key），布局节点透传父路径。
+ *
+ * @param properties - 当前层级的节点映射表
+ * @param parentDataPath - 父级数据路径（顶层为空串）
+ * @param fieldStates - 字段状态 Map（原地写入）
+ * @param renderTree - 渲染树节点数组（原地追加）
+ * @param initialValues - 初始表单数据
+ * @param parentObjectState - 父级数据对象容器的继承状态（子字段继承）
+ * @param widgetMetas - widget 声明级元数据
+ * @param branchContext - 所在分支上下文（分支标记沿递归树传导）
+ */
 function walkProperties(
   properties: Record<string, SchemaNode>,
   parentDataPath: string,
@@ -807,6 +854,28 @@ function inferWidgetFromSchema(node: {
   }
 }
 
+/**
+ * 处理数据字段（叶子节点）并生成 FieldState
+ *
+ * 职责：
+ * 1. 计算数据路径（Key 进入路径）
+ * 2. 解析 widget 名称（显式声明或按 type/format 推断）
+ * 3. 依据 bind 配置从 initialValues 解析初始值
+ * 4. 组装校验规则（schema rules + 字段级约束 + validate 表达式 + widget 默认规则）
+ * 5. 收集表达式 reactions（required/disabled/hidden/enum/props 等 {{ }} 自动转联动）
+ * 6. 合并父对象状态（visible/disabled/readOnly 继承）
+ * 7. 构建 FieldState 并写入 state 映射表，同时登记渲染树字段节点
+ *
+ * @param key - 字段 key（参与数据路径拼接）
+ * @param node - 数据字段 Schema 定义
+ * @param parentDataPath - 父级数据路径（空串表示顶层）
+ * @param fieldStates - 字段状态 Map（原地写入）
+ * @param renderTree - 渲染树节点数组（原地追加）
+ * @param initialValues - 初始表单数据
+ * @param parentObjectState - 父级数据对象容器的继承状态
+ * @param widgetMetas - widget 声明级元数据（校验/联动/props）
+ * @param branchContext - 所在分支上下文（分支索引 + 是否激活）
+ */
 function processDataField(
   key: string,
   node: DataFieldSchema,
@@ -838,23 +907,23 @@ function processDataField(
     initialValue = node.default ?? getDefaultValue(node);
   } else if (typeof node.bind === 'string' && node.bind.length > 0) {
     initialValue =
-      getNestedValue(initialValues, node.bind) ??
-      getNestedValue(initialValues, dataPath) ??
+      getPathValue(initialValues, node.bind) ??
+      getPathValue(initialValues, dataPath) ??
       node.default ??
       getDefaultValue(node);
   } else if (Array.isArray(node.bind)) {
     const arrValue = node.bind.map(
-      (b) => getNestedValue(initialValues, b) ?? undefined,
+      (b) => getPathValue(initialValues, b) ?? undefined,
     );
     const allUndefined = arrValue.every((v) => v === undefined);
     initialValue = allUndefined
-      ? (getNestedValue(initialValues, dataPath) ??
+      ? (getPathValue(initialValues, dataPath) ??
         node.default ??
         getDefaultValue(node))
       : arrValue;
   } else {
     initialValue =
-      getNestedValue(initialValues, dataPath) ??
+      getPathValue(initialValues, dataPath) ??
       node.default ??
       getDefaultValue(node);
   }
@@ -978,6 +1047,25 @@ function processDataField(
 // 处理数据对象
 // ────────────────────────────────────────────────────────────────────────
 
+/**
+ * 处理数据对象（嵌套容器，Key 进入路径）
+ *
+ * 职责：
+ * 1. 数据对象的 Key 进入数据路径（如 user → "user"）
+ * 2. 合并对象 default 与用户 initialValues（default 为基础，initialValues 优先）
+ * 3. 递归解析子字段（子字段不继承容器状态，容器状态渲染期经 context 下发）
+ * 4. 生成容器自身 FieldState（meta.containerOnly 标记，仅承载 UI 状态不持值）
+ * 5. 登记渲染树 object 容器节点（包裹全部子节点）
+ *
+ * @param key - 对象 key（参与数据路径拼接）
+ * @param node - 数据对象 Schema 定义
+ * @param parentDataPath - 父级数据路径
+ * @param fieldStates - 字段状态 Map（原地写入）
+ * @param renderTree - 渲染树节点数组（原地追加）
+ * @param initialValues - 初始表单数据
+ * @param widgetMetas - widget 声明级元数据
+ * @param branchContext - 所在分支上下文
+ */
 function processDataObject(
   key: string,
   node: DataObjectSchema,
@@ -1009,14 +1097,14 @@ function processDataObject(
       : undefined;
   if (objectDefault) {
     mergedInitialValues = { ...(initialValues ?? {}) };
-    const userInitial = getNestedValue(initialValues, objectPath);
+    const userInitial = getPathValue(initialValues, objectPath);
     const combined: Record<string, unknown> = {
       ...objectDefault,
       ...(userInitial && typeof userInitial === 'object'
         ? (userInitial as Record<string, unknown>)
         : {}),
     };
-    setNestedValue(mergedInitialValues, objectPath, combined);
+    setPathValue(mergedInitialValues, objectPath, combined);
   }
 
   // 子字段不继承容器状态：容器的 disabled/readOnly/hidden 存于容器自身 FieldState
@@ -1094,6 +1182,26 @@ function processDataObject(
 // 处理数据数组
 // ────────────────────────────────────────────────────────────────────────
 
+/**
+ * 处理数据数组（Key 进入路径，如 "items"）
+ *
+ * 职责：
+ * 1. 数组 Key 进入数据路径，解析初始值（initialValues 优先，缺省 []）
+ * 2. 组装校验规则（长度约束 min/max 自动转规则，对齐 x-render）
+ * 3. 收集表达式 reactions
+ * 4. 生成数组字段 FieldState（meta.items 指向 items 定义）
+ * 5. 递归创建数组项子字段状态（"items[0].name" 等，带 itemOf 标记不参与收集）
+ *
+ * @param key - 数组 key（参与数据路径拼接）
+ * @param node - 数据数组 Schema 定义
+ * @param parentDataPath - 父级数据路径
+ * @param fieldStates - 字段状态 Map（原地写入）
+ * @param renderTree - 渲染树节点数组（原地追加）
+ * @param initialValues - 初始表单数据
+ * @param parentObjectState - 父级数据对象容器的继承状态
+ * @param widgetMetas - widget 声明级元数据
+ * @param branchContext - 所在分支上下文
+ */
 function processDataArray(
   key: string,
   node: DataArraySchema,
@@ -1111,7 +1219,7 @@ function processDataArray(
 ): void {
   const arrayPath = parentDataPath ? `${parentDataPath}.${key}` : key;
   const initialValue =
-    getNestedValue(initialValues, arrayPath) ?? node.default ?? [];
+    getPathValue(initialValues, arrayPath) ?? node.default ?? [];
 
   // widget 名称（数组缺省 'array'）与其声明级校验/联动描述
   const widgetName = node.widget || 'array';
@@ -1227,6 +1335,26 @@ function processDataArray(
 // 处理布局节点（⚡ Key 不进入数据路径）
 // ────────────────────────────────────────────────────────────────────────
 
+/**
+ * 处理布局节点（⚡ Key 不进入数据路径，布局透明）
+ *
+ * 职责：
+ * 1. 透传父数据路径（丢弃当前 Key），保证布局结构调整不影响 formData 结构
+ * 2. 递归解析子节点（字段/对象/数组/嵌套布局）
+ * 3. 提取布局 props（剔除数据相关键）
+ * 4. 登记渲染树布局容器节点（如 card / tabs / grid）
+ *
+ * 面板类布局（tabPane / step 等）在此同样透传父路径。
+ *
+ * @param _key - 布局节点 key（被丢弃，不进入数据路径）
+ * @param node - 布局节点 Schema 定义
+ * @param parentDataPath - 父数据路径（直接透传）
+ * @param fieldStates - 字段状态 Map（原地写入）
+ * @param renderTree - 渲染树节点数组（原地追加）
+ * @param initialValues - 初始表单数据
+ * @param widgetMetas - widget 声明级元数据
+ * @param branchContext - 所在分支上下文
+ */
 function processLayoutNode(
   _key: string, // 布局节点的 key 被丢弃，不进入数据路径
   node: LayoutNode, // 运行时仅布局容器/面板可达（分支容器已先行路由），BranchSchema 分支为 TS 联合余量
@@ -1299,6 +1427,26 @@ function extractBranchInfo(
   return { branches, activeIndex };
 }
 
+/**
+ * 处理条件分支容器（oneOf / anyOf，⚡ Key 不进入数据路径）
+ *
+ * 职责：
+ * 1. 容器 Key 不进数据路径（布局透明），子字段共享父路径并在 fieldStates 中合并
+ * 2. 预解析所有分支的属性字段（非活动分支字段 visible=false，切换时引擎翻转标志，无需重建渲染树）
+ * 3. 构建「源字段变化 → 重算激活分支」的 _oneOfBranch reaction 边（依赖 branchNode.dependencies）
+ * 4. 收集字段 → 分支成员关系（fieldBranches），支撑引擎按分支精确翻转可见性
+ * 5. 生成容器自身 FieldState（meta.oneOf 承载 activeIndex / branches / fieldBranches）
+ * 6. 登记渲染树 branch 节点（Renderer 依据 activeIndex 渲染活动分支分组）
+ *
+ * @param key - 分支容器 key（不进入数据路径）
+ * @param node - 分支容器 Schema 节点（branches / oneOf / anyOf / conditions / dependencies）
+ * @param parentDataPath - 父数据路径（透传）
+ * @param fieldStates - 字段状态 Map（原地写入）
+ * @param renderTree - 渲染树节点数组（原地追加）
+ * @param initialValues - 初始表单数据
+ * @param widgetMetas - widget 声明级元数据
+ * @param branchContext - 外层分支上下文（嵌套分支时传递）
+ */
 function processBranchNode(
   key: string, // 分支容器 Key 不进入数据路径（布局透明）
   node: SchemaNode,

@@ -15,7 +15,7 @@
 
 ### 2.1 节点类型判定（判定顺序不可颠倒）
 
-AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/utils/schema-helper.ts` 中 `isDataArray` → `isDataField` → `isDataObject` → `isLayoutNode`）：
+AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/utils/schema-node.ts` 中 `isDataArray` → `isDataField` → `isDataObject` → `isLayoutNode`）：
 
 | 判定 | 节点特征 | 类型 | 数据路径影响 | 示例 |
 | :--- | :--- | :--- | :--- | :--- |

@@ -98,35 +98,37 @@ export {
   toMultipart,
   toSearchParams,
 } from './utils/data-converters';
+// 通用值操作工具（与 Schema 无关）
 export {
-  getNestedValue,
+  getPathValue,
+  isDeepEqual,
+  isEmptyValue,
+  isExpressionString,
+  isThenable,
+  setPathValue,
+  toBoolean,
+} from './utils/value-utils';
+/** Schema 节点判定 & 树遍历框架 + Schema 生命周期工具（字段收集 / 初始值提取 / 变更对比 / 值迁移） */
+export {
+  diffSchemas,
+  getInitialValues,
+  getSchemaFieldPaths,
   isBranchNode,
   isDataArray,
   isDataField,
   isDataNode,
   isDataObject,
-  isDeepEqual,
-  isEmptyValue,
-  isExpressionString,
   isLayoutNode,
-  isThenable,
   LAYOUT_CONTAINER_TYPES,
   LAYOUT_PANE_TYPES,
   LAYOUT_TYPES,
-  setNestedValue,
-  toBoolean,
-} from './utils/schema-helper';
-/** Schema 生命周期工具（字段收集 / 初始值提取 / 变更对比 / 值迁移） */
-export {
-  diffSchemas,
-  getInitialValues,
-  getPathValue,
-  getSchemaFieldPaths,
   migrateValues,
+  resolveNodePath,
   type SchemaDiff,
   type SchemaDiffKind,
   type SchemaFieldEntry,
-  setPathValue,
+  type SchemaTreeVisitor,
+  walkSchemaTree,
 } from './utils/schema-lifecycle';
 /** Schema序列化/反序列化工具 */
 export {
