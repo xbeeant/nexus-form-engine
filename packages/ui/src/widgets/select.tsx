@@ -18,6 +18,7 @@ export const selectWidget = ({
   dependValues: _dv,
   dataPath: _dp,
   path: _p,
+  remoteVersion: _rv,
   ...rest
 }: WidgetProps) => {
   if (readOnly) {
@@ -52,13 +53,14 @@ export const remoteSelectWidget = ({
   dependValues: _dv,
   dataPath: _dp,
   path,
+  remoteVersion,
   ...rest
 }: WidgetProps & { remoteData?: any }) => {
   const { options, loading } = useRemoteOptions(
     path || 'select',
     remoteData,
     undefined,
-    rest.remoteVersion as number | undefined,
+    remoteVersion,
   );
 
   const finalLoading = externalLoading || loading;

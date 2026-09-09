@@ -66,6 +66,7 @@ export const cascaderWidget = ({
   labelWidth: _labelWidth,
   column: _column,
   items: _items,
+  remoteVersion: _rv,
   props: _props,
   ...rest
 }: WidgetProps) => {
@@ -153,6 +154,7 @@ export const remoteCascaderWidget = ({
   labelWidth,
   column: _column,
   items: _items,
+  remoteVersion,
   props: _props,
   ...rest
 }: WidgetProps & { remoteData?: any }) => {
@@ -160,7 +162,7 @@ export const remoteCascaderWidget = ({
     _p || 'cascader',
     remoteData,
     undefined,
-    rest.remoteVersion as number | undefined,
+    remoteVersion,
   );
 
   let dataSource: DefaultOptionType[] = [];

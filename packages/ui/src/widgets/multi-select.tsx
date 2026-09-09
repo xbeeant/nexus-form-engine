@@ -18,6 +18,7 @@ export const multiSelectWidget = ({
   dependValues: _dv,
   dataPath: _dp,
   path: _p,
+  remoteVersion: _rv,
   tokenSeparators,
   ...rest
 }: WidgetProps) => {
@@ -54,6 +55,7 @@ export const remoteMultiSelectWidget = ({
   dependValues: _dv,
   dataPath: _dp,
   path,
+  remoteVersion,
   tokenSeparators,
   ...rest
 }: WidgetProps & { remoteData?: any }) => {
@@ -61,7 +63,7 @@ export const remoteMultiSelectWidget = ({
     path || 'multiSelect',
     remoteData,
     undefined,
-    rest.remoteVersion as number | undefined,
+    remoteVersion,
   );
 
   const finalLoading = externalLoading || loading;

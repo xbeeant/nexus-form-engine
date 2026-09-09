@@ -18,6 +18,7 @@ export const autoCompleteWidget = ({
   dependValues: _dv,
   dataPath: _dp,
   path: _p,
+  remoteVersion: _rv,
   allowClear,
   defaultActiveFirstOption,
   tokenSeparators,
@@ -69,6 +70,7 @@ export const remoteAutoCompleteWidget = ({
   dependValues: _dv,
   dataPath: _dp,
   path,
+  remoteVersion,
   allowClear,
   defaultActiveFirstOption,
   tokenSeparators,
@@ -78,7 +80,7 @@ export const remoteAutoCompleteWidget = ({
     path || 'autocomplete',
     remoteData,
     undefined,
-    rest.remoteVersion as number | undefined,
+    remoteVersion,
   );
 
   const finalLoading = externalLoading || loading;

@@ -18,6 +18,7 @@ export const mentionsWidget = ({
   dependValues: _dv,
   dataPath: _dp,
   path: _p,
+  remoteVersion: _rv,
   prefix,
   allowClear,
   autoSize,
@@ -66,6 +67,7 @@ export const remoteMentionsWidget = ({
   dependValues: _dv,
   dataPath: _dp,
   path,
+  remoteVersion,
   prefix,
   allowClear,
   autoSize,
@@ -76,7 +78,7 @@ export const remoteMentionsWidget = ({
     path || 'mentions',
     remoteData,
     undefined,
-    rest.remoteVersion as number | undefined,
+    remoteVersion,
   );
 
   const finalLoading = externalLoading || loading;

@@ -384,6 +384,7 @@ export function TreeSelectWidget(props: WidgetProps & TreeSelectConfig) {
     labelWidth: _labelWidth,
     form: _form,
     options: _opt,
+    remoteVersion: _rv,
     column: _col,
     ...rest
   } = props;
@@ -528,7 +529,7 @@ export function TreeSelectWidget(props: WidgetProps & TreeSelectConfig) {
   }, [loadData, _paramsStr]);
 
   // reloadRemoteData 触发时强制重载（跳过 loadedRef 守卫，x-render reloadRemoteData 对齐）
-  const reloadToken = rest.remoteVersion as number | undefined;
+  const reloadToken = _rv;
   const lastReloadToken = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (reloadToken === undefined || reloadToken === lastReloadToken.current) {
