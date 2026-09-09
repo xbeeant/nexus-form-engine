@@ -6,17 +6,21 @@
 /** 数组字段操作插件 */
 export { ArrayOperationsPlugin } from './array-list';
 export type { AsyncValidatorOptions, FieldValidator } from './async-validator';
+
 /** 异步校验器插件（防抖/超时/并行调度，engine.use 注入） */
 export {
   AsyncValidatorPlugin,
   createAsyncValidatorPlugin,
 } from './async-validator';
+
 /** 显式依赖图（静态构建，O(1) 查询） */
 export { DependencyGraph } from './dependency-graph';
+
 // Core
 /** 表单引擎核心类 */
 export { NexusEngine } from './engine';
 export type { EvaluateOptions } from './expression-sandbox';
+
 /** 表达式安全求值沙箱 */
 export {
   createExpressionSandbox,
@@ -24,14 +28,17 @@ export {
   ExpressionSandbox,
 } from './expression-sandbox';
 export type { FormRegisterCallback } from './form-registry';
+
 /** 多表单实例注册表（跨表单联动基础设施） */
 export {
   createFormRegistry,
   defaultFormRegistry,
   FormRegistry,
 } from './form-registry';
+
 /** Schema 解析器（命名空间对象：SchemaParser.parse / SchemaParser.createArrayItemState 等） */
 export * from './schema-parser';
+
 // 类型定义
 export type {
   BindSchema,
@@ -93,21 +100,12 @@ export type {
   WidgetValidationDescriptor,
 } from './types/schema';
 export {
+  type FormatOptions,
   formatField,
   toFormData,
   toMultipart,
   toSearchParams,
 } from './utils/data-converters';
-// 通用值操作工具（与 Schema 无关）
-export {
-  getPathValue,
-  isDeepEqual,
-  isEmptyValue,
-  isExpressionString,
-  isThenable,
-  setPathValue,
-  toBoolean,
-} from './utils/value-utils';
 /** Schema 节点判定 & 树遍历框架 + Schema 生命周期工具（字段收集 / 初始值提取 / 变更对比 / 值迁移） */
 export {
   diffSchemas,
@@ -135,9 +133,23 @@ export {
   compress,
   compressionRate,
   compressToBase64,
+  type DeserializeOptions,
+  type DiffResult,
   decompressFromBase64,
   deserialize,
   diff,
+  type SerializeOptions,
   serialize,
   sizeOf,
 } from './utils/schema-serializer';
+// 通用值操作工具（与 Schema 无关）
+export {
+  getPathValue,
+  isDeepEqual,
+  isEmptyValue,
+  isExpressionString,
+  isThenable,
+  omitNilDeep,
+  setPathValue,
+  toBoolean,
+} from './utils/value-utils';

@@ -17,16 +17,6 @@
       "import": "./dist/es/index.js",
       "require": "./dist/cjs/index.cjs"
     },
-    "./types/*": {
-      "types": "./dist/es/types/*.d.ts",
-      "import": "./dist/es/types/*.js",
-      "require": "./dist/cjs/types/*.cjs"
-    },
-    "./utils/*": {
-      "types": "./dist/es/utils/*.d.ts",
-      "import": "./dist/es/utils/*.js",
-      "require": "./dist/cjs/utils/*.cjs"
-    },
     "./package.json": "./package.json"
   },
   "files": [

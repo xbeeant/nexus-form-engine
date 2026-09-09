@@ -3,8 +3,7 @@ import type {
   NexusFormInstance,
   NexusSchema,
 } from '@xbeeant/form-engine';
-import { AsyncValidatorPlugin, NexusEngine } from '@xbeeant/form-engine';
-import { omitNilDeep } from '../utils/omit-nil';
+import { AsyncValidatorPlugin, NexusEngine, omitNilDeep } from '@xbeeant/form-engine';
 
 /** 已被某个 FormController 占用为「首个挂载视图」的引擎宿主（防止多 form 共享宿主时抢占 default 实例） */
 const claimedHosts = new WeakSet<NexusEngine>();

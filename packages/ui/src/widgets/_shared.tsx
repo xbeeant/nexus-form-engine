@@ -5,7 +5,7 @@ import type {
   SchemaNode,
   SideEffectsConfig,
 } from '@xbeeant/form-engine';
-import { toBoolean } from '@xbeeant/form-engine/utils/value-utils';
+import { toBoolean } from '@xbeeant/form-engine';
 import {
   type NexusAddons,
   NexusContext,

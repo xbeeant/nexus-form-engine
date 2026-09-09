@@ -1,4 +1,4 @@
-import { toBoolean } from '@xbeeant/form-engine/utils/value-utils';
+import { toBoolean } from '@xbeeant/form-engine';
 import { Input } from 'antd';
 import { ReadOnlyDisplay, type WidgetProps } from './_shared';
 
