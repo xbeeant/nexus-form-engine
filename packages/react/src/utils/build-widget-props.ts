@@ -57,6 +57,7 @@ export function buildWidgetProps(
     readOnly?: boolean;
     required?: boolean;
     loading?: boolean;
+    hidden?: boolean;
     placeholder?: string;
     options?: Array<{ label: string; value: unknown } | string | number>;
     dependValues?: Record<string, unknown>;
@@ -134,6 +135,7 @@ export function buildWidgetProps(
     readOnly: opts.readOnly,
     required: opts.required,
     loading: opts.loading,
+    hidden: opts.hidden,
     placeholder: opts.placeholder,
     options: opts.options,
     dependValues: opts.dependValues,

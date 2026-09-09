@@ -154,6 +154,173 @@ function resolveDisplay(node: {
   return 'visible';
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// 通用辅助函数（消除重复的布尔解析 / 状态合并 / 规则构建逻辑）
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 将 hidden 布尔值转换为 visible（!hidden），非布尔值默认 true
+ *
+ * @param node - Schema 节点（读取 hidden 字段）
+ * @returns visible 布尔值
+ */
+function hiddenToVisible(node: { hidden?: unknown }): boolean {
+  return typeof node.hidden === 'boolean' ? !node.hidden : true;
+}
+
+/**
+ * 将值解析为布尔值，非布尔值返回 defaultValue
+ *
+ * @param value - 待解析值
+ * @param defaultValue - 非布尔值时的回退值
+ * @returns 解析后的布尔值
+ */
+function boolOrDefault(value: unknown, defaultValue: boolean): boolean {
+  return typeof value === 'boolean' ? value : defaultValue;
+}
+
+/**
+ * 安全获取 reactions 数组（始终返回新副本，避免外部修改污染原始数据）
+ *
+ * @param node - Schema 节点（读取 reactions 字段）
+ * @returns reactions 数组副本
+ */
+function getReactions(node: { reactions?: unknown }): Reaction[] {
+  return [...((node.reactions as Reaction[]) || [])];
+}
+
+/**
+ * 拼接数据路径：parent 非空时返回 `parent.key`，否则返回 key
+ *
+ * @param parent - 父级数据路径（空串表示顶层）
+ * @param key - 当前节点 key
+ * @returns 拼接后的完整数据路径
+ */
+function joinPath(parent: string, key: string): string {
+  return parent ? `${parent}.${key}` : key;
+}
+
+/**
+ * 解析 widget 名称与其声明级描述符（校验/联动/props）
+ *
+ * @param node - Schema 节点（读取 widget/type/format 字段）
+ * @param widgetMetas - 引擎注册时快照的 widget 描述映射表
+ * @returns `{ widgetName, widgetMeta }` — widget 名称和可选的声明描述符
+ */
+function resolveWidget(
+  node: { widget?: string; type?: string; format?: string },
+  widgetMetas?: WidgetDescriptors,
+): { widgetName: string; widgetMeta?: WidgetValidationDescriptor } {
+  const widgetName = resolveWidgetName(node);
+  return {
+    widgetName,
+    widgetMeta: getWidgetDescriptor(widgetName, widgetMetas),
+  };
+}
+
+interface InheritedState {
+  visible: boolean;
+  disabled: boolean;
+  readOnly: boolean;
+}
+
+/**
+ * 合并父对象继承状态与节点自身状态（父对象优先级更高）
+ *
+ * @param node - Schema 节点（读取 hidden/disabled/readOnly 字段）
+ * @param parentObjectState - 父级数据对象容器的继承状态（可选）
+ * @returns `{ visible, disabled, readOnly }` 合并后的状态对象
+ */
+function resolveInheritedState(
+  node: { hidden?: unknown; disabled?: unknown; readOnly?: unknown },
+  parentObjectState?: {
+    visible?: boolean;
+    disabled?: boolean;
+    readOnly?: boolean;
+  },
+): InheritedState {
+  return {
+    visible:
+      parentObjectState?.visible !== undefined
+        ? parentObjectState.visible
+        : hiddenToVisible(node),
+    disabled:
+      parentObjectState?.disabled !== undefined
+        ? parentObjectState.disabled
+        : boolOrDefault(node.disabled, false),
+    readOnly:
+      parentObjectState?.readOnly !== undefined
+        ? parentObjectState.readOnly
+        : boolOrDefault(node.readOnly, false),
+  };
+}
+
+/**
+ * 同时解析 visible 与 display（缓存 resolveDisplay 调用，避免重复计算）
+ * - display: 'hidden' → visible: false
+ * - display: 'none' / 'visible' → visible 由 hidden 取反
+ */
+function resolveVisibleDisplay(node: { hidden?: unknown; display?: unknown }): {
+  visible: boolean;
+  display: 'visible' | 'none' | 'hidden';
+} {
+  const display = resolveDisplay(node);
+  const visible = display === 'hidden' ? false : hiddenToVisible(node);
+  return { visible, display };
+}
+
+/**
+ * 收集表达式 reactions 并合并 widget 声明级默认联动规则
+ * 统一入口：processDataField / processDataArray / createArrayItemState 共用
+ *
+ * @param node - Schema 节点（collectExpressionReactions 所需的全部可选字段）
+ * @param widgetMeta - widget 声明级描述符（可选，用于合并默认联动规则）
+ * @returns 合并后的 reactions 数组
+ */
+function collectAndMergeReactions(
+  node: Parameters<typeof collectExpressionReactions>[0],
+  widgetMeta?: WidgetValidationDescriptor,
+): Reaction[] {
+  collectExpressionReactions(node);
+  const reactions = getReactions(node);
+  if (widgetMeta?.reactions) {
+    mergeWidgetReactions(reactions, widgetMeta.reactions);
+  }
+  return reactions;
+}
+
+/**
+ * 构建字段校验规则（统一入口，消除 3 处重复的 rules 初始化逻辑）
+ * 1. 复制 schema 声明的 rules
+ * 2. required: true → 头部插入 required 规则
+ * 3. 约束属性（min/max/pattern 等）自动转规则
+ * 4. validate 表达式转规则
+ * 5. widget 声明级默认规则合并
+ */
+function buildFieldRules(
+  node: {
+    rules?: unknown;
+    required?: unknown;
+    title?: string;
+    validate?: ValidateSchema;
+  },
+  key: string,
+  widgetMeta?: WidgetValidationDescriptor,
+): ValidationRule[] {
+  const rules: ValidationRule[] = [...((node.rules as ValidationRule[]) || [])];
+  if (node.required === true) {
+    rules.unshift({ required: true });
+  }
+  appendConstraintRules(node as unknown as Record<string, unknown>, rules);
+  if (node.validate) {
+    rules.push(...validateToRules(node.validate, node.title || key));
+  }
+  if (widgetMeta?.rules) {
+    mergeWidgetRules(rules, widgetMeta.rules);
+  }
+  return rules;
+}
+
 /**
  * 提取布局节点透传给布局组件的 props
  *
@@ -857,15 +1024,6 @@ function inferWidgetFromSchema(node: {
 /**
  * 处理数据字段（叶子节点）并生成 FieldState
  *
- * 职责：
- * 1. 计算数据路径（Key 进入路径）
- * 2. 解析 widget 名称（显式声明或按 type/format 推断）
- * 3. 依据 bind 配置从 initialValues 解析初始值
- * 4. 组装校验规则（schema rules + 字段级约束 + validate 表达式 + widget 默认规则）
- * 5. 收集表达式 reactions（required/disabled/hidden/enum/props 等 {{ }} 自动转联动）
- * 6. 合并父对象状态（visible/disabled/readOnly 继承）
- * 7. 构建 FieldState 并写入 state 映射表，同时登记渲染树字段节点
- *
  * @param key - 字段 key（参与数据路径拼接）
  * @param node - 数据字段 Schema 定义
  * @param parentDataPath - 父级数据路径（空串表示顶层）
@@ -891,11 +1049,10 @@ function processDataField(
   widgetMetas?: WidgetDescriptors,
   branchContext?: { branchIndex: number; isActive: boolean },
 ): void {
-  const dataPath = parentDataPath ? `${parentDataPath}.${key}` : key;
+  const dataPath = joinPath(parentDataPath, key);
 
   // widget 名称（显式声明或按 type/format 推断）与其声明级校验/联动描述
-  const widgetName = resolveWidgetName(node);
-  const widgetMeta = getWidgetDescriptor(widgetName, widgetMetas);
+  const { widgetName, widgetMeta } = resolveWidget(node, widgetMetas);
 
   // 解析初始值：根据 bind 类型决定从何处读取
   // - bind: false — 不参与数据收集，使用 default 或类型默认值
@@ -928,61 +1085,21 @@ function processDataField(
       getDefaultValue(node);
   }
 
-  const rules: ValidationRule[] = [...(node.rules || [])];
-  // required 为布尔值时才添加静态校验规则（表达式由 reaction 动态控制）
-  if (node.required === true) {
-    rules.unshift({
-      required: true,
-    });
-  }
+  const rules = buildFieldRules(node, key, widgetMeta);
 
-  // 字段级约束自动转规则（min/max/pattern/format/JSON Schema 别名，对齐 x-render）
-  appendConstraintRules(node as unknown as Record<string, unknown>, rules);
-
-  // 合并 validate 表达式校验规则
-  if (node.validate) {
-    rules.push(...validateToRules(node.validate, node.title || key));
-  }
-
-  // 合并 widget 声明级默认校验规则（schema 已声明同键规则时补缺跳过）
-  if (widgetMeta?.rules) {
-    mergeWidgetRules(rules, widgetMeta.rules);
-  }
-
-  // required/disabled/readOnly/hidden 为表达式时，自动转 reactions
-  collectExpressionReactions(node);
-
-  // 合并 widget 声明级默认联动规则（随后统一进依赖图，实现状态联动）
-  const reactions: Reaction[] = [...((node.reactions as Reaction[]) || [])];
-  if (widgetMeta?.reactions) {
-    mergeWidgetReactions(reactions, widgetMeta.reactions);
-  }
+  const reactions = collectAndMergeReactions(node, widgetMeta);
 
   // 合并父对象状态（父对象状态优先级更高）
-  const visible =
-    parentObjectState?.visible !== undefined
-      ? parentObjectState.visible
-      : typeof node.hidden === 'boolean'
-        ? !node.hidden
-        : true;
-  const disabled =
-    parentObjectState?.disabled !== undefined
-      ? parentObjectState.disabled
-      : typeof node.disabled === 'boolean'
-        ? node.disabled
-        : false;
-  const readOnly =
-    parentObjectState?.readOnly !== undefined
-      ? parentObjectState.readOnly
-      : typeof node.readOnly === 'boolean'
-        ? node.readOnly
-        : false;
+  const { visible, disabled, readOnly } = resolveInheritedState(
+    node,
+    parentObjectState,
+  );
   // 分支字段：visible 统一由分支容器解析收尾时的「成员关系可见性」翻转
   // （activate 分支成员 visible，其余隐藏）。此处仅存基础可见性（不含分支判定），
   // 避免跨分支同名键被非活动分支的解析覆盖成隐藏。
   const branchVisible = visible;
   // display 三态：'hidden' 隐含不可见（不收集）；'none' 仍可见可收集（仅不渲染）
-  const display = resolveDisplay(node);
+  const { display } = resolveVisibleDisplay(node);
   const effectiveVisible = display === 'hidden' ? false : branchVisible;
 
   const state: FieldState = {
@@ -995,7 +1112,7 @@ function processDataField(
     display,
     disabled,
     readOnly,
-    required: typeof node.required === 'boolean' ? node.required : false,
+    required: boolOrDefault(node.required, false),
     loading: false,
     errors: [],
     props: mergeFieldProps(
@@ -1050,13 +1167,6 @@ function processDataField(
 /**
  * 处理数据对象（嵌套容器，Key 进入路径）
  *
- * 职责：
- * 1. 数据对象的 Key 进入数据路径（如 user → "user"）
- * 2. 合并对象 default 与用户 initialValues（default 为基础，initialValues 优先）
- * 3. 递归解析子字段（子字段不继承容器状态，容器状态渲染期经 context 下发）
- * 4. 生成容器自身 FieldState（meta.containerOnly 标记，仅承载 UI 状态不持值）
- * 5. 登记渲染树 object 容器节点（包裹全部子节点）
- *
  * @param key - 对象 key（参与数据路径拼接）
  * @param node - 数据对象 Schema 定义
  * @param parentDataPath - 父级数据路径
@@ -1077,14 +1187,14 @@ function processDataObject(
   branchContext?: { branchIndex: number; isActive: boolean },
 ): void {
   // 数据对象的 Key 进入路径
-  const objectPath = parentDataPath ? `${parentDataPath}.${key}` : key;
+  const objectPath = joinPath(parentDataPath, key);
   const children: RenderTreeNode[] = [];
 
   // 获取对象级别状态（从显式配置或默认值）
   // 优先使用显式配置的布尔值，表达式会通过 reactions 动态处理
-  const visible = typeof node.hidden === 'boolean' ? !node.hidden : true;
-  const disabled = typeof node.disabled === 'boolean' ? node.disabled : false;
-  const readOnly = typeof node.readOnly === 'boolean' ? node.readOnly : false;
+  const visible = hiddenToVisible(node);
+  const disabled = boolOrDefault(node.disabled, false);
+  const readOnly = boolOrDefault(node.readOnly, false);
 
   // 合并对象 default 与用户 initialValues：default 作为基础，initialValues 优先
   // 使子字段能从对象 default 中读取各自默认值
@@ -1128,26 +1238,22 @@ function processDataObject(
   // 数据对象容器状态：仅承载 UI 状态（visible/disabled/readOnly + reactions），
   // 不持有值（value 恒为 undefined），不参与数据收集（meta.containerOnly 标记）。
   // 其 disabled/readOnly/hidden 由 Renderer 经 context 下发给子树中的字段继承。
+  const { display, visible: displayVisible } = resolveVisibleDisplay(node);
   fieldStates.set(objectPath, {
     path: objectPath,
     value: undefined,
     initialValue: undefined,
     touched: false,
     dirty: false,
-    visible:
-      resolveDisplay(node) === 'hidden'
-        ? false
-        : typeof node.hidden === 'boolean'
-          ? !node.hidden
-          : true,
-    display: resolveDisplay(node),
-    disabled: typeof node.disabled === 'boolean' ? node.disabled : false,
-    readOnly: typeof node.readOnly === 'boolean' ? node.readOnly : false,
-    required: typeof node.required === 'boolean' ? node.required : false,
+    visible: displayVisible,
+    display,
+    disabled,
+    readOnly,
+    required: boolOrDefault(node.required, false),
     loading: false,
     errors: [],
     props: node.props || {},
-    reactions: (node.reactions as Reaction[] | undefined) || [],
+    reactions: getReactions(node),
     meta: {
       title: node.title,
       widget: '',
@@ -1185,13 +1291,6 @@ function processDataObject(
 /**
  * 处理数据数组（Key 进入路径，如 "items"）
  *
- * 职责：
- * 1. 数组 Key 进入数据路径，解析初始值（initialValues 优先，缺省 []）
- * 2. 组装校验规则（长度约束 min/max 自动转规则，对齐 x-render）
- * 3. 收集表达式 reactions
- * 4. 生成数组字段 FieldState（meta.items 指向 items 定义）
- * 5. 递归创建数组项子字段状态（"items[0].name" 等，带 itemOf 标记不参与收集）
- *
  * @param key - 数组 key（参与数据路径拼接）
  * @param node - 数据数组 Schema 定义
  * @param parentDataPath - 父级数据路径
@@ -1217,7 +1316,7 @@ function processDataArray(
   widgetMetas?: WidgetDescriptors,
   branchContext?: { branchIndex: number; isActive: boolean },
 ): void {
-  const arrayPath = parentDataPath ? `${parentDataPath}.${key}` : key;
+  const arrayPath = joinPath(parentDataPath, key);
   const initialValue =
     getPathValue(initialValues, arrayPath) ?? node.default ?? [];
 
@@ -1225,56 +1324,21 @@ function processDataArray(
   const widgetName = node.widget || 'array';
   const widgetMeta = getWidgetDescriptor(widgetName, widgetMetas);
 
-  const rules: ValidationRule[] = [...(node.rules || [])];
-  if (node.required === true) {
-    rules.unshift({
-      required: true,
-    });
-  }
+  const rules = buildFieldRules(node, key, widgetMeta);
 
-  // 数组长度约束自动转规则（min/max）
-  appendConstraintRules(node as unknown as Record<string, unknown>, rules);
-
-  if (node.validate) {
-    rules.push(...validateToRules(node.validate, node.title || key));
-  }
-
-  // 合并 widget 声明级默认校验规则（schema 已声明同键规则时补缺跳过）
-  if (widgetMeta?.rules) {
-    mergeWidgetRules(rules, widgetMeta.rules);
-  }
-
-  collectExpressionReactions(node);
-
-  // 合并 widget 声明级默认联动规则（随后统一进依赖图，实现状态联动）
-  const reactions: Reaction[] = [...((node.reactions as Reaction[]) || [])];
-  if (widgetMeta?.reactions) {
-    mergeWidgetReactions(reactions, widgetMeta.reactions);
-  }
+  const reactions = collectAndMergeReactions(node, widgetMeta);
 
   // 合并父对象状态（父对象状态优先级更高）
-  const visible =
-    parentObjectState?.visible !== undefined
-      ? parentObjectState.visible
-      : typeof node.hidden === 'boolean'
-        ? !node.hidden
-        : true;
+  const { visible, disabled, readOnly } = resolveInheritedState(
+    node,
+    parentObjectState,
+  );
   // 分支字段：visible 统一由分支容器解析收尾时的「成员关系可见性」翻转
   // （activate 分支成员 visible，其余隐藏）。此处仅存基础可见性（不含分支判定），
   // 避免跨分支同名键被非活动分支的解析覆盖成隐藏。
   const branchVisible = visible;
-  const disabled =
-    parentObjectState?.disabled !== undefined
-      ? parentObjectState.disabled
-      : typeof node.disabled === 'boolean'
-        ? node.disabled
-        : false;
-  const readOnly =
-    parentObjectState?.readOnly !== undefined
-      ? parentObjectState.readOnly
-      : typeof node.readOnly === 'boolean'
-        ? node.readOnly
-        : false;
+
+  const { display } = resolveVisibleDisplay(node);
 
   const state: FieldState = {
     path: arrayPath,
@@ -1282,11 +1346,11 @@ function processDataArray(
     initialValue,
     touched: false,
     dirty: false,
-    visible: resolveDisplay(node) === 'hidden' ? false : branchVisible,
-    display: resolveDisplay(node),
+    visible: display === 'hidden' ? false : branchVisible,
+    display,
     disabled,
     readOnly,
-    required: typeof node.required === 'boolean' ? node.required : false,
+    required: boolOrDefault(node.required, false),
     loading: false,
     errors: [],
     props: mergeWidgetProps(widgetMeta?.props, node.props),
@@ -1460,7 +1524,7 @@ function processBranchNode(
   const branchNode = node as BranchSchema;
   const { branches, activeIndex } = extractBranchInfo(branchNode);
   // 容器自身的合成状态路径（布局 key，不进入数据路径，containerOnly 跳过收集）
-  const containerPath = parentDataPath ? `${parentDataPath}.${key}` : key;
+  const containerPath = joinPath(parentDataPath, key);
   const activeIndexClamped = Math.min(
     activeIndex,
     Math.max(branches.length - 1, 0),
@@ -1576,16 +1640,17 @@ function processBranchNode(
     readOnly?: boolean;
     props?: Record<string, unknown>;
   };
+  const { display, visible: bnodeVisible } = resolveVisibleDisplay(bnode);
   fieldStates.set(containerPath, {
     path: containerPath,
     value: undefined,
     initialValue: undefined,
     touched: false,
     dirty: false,
-    visible: typeof bnode.hidden === 'boolean' ? !bnode.hidden : true,
-    display: resolveDisplay(bnode),
-    disabled: typeof bnode.disabled === 'boolean' ? bnode.disabled : false,
-    readOnly: typeof bnode.readOnly === 'boolean' ? bnode.readOnly : false,
+    visible: bnodeVisible,
+    display,
+    disabled: boolOrDefault(bnode.disabled, false),
+    readOnly: boolOrDefault(bnode.readOnly, false),
     required: false,
     loading: false,
     errors: [],
@@ -1761,7 +1826,7 @@ function buildDependencyGraph(fieldStates: Map<string, FieldState>): {
  * @param node - 子字段 Schema 定义
  * @param value - 当前值
  * @param arrayPath - 所属数组的路径（如 "items"）
- * @param widgetMetas
+ * @param widgetMetas - widget 声明级元数据（校验/联动/props）
  * @returns 数组项子字段的 FieldState
  */
 export function createArrayItemState(
@@ -1771,34 +1836,14 @@ export function createArrayItemState(
   arrayPath: string,
   widgetMetas?: WidgetDescriptors,
 ): FieldState {
-  const rules: ValidationRule[] = [...(node.rules || [])];
-  if (node.required === true) {
-    rules.unshift({
-      required: true,
-    });
-  }
-
-  // 数组项子字段的约束同样自动转规则（对齐 processDataField）
-  appendConstraintRules(node as unknown as Record<string, unknown>, rules);
-
-  // widget 名称（显式声明或按 type/format 推断）与其声明级校验/联动描述
-  const widgetName = resolveWidgetName(node);
-  const widgetMeta = getWidgetDescriptor(widgetName, widgetMetas);
-
-  // 合并 widget 声明级默认校验规则（schema 已声明同键规则时补缺跳过）
-  if (widgetMeta?.rules) {
-    mergeWidgetRules(rules, widgetMeta.rules);
-  }
+  const { widgetName, widgetMeta } = resolveWidget(node, widgetMetas);
+  const rules = buildFieldRules(node, '', widgetMeta);
 
   // required/disabled/readOnly/hidden 为表达式时，自动转 reactions
   // （$index 等上下文变量依赖各数组项自身路径，解析后天然按项生效）
-  collectExpressionReactions(node);
+  const reactions = collectAndMergeReactions(node, widgetMeta);
 
-  // 合并 widget 声明级默认联动规则
-  const reactions: Reaction[] = [...((node.reactions as Reaction[]) || [])];
-  if (widgetMeta?.reactions) {
-    mergeWidgetReactions(reactions, widgetMeta.reactions);
-  }
+  const { display, visible } = resolveVisibleDisplay(node);
 
   return {
     path,
@@ -1806,16 +1851,11 @@ export function createArrayItemState(
     initialValue: value,
     touched: false,
     dirty: false,
-    visible:
-      resolveDisplay(node) === 'hidden'
-        ? false
-        : typeof node.hidden === 'boolean'
-          ? !node.hidden
-          : true,
-    display: resolveDisplay(node),
-    disabled: typeof node.disabled === 'boolean' ? node.disabled : false,
-    readOnly: typeof node.readOnly === 'boolean' ? node.readOnly : false,
-    required: typeof node.required === 'boolean' ? node.required : false,
+    visible,
+    display,
+    disabled: boolOrDefault(node.disabled, false),
+    readOnly: boolOrDefault(node.readOnly, false),
+    required: boolOrDefault(node.required, false),
     loading: false,
     errors: [],
     props: mergeFieldProps(

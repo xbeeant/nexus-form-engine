@@ -355,6 +355,7 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
         readOnly,
         required: state.required,
         loading: state.loading,
+        hidden: !state.visible,
         placeholder: state.meta.placeholder,
         options,
         dependValues,
