@@ -17,37 +17,11 @@
       "import": "./dist/es/index.js",
       "require": "./dist/cjs/index.cjs"
     },
-    "./components/*": {
-      "types": "./dist/es/components/*.d.ts",
-      "import": "./dist/es/components/*.js",
-      "require": "./dist/cjs/components/*.cjs"
-    },
-    "./hooks/*": {
-      "types": "./dist/es/hooks/*.d.ts",
-      "import": "./dist/es/hooks/*.js",
-      "require": "./dist/cjs/hooks/*.cjs"
-    },
-    "./contexts/*": {
-      "types": "./dist/es/contexts/*.d.ts",
-      "import": "./dist/es/contexts/*.js",
-      "require": "./dist/cjs/contexts/*.cjs"
-    },
-    "./utils/*": {
-      "types": "./dist/es/utils/*.d.ts",
-      "import": "./dist/es/utils/*.js",
-      "require": "./dist/cjs/utils/*.cjs"
-    },
     "./index.css": "./dist/es/styles.css",
     "./package.json": "./package.json"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "!**/*.map"
-  ],
-  "sideEffects": [
-    "**/*.css"
-  ],
+  "files": ["dist", "README.md", "!**/*.map"],
+  "sideEffects": ["**/*.css"],
   "scripts": {
     "build": "npm run build:es && npm run build:cjs && npm run build:umd",
     "prepublishOnly": "npm run build",

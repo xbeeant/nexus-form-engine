@@ -5,8 +5,7 @@
 
 import type { DataFieldSchema, DataObjectSchema } from '@xbeeant/form-engine';
 import { isExpressionString } from '@xbeeant/form-engine';
-import { useNexusContext } from '@xbeeant/form-engine-react/contexts/nexus-context';
-import { buildWidgetProps } from '@xbeeant/form-engine-react/utils/build-widget-props';
+import { buildWidgetProps, useNexusContext } from '@xbeeant/form-engine-react';
 import { useSyncExternalStore } from 'react';
 
 // ────────────────────────────────────────────────────────────────────────────
