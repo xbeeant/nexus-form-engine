@@ -49,6 +49,7 @@ export const simpleListWidget = ({
   hideDelete: _hideDelete,
   hideMove: _hideMove,
   hideCopy: _hideCopy,
+  remoteVersion: _rv,
   ...rest
 }: WidgetProps) => {
   const addText = _addText as string | undefined;

@@ -52,6 +52,7 @@ export const tableListWidget = ({
   hideCopy: _hideCopy,
   scrollX: _scrollX,
   actionColumnProps: _actionColumnProps,
+  remoteVersion: _rv,
   ...rest
 }: WidgetProps) => {
   const addText = _addText as string | undefined;

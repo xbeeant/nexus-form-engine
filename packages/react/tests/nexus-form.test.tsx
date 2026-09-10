@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { FormController } from '../src/components/form-controller';
@@ -303,7 +303,9 @@ describe('NexusForm', () => {
     const { container } = render(<TestForm schema={simpleSchema} />);
     const engine = holder.form!._getEngine();
     expect(engine.getRemoteDataVersion('username')).toBe(0);
-    holder.form!.reloadRemoteData('username');
+    act(() => {
+      holder.form!.reloadRemoteData('username');
+    });
     expect(engine.getRemoteDataVersion('username')).toBe(1);
     // 值不受影响
     fireEvent.change(container.querySelector('input') as HTMLInputElement, {
@@ -328,14 +330,16 @@ describe('NexusForm', () => {
     expect(form.getValues()).toEqual({ name: '', city: '' });
     const filtered = form.getValues(undefined, { omitNil: true });
     expect(filtered).toEqual({});
-    form.setValueByPath('city', '上海');
+    act(() => {
+      form.setValueByPath('city', '上海');
+    });
     expect(form.getValues(undefined, { omitNil: true })).toEqual({
       city: '上海',
     });
   });
 
   it('submit submitting 状态：全流程（校验 + onFinish）期间为 true', async () => {
-    let resolveFinish: (v: undefined) => void = () => {};
+    let resolveFinish: (v: undefined) => void = (_v) => {};
     const finishPromise = new Promise<void>((resolve) => {
       resolveFinish = resolve;
     });

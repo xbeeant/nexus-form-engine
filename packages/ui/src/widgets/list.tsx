@@ -55,6 +55,7 @@ export const listWidget = ({
   hideCopy: _hideCopy,
   collapsible: _collapsible,
   dragSort: _dragSort,
+  remoteVersion: _rv,
   ...rest
 }: WidgetProps) => {
   const addText = _addText as string | undefined;

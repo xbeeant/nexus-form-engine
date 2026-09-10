@@ -12,6 +12,7 @@ export const dateRangeWidget = ({
   placeholder,
   form: _form,
   dependValues: _dv,
+  remoteVersion: _rv,
   dataPath: _dp,
   path: _p,
   ...rest

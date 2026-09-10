@@ -14,6 +14,7 @@ export const sliderWidget = ({
   marks,
   form,
   dependValues: _dv,
+  remoteVersion: _rv,
   dataPath: _dp,
   path: _p,
   ...rest

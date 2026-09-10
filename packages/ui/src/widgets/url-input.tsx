@@ -21,6 +21,7 @@ export const urlInputWidget = ({
   column: _col,
   form,
   dependValues: _dv,
+  remoteVersion: _rv,
   dataPath: _dp,
   path: _p,
   ...rest

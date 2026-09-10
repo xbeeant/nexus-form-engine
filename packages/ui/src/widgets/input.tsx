@@ -10,6 +10,7 @@ export const inputWidget = ({
   loading,
   form,
   dependValues,
+  remoteVersion: _rv,
   dataPath: _dp,
   path: _p,
   readOnly,

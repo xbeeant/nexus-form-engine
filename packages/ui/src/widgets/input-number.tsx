@@ -9,6 +9,7 @@ export const inputNumberWidget = ({
   loading,
   form,
   dependValues: _dv,
+  remoteVersion: _rv,
   dataPath: _dp,
   path: _p,
   readOnly,

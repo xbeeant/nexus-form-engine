@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import type { FormController } from '@xbeeant/form-engine-react';
 
 import { NexusForm, useForm } from '@xbeeant/form-engine-react';
@@ -285,7 +285,7 @@ describe('校验错误展示（集成）', () => {
       },
     });
 
-    await form.form!.validateFields();
+    await act(() => form.form!.validateFields());
     await waitFor(() => {
       expect(
         container.querySelector('.ant-form-item-explain-error'),
@@ -309,7 +309,7 @@ describe('校验错误展示（集成）', () => {
     });
 
     // 先触发校验（提交），必填错误出现
-    await form.form!.validateFields();
+    await act(() => form.form!.validateFields());
     await waitFor(() => {
       expect(
         container.querySelector('.ant-form-item-explain-error'),

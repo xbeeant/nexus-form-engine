@@ -33,6 +33,7 @@ export const transferWidget = ({
   readOnly,
   form,
   dependValues: _dv,
+  remoteVersion: _rv,
   dataPath: _dp,
   path: _p,
   transferData,

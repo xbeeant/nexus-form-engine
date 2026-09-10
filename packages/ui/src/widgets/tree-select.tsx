@@ -385,6 +385,7 @@ export function TreeSelectWidget(props: WidgetProps & TreeSelectConfig) {
     form: _form,
     options: _opt,
     remoteVersion: _rv,
+    dependValues: _dv,
     column: _col,
     ...rest
   } = props;

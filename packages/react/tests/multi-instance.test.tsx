@@ -278,7 +278,7 @@ describe('同一 form 挂载多个 schema（聚合操作）', () => {
 
     // A 必填未填：提交被阻止，A 的 onFinish 不触发，B 也不触发
     fireEvent.submit(container.querySelectorAll('form')[0]);
-    await new Promise((r) => setTimeout(r, 50));
+    await act(() => new Promise((r) => setTimeout(r, 50)));
     expect(onFinishFailedA).toHaveBeenCalled();
     expect(onFinishA).not.toHaveBeenCalled();
     expect(onFinishB).not.toHaveBeenCalled();
@@ -287,9 +287,11 @@ describe('同一 form 挂载多个 schema（聚合操作）', () => {
     const nameInput = container.querySelector(
       'input[data-testid="input-name"]',
     ) as HTMLInputElement;
-    fireEvent.change(nameInput, { target: { value: '张三' } });
+    act(() => {
+      fireEvent.change(nameInput, { target: { value: '张三' } });
+    });
     fireEvent.submit(container.querySelectorAll('form')[0]);
-    await new Promise((r) => setTimeout(r, 50));
+    await act(() => new Promise((r) => setTimeout(r, 50)));
     expect(onFinishA).toHaveBeenCalledWith({ name: '张三' });
     expect(onFinishB).toHaveBeenCalledWith({ city: '' });
   });
@@ -325,8 +327,10 @@ describe('同一 form 挂载多个 schema（聚合操作）', () => {
         value === 'bad' ? ['城市不合法'] : [],
       );
     });
-    fireEvent.change(cityInput, { target: { value: 'bad' } });
-    await new Promise((r) => setTimeout(r, 50));
+    act(() => {
+      fireEvent.change(cityInput, { target: { value: 'bad' } });
+    });
+    await act(() => new Promise((r) => setTimeout(r, 50)));
     expect(holder.form!.getFieldError('city')).toContain('城市不合法');
     // name 无该校验器
     expect(holder.form!.getFieldError('name')).toEqual([]);

@@ -9,6 +9,7 @@ export const passwordWidget = ({
   loading,
   readOnly,
   form,
+  remoteVersion: _rv,
   dependValues: _dv,
   dataPath: _dp,
   path: _p,

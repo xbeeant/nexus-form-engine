@@ -450,6 +450,7 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
       dependValues,
       dataPath,
       path,
+      remoteVersion: _rv,
       ...rest
     } = props;
 
