@@ -45,6 +45,39 @@ describe('widget 只读回退（集成 NexusForm）', () => {
     expect(field!.textContent).toContain('zhangsan');
   });
 
+  it('只读模式下字段无值时默认显示 "-"', () => {
+    const { container } = renderForm(
+      {
+        type: 'object',
+        properties: {
+          remark: { type: 'string', title: '备注' },
+          nickname: { type: 'string', widget: 'input', title: '昵称' },
+        },
+      },
+      { readOnly: true },
+    );
+    for (const path of ['remark', 'nickname']) {
+      const field = container.querySelector(
+        `[data-nexus-field="${path}"]`,
+      )!;
+      expect(field!.textContent, `${path} 空值应显示 "-"`).toContain('-');
+    }
+  });
+
+  it('html widget 无值时显示 "-"', () => {
+    const { container } = renderForm(
+      {
+        type: 'object',
+        properties: {
+          content: { type: 'string', widget: 'html', title: '内容' },
+        },
+      },
+      { readOnly: true },
+    );
+    const field = container.querySelector('[data-nexus-field="content"]')!;
+    expect(field!.textContent).toContain('-');
+  });
+
   it('datePicker 只读时渲染格式化文本', () => {
     const { container } = renderForm(
       {

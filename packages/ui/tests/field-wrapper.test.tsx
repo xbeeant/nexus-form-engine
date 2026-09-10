@@ -50,6 +50,23 @@ describe('FieldWrapper（ui 层字段包裹）', () => {
     expect(requiredMark).not.toBeNull();
   });
 
+  it('readOnly 时不展示必填标记（字段级）', () => {
+    const { container } = renderWrapper({
+      title: '年龄',
+      required: true,
+      readOnly: true,
+    });
+    expect(container.querySelector('.ant-form-item-required')).toBeNull();
+  });
+
+  it('readOnly 时不展示必填标记（表单级）', () => {
+    const { container } = renderWrapper(
+      { title: '年龄', required: true },
+      { readOnly: true },
+    );
+    expect(container.querySelector('.ant-form-item-required')).toBeNull();
+  });
+
   it('extra 展示辅助文案', () => {
     const { container } = renderWrapper({
       title: '密码',

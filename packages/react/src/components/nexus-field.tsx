@@ -344,6 +344,8 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
     tooltip: state.meta.tooltip,
     errors: state.errors,
     required: state.required,
+    // 只读模式下不展示必填星号（FieldWrapper/useFormItem 据此抑制 required 标记）
+    readOnly,
     extra: extra,
     displayType: fieldDisplayType,
     labelWidth: fieldLabelWidth,

@@ -277,8 +277,12 @@ export interface UseFormItemResult {
 export function useFormItem(props: WidgetProps): UseFormItemResult {
   // 字段级 label（meta.label，Parser 默认 true）与表单级 label 同时生效，
   // 任一为 false 即不显示该字段 label（且不包裹 Form.Item）
-  const configLabel = useFormConfig().label;
+  const config = useFormConfig();
+  const configLabel = config.label;
   const showLabel = props.label !== false && configLabel !== false;
+  // 只读判定：字段级 readOnly 与表单级 readOnly 取并集，
+  // 只读模式仅作展示，不强调必填，故抑制 required 星号标记
+  const readOnly = toBoolean(props.readOnly) || toBoolean(config.readOnly);
 
   const formItemProps = useFormItemProps({
     displayType: props.displayType,
@@ -306,7 +310,7 @@ export function useFormItem(props: WidgetProps): UseFormItemResult {
     return (
       <Form.Item
         label={props.title}
-        required={toBoolean(props.required)}
+        required={toBoolean(props.required) && !readOnly}
         help={formItemHelp}
         validateStatus={formItemStatus}
         extra={props.extra}
@@ -355,6 +359,8 @@ export interface FieldWrapperProps {
   tooltip?: string;
   errors?: string[];
   required?: boolean;
+  /** 只读模式：不展示必填星号（required 标记抑制） */
+  readOnly?: boolean;
   /** 额外说明信息（可能为携带 HTML 标签的字符串或 ReactNode） */
   extra?: React.ReactNode;
   width?: string;
