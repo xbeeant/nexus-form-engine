@@ -18,6 +18,7 @@ interface WidgetAddons {
   path: string;
   index?: number;
   parentValues?: unknown;
+  dependValues?: Record<string, unknown>;
   getValue(path: string): unknown;
   getFieldsValue(
     paths?: string[],
@@ -75,7 +76,7 @@ export function buildWidgetProps(
     path?: string;
     value?: unknown;
     onChange: (value: unknown) => void;
-    form?: NexusFormInstance;
+    form: NexusFormInstance;
   },
 ): Record<string, unknown> {
   const { form, dataPath, path, value: baseValue } = base;
@@ -83,51 +84,50 @@ export function buildWidgetProps(
   const addonsPath = path ?? addonsDataPath;
 
   // 统一构造 addons（含 getters 动态取值，响应 form 状态变化）
-  const addons: WidgetAddons | undefined = form
-    ? {
-        get formData() {
-          return form.getValues();
-        },
-        get rootValue() {
-          return form.getValues();
-        },
-        value: opts.addonsValue ?? baseValue,
-        dataPath: addonsDataPath,
-        path: addonsPath,
-        index: opts.addonsIndex,
+  const addons: WidgetAddons = {
+    get formData() {
+      return form.getValues();
+    },
+    get rootValue() {
+      return form.getValues();
+    },
+    value: opts.addonsValue ?? baseValue,
+    dataPath: addonsDataPath,
+    path: addonsPath,
+    index: opts.addonsIndex,
         parentValues: opts.addonsItemOf
           ? form.getValueByPath(opts.addonsItemOf)
           : undefined,
+        dependValues: opts.dependValues,
         getValue: (p: string) => form.getValueByPath(p),
-        setValue: (p: string, v: unknown) => form.setValueByPath(p, v),
-        onItemChange: (p: string, v: unknown) => form.setValueByPath(p, v),
-        validate: async (p?: string) => {
-          if (p) {
-            await form.validateFields([p]);
-          } else {
-            await form.validateFields([addonsDataPath]);
-          }
-        },
-        validateFields: async (paths?: string[]) => {
-          await form.validateFields(paths);
-        },
-        getFieldsValue: (paths?: string[], options?: { omitNil?: boolean }) => {
-          return form.getValues(paths, options);
-        },
-        getValues: (paths?: string[], options?: { omitNil?: boolean }) => {
-          return form.getValues(paths, options);
-        },
-        getHiddenValues: () => {
-          return form.getHiddenValues();
-        },
-        submit: () => form.submit(),
-        resetFields: () => form.resetFields(),
-        setSchema: (s: Record<string, unknown>) => form.setSchema(s as any),
-        setSchemaByPath: (p: string, patch: Record<string, unknown>) =>
-          form.setSchemaByPath(p, patch),
-        getSchema: () => form.getSchema(),
+    setValue: (p: string, v: unknown) => form.setValueByPath(p, v),
+    onItemChange: (p: string, v: unknown) => form.setValueByPath(p, v),
+    validate: async (p?: string) => {
+      if (p) {
+        await form.validateFields([p]);
+      } else {
+        await form.validateFields([addonsDataPath]);
       }
-    : undefined;
+    },
+    validateFields: async (paths?: string[]) => {
+      await form.validateFields(paths);
+    },
+    getFieldsValue: (paths?: string[], options?: { omitNil?: boolean }) => {
+      return form.getValues(paths, options);
+    },
+    getValues: (paths?: string[], options?: { omitNil?: boolean }) => {
+      return form.getValues(paths, options);
+    },
+    getHiddenValues: () => {
+      return form.getHiddenValues();
+    },
+    submit: () => form.submit(),
+    resetFields: () => form.resetFields(),
+    setSchema: (s: Record<string, unknown>) => form.setSchema(s as any),
+    setSchemaByPath: (p: string, patch: Record<string, unknown>) =>
+      form.setSchemaByPath(p, patch),
+    getSchema: () => form.getSchema(),
+  };
 
   return {
     schema: opts.schema,

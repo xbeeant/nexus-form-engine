@@ -27,7 +27,7 @@ function TestForm({
   );
 }
 
-/** 桩 widget：把接收到的 prop（placeholder / maxLength / dependValues）回显到 DOM，供断言 */
+/** 桩 widget：把接收到的 prop（placeholder / maxLength / dependValues / addons）回显到 DOM，供断言 */
 function StubInput(props: any) {
   return (
     <div>
@@ -41,6 +41,9 @@ function StubInput(props: any) {
       />
       <span data-testid={`dep-${props.path}`}>
         {JSON.stringify(props.dependValues ?? {})}
+      </span>
+      <span data-testid={`addons-dep-${props.path}`}>
+        {JSON.stringify(props.addons?.dependValues ?? {})}
       </span>
     </div>
   );
@@ -115,6 +118,9 @@ describe('表达式计算结果 → UI widget 传递（防泄漏）', () => {
     // 初始：total 由 reaction 计算，dependValues.base 为当前值
     const dep0 = container.querySelector('[data-testid="dep-total"]')!;
     expect(dep0.textContent).toBe(JSON.stringify({ base: 2 }));
+    // addons.dependValues 与 props.dependValues 一致
+    const addonsDep0 = container.querySelector('[data-testid="addons-dep-total"]')!;
+    expect(addonsDep0.textContent).toBe(JSON.stringify({ base: 2 }));
 
     // 依赖字段变化 → 本字段 reaction 重算 → dependValues.b 更新为最新值
     act(() => {
@@ -122,6 +128,8 @@ describe('表达式计算结果 → UI widget 传递（防泄漏）', () => {
     });
     const dep1 = container.querySelector('[data-testid="dep-total"]')!;
     expect(dep1.textContent).toBe(JSON.stringify({ base: 5 }));
+    const addonsDep1 = container.querySelector('[data-testid="addons-dep-total"]')!;
+    expect(addonsDep1.textContent).toBe(JSON.stringify({ base: 5 }));
 
     const totalInput = container.querySelector('[data-testid="input-total"]')!;
     expect((totalInput as HTMLInputElement).value).toBe('50');

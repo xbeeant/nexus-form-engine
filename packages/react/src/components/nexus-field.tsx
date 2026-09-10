@@ -35,6 +35,8 @@ export interface NexusAddons {
   index?: number;
   /** 父级值（数组项→父数组，对象字段→父对象） */
   parentValues?: unknown;
+  /** 依赖字段的实时值映射（key 为字段路径，value 为字段值），x-render dependValues 对齐 */
+  dependValues?: Record<string, unknown>;
   /** 按路径取值 */
   getValue(path: string): unknown;
 
