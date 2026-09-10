@@ -257,9 +257,17 @@ export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
   //   widget 按自身逻辑决定只读展示形态，如 treeSelect 的 readOnly 回显）；
   // - 未配置时 readOnly 原样透传给 widget，由 widget 自身决定只读形态
   //   （antd 原生 readOnly，或内置 widget 的 ReadOnlyDisplay 文本回退）。
-  const wantReadOnlyWidget = readOnly && !!state.meta.readOnlyWidget;
+  // - type:"string" 未显式声明 widget 时，readOnly 模式降级为 html 渲染
+  //   （支持富文本/HTML 内容展示，避免 input 只读态的纯文本局限）。
+  const wantReadOnlyWidget =
+    readOnly &&
+    (!!state.meta.readOnlyWidget ||
+      (state.meta.widget === 'input' &&
+        (state.meta.schema as Record<string, unknown> | undefined)?.type ===
+          'string' &&
+        !(state.meta.schema as Record<string, unknown> | undefined)?.widget));
   const widgetName = wantReadOnlyWidget
-    ? state.meta.readOnlyWidget!
+    ? (state.meta.readOnlyWidget ?? 'html')
     : state.meta.widget;
   /** 获取已注册的 UI 组件库进行渲染 */
   let Widget = engine.getWidget(widgetName);

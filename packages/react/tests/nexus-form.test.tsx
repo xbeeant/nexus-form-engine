@@ -467,4 +467,62 @@ describe('NexusForm', () => {
     expect(holder.form!.getValueByPath('role')).toBe('root');
     expect(holder.form!.getValueByPath('user')).toBe('admin');
   });
+
+  it('type:"string" 无 widget 时 readOnly 降级为 html 渲染', () => {
+    const StubHtml = (props: any) => (
+      <div data-testid='html-content'>{props.value}</div>
+    );
+    const { container } = render(
+      <TestForm
+        schema={{
+          type: 'object',
+          properties: {
+            bio: { type: 'string', title: '简介' },
+          },
+        }}
+        initialValues={{ bio: '<p>hello</p>' }}
+        readOnly
+        widgets={{ html: StubHtml }}
+      />,
+    );
+    expect(container.querySelector('input')).toBeNull();
+    expect(container.querySelector('[data-testid="html-content"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="html-content"]')!.textContent).toBe('<p>hello</p>');
+  });
+
+  it('type:"string" 无 widget 时非 readOnly 仍使用 input', () => {
+    const { container } = render(
+      <TestForm
+        schema={{
+          type: 'object',
+          properties: {
+            bio: { type: 'string', title: '简介' },
+          },
+        }}
+        initialValues={{ bio: 'hello' }}
+      />,
+    );
+    expect(container.querySelector('input')).not.toBeNull();
+  });
+
+  it('type:"string" 显式 widget:"input" 时 readOnly 不降级为 html', () => {
+    const StubHtml = (props: any) => (
+      <div data-testid='html-content'>{props.value}</div>
+    );
+    const { container } = render(
+      <TestForm
+        schema={{
+          type: 'object',
+          properties: {
+            bio: { type: 'string', widget: 'input', title: '简介' },
+          },
+        }}
+        initialValues={{ bio: 'hello' }}
+        readOnly
+        widgets={{ html: StubHtml }}
+      />,
+    );
+    expect(container.querySelector('[data-testid="html-content"]')).toBeNull();
+    expect(container.querySelector('[data-testid="input-bio"]')).not.toBeNull();
+  });
 });

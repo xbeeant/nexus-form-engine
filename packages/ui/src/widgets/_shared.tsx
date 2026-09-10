@@ -168,7 +168,7 @@ const renderScalarLabel = (
   if (typeof v === 'boolean') {
     return v ? bundle.readonlyDisplay.yes : bundle.readonlyDisplay.no;
   }
-  const hit = mapped.find((o) => o.value === v);
+  const hit = mapped.find((o) => o.value === v || String(o.value) === String(v));
   return hit ? hit.label : String(v);
 };
 
@@ -478,12 +478,7 @@ export function mapOptions(
       typeof opt === 'object' && opt !== null
         ? (opt as any).label
         : String(opt);
-    // 转换为 string | number 类型
-    const numericValue = Number(v);
-    const finalValue = !Number.isNaN(numericValue)
-      ? numericValue
-      : (v as string);
-    return { value: finalValue, label: l };
+    return { value: v, label: l };
   });
 }
 

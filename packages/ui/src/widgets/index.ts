@@ -111,6 +111,7 @@ export const antdWidgets: Record<string, (props: WidgetProps) => ReactNode> = {
   switch: switchWidget,
   voidTitle: voidTitleWidget, // 标题占位（配合 label:false 使用）
   number: inputNumberWidget, // 数字输入框
+  inputNumber: inputNumberWidget,
   multiSelect: multiSelectWidget, // 多选下拉框
   remoteMultiSelect: remoteMultiSelectWidget, // 多选下拉框（远程数据）
   checkboxes: checkboxesWidget, // 复选框组

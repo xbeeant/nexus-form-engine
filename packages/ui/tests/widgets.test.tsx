@@ -93,6 +93,69 @@ describe('widget 只读回退（集成 NexusForm）', () => {
     expect(field!.textContent).toContain('是');
   });
 
+  it('select 只读时渲染 enum 对应的 label 而非 value', () => {
+    const { container } = renderForm(
+      {
+        type: 'object',
+        properties: {
+          country: {
+            type: 'string',
+            widget: 'select',
+            title: '国家',
+            enum: ['CN', 'US', 'JP'],
+            enumNames: ['中国', '美国', '日本'],
+          },
+        },
+      },
+      { readOnly: true, initialValues: { country: 'CN' } },
+    );
+    const field = container.querySelector('[data-nexus-field="country"]');
+    expect(field!.textContent).toContain('中国');
+    expect(field!.textContent).not.toContain('CN');
+  });
+
+  it('select 只读时字符串 enum value 正确匹配 label', () => {
+    const { container } = renderForm(
+      {
+        type: 'object',
+        properties: {
+          level: {
+            type: 'string',
+            widget: 'select',
+            title: '等级',
+            enum: ['1', '2', '3'],
+            enumNames: ['初级', '中级', '高级'],
+          },
+        },
+      },
+      { readOnly: true, initialValues: { level: '2' } },
+    );
+    const field = container.querySelector('[data-nexus-field="level"]');
+    expect(field!.textContent).toContain('中级');
+    expect(field!.textContent).not.toContain('2');
+  });
+
+  it('select 只读时数值 enum value 正确匹配 label', () => {
+    const { container } = renderForm(
+      {
+        type: 'object',
+        properties: {
+          score: {
+            type: 'number',
+            widget: 'select',
+            title: '分数',
+            enum: [1, 2, 3],
+            enumNames: ['低', '中', '高'],
+          },
+        },
+      },
+      { readOnly: true, initialValues: { score: 2 } },
+    );
+    const field = container.querySelector('[data-nexus-field="score"]');
+    expect(field!.textContent).toContain('中');
+    expect(field!.textContent).not.toContain('2');
+  });
+
   it('可编辑模式下保持原生控件', () => {
     const { container } = renderForm(
       {
