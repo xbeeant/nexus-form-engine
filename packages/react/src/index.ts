@@ -46,3 +46,5 @@ export {
   pureHtmlString,
   reactNodeFromString,
 } from './utils/react-node-from-string';
+
+export { resolveReadOnlyWidget } from './utils/resolve-readonly-widget';

@@ -57,9 +57,7 @@ describe('widget 只读回退（集成 NexusForm）', () => {
       { readOnly: true },
     );
     for (const path of ['remark', 'nickname']) {
-      const field = container.querySelector(
-        `[data-nexus-field="${path}"]`,
-      )!;
+      const field = container.querySelector(`[data-nexus-field="${path}"]`)!;
       expect(field!.textContent, `${path} 空值应显示 "-"`).toContain('-');
     }
   });
@@ -637,5 +635,65 @@ describe('数组折叠 + 拖拽排序（P2-E，formily ArrayField 对齐）', ()
     expect(handles.length).toBeGreaterThanOrEqual(2);
     // 初始数组顺序
     expect(form.form!.getValueByPath('items')).toHaveLength(2);
+  });
+});
+
+describe('列表项 readOnlyWidget（readOnly 模式优先渲染指定 widget，与 NexusField 一致）', () => {
+  function MyHtmlWidget(props: any) {
+    return <div data-testid='my-html'>{props.value}</div>;
+  }
+
+  function renderSimpleList(
+    schema: unknown,
+    initialValues?: Record<string, unknown>,
+  ) {
+    const holder: { form?: FormController } = {};
+    function TestForm() {
+      const [form] = useForm();
+      holder.form = form;
+      const engine = form._getEngine();
+      registerAntdUI(engine);
+      engine.registerWidgets({ myHtml: MyHtmlWidget });
+      return (
+        <NexusForm
+          form={form}
+          schema={schema as never}
+          footer={false}
+          initialValues={initialValues}
+        />
+      );
+    }
+    const result = render(<TestForm />);
+    return { ...result, form: holder };
+  }
+
+  it('items 子字段 readOnly + readOnlyWidget 时优先渲染 readOnlyWidget', () => {
+    const { container } = renderSimpleList(
+      {
+        type: 'object',
+        properties: {
+          list: {
+            type: 'array',
+            widget: 'simpleList',
+            items: {
+              type: 'object',
+              properties: {
+                secret: {
+                  type: 'string',
+                  readOnly: true,
+                  readOnlyWidget: 'myHtml',
+                  title: '密码',
+                },
+              },
+            },
+          },
+        },
+      },
+      { list: [{ secret: '<a>www.baidu.com</a>' }] },
+    );
+    expect(container.querySelector('[data-testid="my-html"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="my-html"]')!.textContent,
+    ).toBe('<a>www.baidu.com</a>');
   });
 });

@@ -1868,6 +1868,7 @@ export function createArrayItemState(
     meta: {
       title: node.title,
       widget: widgetName,
+      readOnlyWidget: node.readOnlyWidget,
       type: node.type,
       rules,
       description: node.description,

@@ -5,7 +5,11 @@
 
 import type { DataFieldSchema, DataObjectSchema } from '@xbeeant/form-engine';
 import { isExpressionString } from '@xbeeant/form-engine';
-import { buildWidgetProps, useNexusContext } from '@xbeeant/form-engine-react';
+import {
+  buildWidgetProps,
+  resolveReadOnlyWidget,
+  useNexusContext,
+} from '@xbeeant/form-engine-react';
 import { useSyncExternalStore } from 'react';
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -232,9 +236,12 @@ export function RenderItemControl({
   const index = indexMatch ? Number(indexMatch[1]) : undefined;
   const arrayPath = path ? path.slice(0, path.indexOf('[')) : undefined;
 
+  // readOnly / disabled：列表容器传入（列表级只读/禁用）与项字段引擎状态（含联动）取并集
+  const finalReadOnly = readOnly || fieldState?.readOnly || false;
+
   // widget 名：优先引擎解析结果，其次显式声明 / type / format 推断
   // （x-render schema 中 items 子字段常无 widget）
-  const effectiveWidget =
+  const baseWidget =
     fieldState?.meta.widget ??
     inferWidget({
       type: fieldSchema.type,
@@ -242,10 +249,22 @@ export function RenderItemControl({
       widget,
     });
 
-  const Widget = engine.getWidget(effectiveWidget);
+  // readOnly 模式 widget 选择（与 NexusField 共享 resolveReadOnlyWidget）
+  const { widgetName, wantReadOnlyWidget } = resolveReadOnlyWidget(
+    {
+      baseWidget,
+      readOnlyWidget:
+        fieldState?.meta.readOnlyWidget ?? fieldSchema.readOnlyWidget,
+      schemaType: fieldSchema.type,
+      schemaWidget: fieldSchema.widget,
+    },
+    finalReadOnly,
+  );
 
-  // readOnly / disabled：列表容器传入（列表级只读/禁用）与项字段引擎状态（含联动）取并集
-  const finalReadOnly = readOnly || fieldState?.readOnly || false;
+  let Widget = engine.getWidget(widgetName);
+  if (!Widget && wantReadOnlyWidget) {
+    Widget = engine.getWidget(baseWidget);
+  }
   const finalDisabled = disabled || fieldState?.disabled || false;
   const finalPlaceholder =
     fieldState?.meta.placeholder ??
