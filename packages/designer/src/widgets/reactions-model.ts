@@ -6,7 +6,6 @@
 import type { Reaction } from '@xbeeant/form-engine';
 
 export const BOOLEAN_STATE_KEYS = new Set([
-  'visible',
   'hidden',
   'disabled',
   'readOnly',
@@ -18,7 +17,6 @@ export const PROPS_KEY = '__props';
 
 export const STATE_KEY_OPTIONS: Array<{ label: string; value: string }> = [
   { label: '计算值（value）', value: 'value' },
-  { label: '显示（visible）', value: 'visible' },
   { label: '隐藏（hidden）', value: 'hidden' },
   { label: '禁用（disabled）', value: 'disabled' },
   { label: '只读（readOnly）', value: 'readOnly' },

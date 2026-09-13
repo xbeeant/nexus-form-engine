@@ -131,7 +131,7 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
   // GridContext 必须在所有 early return 之前调用，否则会破坏 Hooks 调用顺序
   const gridCtx = useContext(GridContext);
   const layoutConfig = useContext(LayoutConfigContext);
-  // 祖先对象容器（NexusObject）下发的继承属性：visible=false 时子树整体隐藏
+  // 祖先对象容器（NexusObject）下发的继承属性：hidden=true 时子树整体隐藏
   const inherit = useContext(FieldInheritContext);
 
   // 字段级事件钩子（P2-D）：onChange / onBlur / onFocus，仅在对应事件触发时执行
@@ -233,13 +233,9 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
     return null;
   }
 
-  // formily display 三态：'none' 不渲染（无占位符），但值仍参与收集与提交
-  if (state.display === 'none') {
-    return null;
-  }
-
-  // 祖先对象容器隐藏 → 子树整体不可见（与字段自身 visible 合并判断）
-  if (inherit.visible === false || !state.visible) {
+  // 祖先对象容器隐藏 → 子树整体不可见（与字段自身 hidden 合并判断）
+  // 隐藏字段：默认渲染 display:none 占位符以保持布局（防栅格塌陷）
+  if (state.hidden || inherit.hidden === true) {
     // 如果父布局节点配置了 removeHidden，则不渲染占位符（移除以防止栅格塌陷）
     if (layoutConfig.removeHidden === true) {
       return null;
@@ -362,7 +358,7 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
         readOnly,
         required: state.required,
         loading: state.loading,
-        hidden: !state.visible,
+        hidden: state.hidden,
         placeholder: state.meta.placeholder,
         options,
         dependValues,

@@ -409,19 +409,19 @@ describe('NexusEngine P1', () => {
       };
 
       engine.init(schema);
-      expect(engine.getFieldState('a')!.visible).toBe(false);
+      expect(engine.getFieldState('a')!.hidden).toBe(true);
       expect(engine.getFieldState('a')!.value).toBe('hello');
 
       // 运行中改变状态
       engine.setFieldState('a', {
-        visible: true,
+        hidden: false,
         value: 'changed',
         props: { placeholder: 'changed' },
       });
       engine.setFieldValue('b', 'user-input');
       engine.reset();
 
-      expect(engine.getFieldState('a')!.visible).toBe(false);
+      expect(engine.getFieldState('a')!.hidden).toBe(true);
       expect(engine.getFieldState('a')!.value).toBe('hello');
       expect(engine.getFieldState('a')!.props.placeholder).toBe('hi');
       expect(engine.getFieldState('b')!.value).toBe('');
@@ -435,7 +435,7 @@ describe('NexusEngine P1', () => {
           a: { type: 'string', widget: 'input', hidden: false },
         },
       });
-      expect(engine.getFieldState('a')!.visible).toBe(true);
+      expect(engine.getFieldState('a')!.hidden).toBe(false);
     });
   });
 });

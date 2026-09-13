@@ -110,7 +110,7 @@ engine.destroy();
 | `setSchema(schema)` / `setSchemaByPath(path, patch)` | 动态替换 / 局部更新 Schema |
 | `setFieldValue(path, value)` / `setFieldValues(values)` | 写值，自动触发联动与实时校验 |
 | `getFieldValue(path)` / `getFormData(paths?)` | 读取值（支持 `bind` 映射） |
-| `getFieldState(path)` / `setFieldState(path, patch)` | 字段状态读写（value / visible / disabled / required / errors ...） |
+| `getFieldState(path)` / `setFieldState(path, patch)` | 字段状态读写（value / hidden / disabled / required / errors ...） |
 | `validate()` / `validateField(path, options?)` | 全量 / 单字段校验 |
 | `getRenderTree()` | 获取渲染树（React 层消费） |
 | `subscribe(path, cb)` / `subscribeField(path, cb)` | 按路径订阅字段状态 / 精准版本订阅 |

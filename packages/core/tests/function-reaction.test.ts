@@ -5,7 +5,7 @@
  * 1. run 函数替代声明式 fulfill/otherwise，依赖字段变化即触发
  * 2. run 上下文：state / deps / formData / getValue / setValue / setState / form
  * 3. setValue 写回目标字段（含实时校验与传播）
- * 4. setState 联动其他字段（visible/required）
+ * 4. setState 联动其他字段（hidden/required）
  * 5. dependencies 参与依赖图（仅声明依赖的字段变化触发）
  * 6. 跨字段分支联动（复杂计算场景）
  */
@@ -30,7 +30,7 @@ describe('函数式 reactions（run）', () => {
               run: ({ setState, deps }) => {
                 const isOther = deps[0] === 'other';
                 setState('remark', {
-                  visible: isOther,
+                  hidden: !isOther,
                   required: isOther,
                 });
               },
@@ -41,15 +41,15 @@ describe('函数式 reactions（run）', () => {
     };
 
     engine.init(schema);
-    expect(engine.getFieldState('remark')!.visible).toBe(false);
+    expect(engine.getFieldState('remark')!.hidden).toBe(true);
     expect(engine.getFieldState('remark')!.required).toBe(false);
 
     engine.setFieldValue('type', 'other');
-    expect(engine.getFieldState('remark')!.visible).toBe(true);
+    expect(engine.getFieldState('remark')!.hidden).toBe(false);
     expect(engine.getFieldState('remark')!.required).toBe(true);
 
     engine.setFieldValue('type', 'common');
-    expect(engine.getFieldState('remark')!.visible).toBe(false);
+    expect(engine.getFieldState('remark')!.hidden).toBe(true);
   });
 
   it('run 上下文提供 state/deps/formData/getValue/setValue/setState/form', () => {

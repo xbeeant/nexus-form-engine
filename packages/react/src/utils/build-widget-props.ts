@@ -41,6 +41,40 @@ interface WidgetAddons {
 }
 
 /**
+ * 将实时（已求值）的状态键覆盖到 widget 收到的 schema 副本上。
+ *
+ * 背景：schema 中的 hidden/required 等可声明为 `{{ }}` 表达式，Parser 已将其转为
+ * `_autoExpr` reaction 并求值为 FieldState.hidden/required。若自定义 widget 直接读
+ * `props.schema.hidden` 会拿到原始 `{{ }}` 字符串（truthy）→ 误判隐藏。
+ * 因此统一在 buildWidgetProps 出口把「声明为表达式、或静态值与实时状态不一致」的
+ * 状态键替换为已求值的布尔。
+ *
+ * 未声明（undefined）的键不写入，保持 schema 引用稳定（避免无谓重建）。
+ */
+const EVALUATED_SCHEMA_KEYS = ['hidden', 'required', 'disabled', 'readOnly'] as const;
+
+function resolveEvaluatedSchema(
+  schema: SchemaNode | undefined,
+  state: { hidden?: boolean; required?: boolean; disabled?: boolean; readOnly?: boolean },
+): SchemaNode | undefined {
+  if (!schema) {
+    return undefined;
+  }
+  const raw = schema as Record<string, unknown>;
+  let copy: Record<string, unknown> | undefined;
+  for (const key of EVALUATED_SCHEMA_KEYS) {
+    const declared = raw[key];
+    const live = state[key];
+    const isExpression = typeof declared === 'string' && declared.includes('{{');
+    if (isExpression || (declared !== undefined && live !== undefined && declared !== live)) {
+      copy ??= { ...raw };
+      copy[key] = live;
+    }
+  }
+  return copy ? (copy as SchemaNode) : schema;
+}
+
+/**
  * 构建 Widget 所需的全部 props（统一入口，防止新增属性遗漏透传）
  *
  * `NexusField`（主渲染器）与 `RenderItemControl`（列表项子字段渲染器）共用此函数，
@@ -130,7 +164,12 @@ export function buildWidgetProps(
   };
 
   return {
-    schema: opts.schema,
+    schema: resolveEvaluatedSchema(opts.schema, {
+      hidden: opts.hidden,
+      required: opts.required,
+      disabled: opts.disabled,
+      readOnly: opts.readOnly,
+    }),
     disabled: opts.disabled,
     readOnly: opts.readOnly,
     required: opts.required,

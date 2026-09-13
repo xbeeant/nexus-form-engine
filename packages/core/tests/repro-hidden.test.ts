@@ -44,7 +44,7 @@ describe('hidden expression repro', () => {
     const external = engine.getFieldState(
       'message_management_external_assessment_reviewer',
     )!;
-    expect(external.visible, 'init visible (approval undefined)').toBe(false);
+    expect(external.hidden, 'init visible (approval undefined)').toBe(true);
     expect(
       external.reactions?.some((r: any) => r._autoExpr),
       'has autoExpr reaction',
@@ -54,13 +54,13 @@ describe('hidden expression repro', () => {
     const externalAfter = engine.getFieldState(
       'message_management_external_assessment_reviewer',
     )!;
-    expect(externalAfter.visible, 'after 0 (should be hidden)').toBe(false);
+    expect(externalAfter.hidden, 'after 0 (should be hidden)').toBe(true);
 
     engine.setFieldValue('multi_c_standard_approval_result', '1');
     const externalAfter1 = engine.getFieldState(
       'message_management_external_assessment_reviewer',
     )!;
-    expect(externalAfter1.visible, 'after 1 (should be visible)').toBe(true);
+    expect(externalAfter1.hidden, 'after 1 (should be visible)').toBe(false);
   });
 
   it('setValues loads data and triggers reactions', () => {
@@ -72,7 +72,7 @@ describe('hidden expression repro', () => {
     const external = engine.getFieldState(
       'message_management_external_assessment_reviewer',
     )!;
-    expect(external.visible, 'setValues approval=1').toBe(true);
+    expect(external.hidden, 'setValues approval=1').toBe(false);
   });
 
   it('full real schema with init value', () => {
@@ -117,11 +117,65 @@ describe('hidden expression repro', () => {
     const external = engine.getFieldState(
       'message_management_external_assessment_reviewer',
     )!;
-    expect(external.visible, 'init approval=1').toBe(true);
+    expect(external.hidden, 'init approval=1').toBe(false);
     engine.setFieldValue('multi_c_standard_approval_result', '0');
     const externalAfter = engine.getFieldState(
       'message_management_external_assessment_reviewer',
     )!;
-    expect(externalAfter.visible, 'after approval=0').toBe(false);
+    expect(externalAfter.hidden, 'after approval=0').toBe(true);
+  });
+});
+
+describe('hidden expression on layout container (core)', () => {
+  it('registers containerOnly state and toggles via _autoExpr reaction', () => {
+    const engine = new NexusEngine();
+    engine.init({
+      type: 'object',
+      properties: {
+        show: { type: 'boolean', widget: 'radio', enum: ['1', '0'] },
+        cardArea: {
+          type: 'card',
+          title: '卡片区域',
+          hidden: "{{formData.show === '1'}}",
+          properties: {
+            name: { type: 'string', widget: 'input' },
+          },
+        },
+      },
+    });
+
+    // 布局节点 Key 不进入数据路径，但挂 containerOnly 合成状态（hidden 订阅）
+    const state = engine.getFieldState('cardArea') as any;
+    expect(state, 'cardArea 合成状态存在').toBeDefined();
+    expect(state.path).toBe('cardArea');
+    expect(state.meta.containerOnly).toBe(true);
+    expect(state.value, 'container 不持值').toBeUndefined();
+    expect(state.hidden, 'init hidden (show undefined)').toBe(false);
+
+    // 布局 key 不进入 formData
+    expect(Object.keys(engine.getFormData())).not.toContain('cardArea');
+    expect(Object.keys(engine.getFormData())).not.toContain('cardArea.name');
+
+    // show = '1' → 联动求值 hidden → true
+    engine.setFieldValue('show', '1');
+    const after = engine.getFieldState('cardArea') as any;
+    expect(after.hidden, 'after show=1').toBe(true);
+    expect(
+      after.reactions?.some((r: any) => r._autoExpr),
+      'layout container 有 _autoExpr reaction',
+    ).toBe(true);
+
+    // show = '0' → hidden → false
+    engine.setFieldValue('show', '0');
+    expect((engine.getFieldState('cardArea') as any).hidden).toBe(false);
+
+    // 容器状态订阅可触发（渲染器经 dataPath 订阅生产-消费同路径）
+    let hiddenAtNotify: any = 'unset';
+    const off = engine.subscribeField('cardArea', () => {
+      hiddenAtNotify = engine.getFieldState('cardArea')?.hidden;
+    });
+    engine.setFieldValue('show', '1');
+    expect(hiddenAtNotify).toBe(true);
+    off();
   });
 });

@@ -51,7 +51,7 @@ AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/u
   - `dependencies: string[]` — **允许相对路径**，`resolveReactionScopes` 从目标字段最内层作用域向上逐级解析（如 `address.city` 内 `dependencies: ["province"]` → `"address.province"`）；`_autoExpr` 的依赖均为根级绝对路径，不做作用域解析
   - `when: Expression` — 条件成立执行 `fulfill`，否则执行 `otherwise`
   - `fulfill` / `otherwise`：`{ state?: ReactionStatePatch, schema?: ReactionSchemaPatch }`
-    - `state` 补丁：`value/visible/hidden/disabled/readOnly/required/loading/title/description/tooltip/props.*`
+    - `state` 补丁：`value/hidden/disabled/readOnly/required/loading/title/description/tooltip/props.*`
     - `schema` 补丁：点路径 → 值/表达式（`props.options` 等支持多级），**仅运行时覆盖，不持久化回 Schema**
 - **上下文变量白名单**: 仅 `$deps`、`$self`、`$form`、`$index`、`formData`、`rootValue`（`ExpressionSandbox`）。
 - **validate 表达式依赖**: `validate: { key: "{{ ... }}" }` 生成的规则携带 `_validateExpr`，其 `formData.xxx` 依赖被提取进依赖图，依赖字段变化时**实时重校验**目标字段（`validateExprFields`）。
@@ -76,7 +76,7 @@ AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/u
 
 ### 3.2 状态管理 (FieldState)
 
-- 每个字段维护独立状态：`{ path, value, initialValue, touched, dirty, visible, disabled, readOnly, required, loading, errors, props, reactions, meta }`（`meta` 含 `title/widget/type/rules/bind/items/itemOf/enum/...`）。
+- 每个字段维护独立状态：`{ path, value, initialValue, touched, dirty, hidden, disabled, readOnly, required, loading, errors, props, reactions, meta }`（`meta` 含 `title/widget/type/rules/bind/items/itemOf/enum/...`）。
 - `touched`（发生过值写入）/`dirty`（值 ≠ 初始值，深比较）对齐 rc-field-form，供「已修改」标记与提交差异判断；`reset()` 归零。
 - 通过 `engine.setFieldState(path, patch)` 局部更新（仅合并传入属性），`patch.required` 会同步动态必填规则（`syncRequiredRule`），`patch.value` 同步 touched/dirty 并重建数组项子字段状态。
 
@@ -110,7 +110,7 @@ AI 解析 Schema 时，**必须**遵循以下判定顺序（`packages/core/src/u
 - 入口文件：`packages/react/src/react/NexusField.tsx`（含 `NexusForm/NexusField/NexusLayout/NexusObject/FormController/useForm` + Hooks）、`packages/react/src/react/useWatch.ts`（`useWatch/useWatchState/useWatchMultiple/useWatchAll`）。
 - **必须**使用 `useSyncExternalStore` + `engine.subscribeField(path)` + `getFieldVersion(path)` 按路径精准订阅单字段（`useFieldValue` / `useFieldState`）。
 - **严禁**在 Renderer 层解析 Schema 或计算路径，**必须**直接消费 Core 输出的 `RenderTree`（`engine.getRenderTree()`，配合全局 version 快照）。
-- **隐藏字段处理**: `visible: false` 时渲染 `display: none` 占位符（`data-nexus-hidden`）**严禁**从 DOM 移除（防止栅格塌陷）；仅当布局节点配置 `removeHidden: true`（经 `LayoutConfigContext` 透传）才完全移除。
+- **隐藏字段处理**: `hidden: true` 时渲染 `display: none` 占位符（`data-nexus-hidden`）**严禁**从 DOM 移除（防止栅格塌陷）；仅当布局节点配置 `removeHidden: true`（经 `LayoutConfigContext` 透传）才完全移除。布局容器自身也持有 containerOnly 合成状态，经 `dataPath` 订阅后按同一策略渲染占位符。<br/>**注意**：核心模型已合并为单一 `hidden` 布尔态（`visible`/`display` 三态模型已废弃）。判空用字段级表达式 `"{{ formData.x === 'y' }}"`，路径保护见 §2.2。
 - `FormController` 是 API 层（`useForm()` 创建）：`submit(options?)/resetFields/setValues/setValueByPath/getValues(paths?, options?)/getAllValues/getHiddenValues/validateFields(paths?, options?)/registerValidator/setSchema/setSchemaByPath/scrollToPath/getFieldError/reloadRemoteData/getSubmitting/onSubmittingChange/...`；`submit` 失败自动滚动聚焦第一个错误字段。
   - `submit({ validateFirst })` / `validateFields(paths, { validateFirst })` — 首个失败字段短路（formily 对齐）
   - `submit({ omitNil })` / `getValues(paths, { omitNil })` / `NexusForm` prop `omitNil` — 递归移除空值（undefined/null/''，ProForm 对齐）

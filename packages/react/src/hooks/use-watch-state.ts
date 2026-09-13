@@ -11,7 +11,7 @@ import { useEffect, useRef } from 'react';
  *
  * @example
  * ```tsx
- * // 监听字段状态（visible/disabled/loading等）
+ * // 监听字段状态（hidden/disabled/loading等）
  * const isDisabled = useWatchState(engine, 'email', (state) => {
  *   console.log('Disabled:', state.disabled);
  *   console.log('Loading:', state.loading);

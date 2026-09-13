@@ -75,13 +75,13 @@ describe('数据对象容器（NexusObject 继承）', () => {
     const user = engine.getFieldState('user');
     expect(user!.disabled).toBe(true);
     expect(user!.readOnly).toBe(true);
-    expect(user!.visible).toBe(false);
+    expect(user!.hidden).toBe(true);
 
     // 子字段自身状态不受影响（继承由 Renderer 层合并）
     const name = engine.getFieldState('user.name');
     expect(name!.disabled).toBe(false);
     expect(name!.readOnly).toBe(false);
-    expect(name!.visible).toBe(true);
+    expect(name!.hidden).toBe(false);
   });
 
   it('disabled/hidden 表达式自动转 reaction，随依赖字段实时联动容器状态', () => {
@@ -104,12 +104,12 @@ describe('数据对象容器（NexusObject 继承）', () => {
     engine.init(schema);
 
     expect(engine.getFieldState('user')!.disabled).toBe(false);
-    expect(engine.getFieldState('user')!.visible).toBe(true);
+    expect(engine.getFieldState('user')!.hidden).toBe(false);
     expect(engine.getFieldState('user')!.reactions?.[0]?._autoExpr).toBe(true);
 
     engine.setFieldValue('locked', true);
     expect(engine.getFieldState('user')!.disabled).toBe(true);
-    expect(engine.getFieldState('user')!.visible).toBe(false);
+    expect(engine.getFieldState('user')!.hidden).toBe(true);
   });
 
   it('setFieldState 动态控制容器状态并按路径精准通知订阅者', () => {

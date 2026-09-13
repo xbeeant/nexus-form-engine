@@ -347,7 +347,7 @@ describe('NexusBranch inherit 属性', () => {
 // ── hidden 渲染 ───────────────────────────────────────────────────────────
 
 describe('NexusBranch hidden 渲染', () => {
-  it('容器 visible=false 时渲染 hidden class', () => {
+  it('容器 hidden=true 时渲染 hidden class', () => {
     function HiddenBranchForm() {
       const [form] = useForm();
       return (
@@ -413,7 +413,7 @@ describe('NexusBranch hidden 渲染', () => {
 // ── 订阅容器状态 ──────────────────────────────────────────────────────────
 
 describe('NexusBranch 订阅容器状态', () => {
-  it('订阅容器状态路径（activeIndex + visible）', async () => {
+  it('订阅容器状态路径（activeIndex + hidden）', async () => {
     let capturedForm: any = null;
 
     function SubscribeBranchForm() {
@@ -447,7 +447,7 @@ describe('NexusBranch 订阅容器状态', () => {
     expect(el?.value).toBe('test');
   });
 
-  it('容器 visible 变化时触发重渲染', () => {
+  it('容器 hidden 变化时触发重渲染', () => {
     function VisibleBranchForm() {
       const [form] = useForm();
       return (
@@ -479,7 +479,7 @@ describe('NexusBranch 订阅容器状态', () => {
 // ── 静态 branches ────────────────────────────────────────────────────────
 
 describe('NexusBranch 静态 branches', () => {
-  it('branches 静态持有，切换仅翻转 visible', () => {
+  it('branches 静态持有，切换仅翻转 hidden', () => {
     function BranchTestForm() {
       const [form] = useForm();
       return (

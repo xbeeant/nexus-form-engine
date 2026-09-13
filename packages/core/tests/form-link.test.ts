@@ -134,8 +134,8 @@ describe('Schema 声明式跨表单联动（crossForm reaction）', () => {
               crossForm: 'formA',
               dependencies: ['country'],
               when: "{{ $deps[0] === 'CN' }}",
-              fulfill: { state: { visible: true } },
-              otherwise: { state: { visible: false } },
+              fulfill: { state: { hidden: false } },
+              otherwise: { state: { hidden: true } },
             },
           ],
         },
@@ -143,13 +143,13 @@ describe('Schema 声明式跨表单联动（crossForm reaction）', () => {
     );
 
     // 初始：country 未选择 → otherwise
-    expect(engineB.getFieldState('province')!.visible).toBe(false);
+    expect(engineB.getFieldState('province')!.hidden).toBe(true);
 
     engineA.setFieldValue('country', 'CN');
-    expect(engineB.getFieldState('province')!.visible).toBe(true);
+    expect(engineB.getFieldState('province')!.hidden).toBe(false);
 
     engineA.setFieldValue('country', 'US');
-    expect(engineB.getFieldState('province')!.visible).toBe(false);
+    expect(engineB.getFieldState('province')!.hidden).toBe(true);
   });
 
   it('when 条件可同时引用源表单 $deps 与本表单 formData', () => {

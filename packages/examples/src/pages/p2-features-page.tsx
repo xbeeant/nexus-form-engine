@@ -3,7 +3,7 @@
 //
 // 五个卡片分区块演示：
 //   A. 函数式 reactions `run`（复杂计算 / 跨字段联动的逃逸舱）
-//   B. display 三态模型（visible / none / hidden）
+//   B. hidden 统一隐藏模型
 //   C. 依赖驱动的动态 enum（快速切换 → 城市联动下拉）
 //   D. 字段级 hooks（onChange / onBlur / onFocus 一等函数）
 //   E. 数组折叠 + 拖拽排序（Collapse 卡片 + HTML5 原生 DnD）
@@ -57,11 +57,10 @@ const fnSchema = {
   },
 } satisfies NexusSchema;
 
-// ── B. display 三态模型 ───────────────────────────────────────────────────
-// visible / none / hidden 三种状态：
-//   none   → 不渲染（无占位符），但值仍在 formData 参与提交
-//   hidden → 不渲染且不收集（等同 hidden:true），值进 hidden
-// 下面用 Radio 的 display:none 演示「不占位但收集」。
+// ── B. hidden 统一隐藏模型 ────────────────────────────────────────────────
+// hidden: false → 正常渲染 + 数据收集；hidden: true → 不渲染且不收集（值进
+// getHiddenValues）。统一布尔模型，不再区分 display 的 visible/none/hidden 三态。
+// 下面用 Radio 的 hidden 表达式演示「条件控制是否收集」。
 const displaySchema = {
   type: 'object',
   displayType: 'row',
@@ -77,9 +76,9 @@ const displaySchema = {
       reactions: [
         {
           dependencies: ['contact'],
-          otherwise: { state: { visible: false } },
+          otherwise: { state: { hidden: true } },
           when: '{{ $deps[0] === "phone" }}',
-          fulfill: { state: { visible: true } },
+          fulfill: { state: { hidden: false } },
         },
       ],
     },
@@ -87,15 +86,15 @@ const displaySchema = {
       type: 'string',
       widget: 'input',
       title: '手机号',
-      description: '选「电话」时随 visible 联动显示',
+      description: '选「电话」时随 hidden 联动显示',
       default: '13800000000',
       dependencies: ['contact'],
       reactions: [
         {
           dependencies: ['contact'],
           when: '{{ $deps[0] === "phone" }}',
-          fulfill: { state: { visible: true } },
-          otherwise: { state: { visible: false } },
+          fulfill: { state: { hidden: false } },
+          otherwise: { state: { hidden: true } },
         },
       ],
     },
@@ -103,17 +102,17 @@ const displaySchema = {
       type: 'string',
       widget: 'input',
       title: '埋点值（phone）',
-      display: 'none',
+      hidden: "{{ $deps[0] !== 'phone' }}",
       default: 'NA',
-      description: 'display:none — 不渲染但值随表单提交',
+      description: 'hidden 表达式 — 选「电话」时才参与收集，否则进 hidden 值区',
     },
     secret: {
       type: 'string',
       widget: 'input',
       title: '密钥（发 cards）',
-      display: 'hidden',
+      hidden: true,
       default: 'sk-prod-xxx',
-      description: 'display:hidden — 不渲染也不收集',
+      description: 'hidden: true — 不渲染也不收集',
     },
   },
 } satisfies NexusSchema;
@@ -223,12 +222,12 @@ finalPrice: {
 }`,
   },
   display: {
-    title: 'display 三态模型',
-    code: `// visible / none / hidden
-track:  { type: 'string', widget: 'input', display: 'none',   default: 'NA' },
-//   none   → 不渲染(无占位符)，但值仍在 formData 参与提交
-secret: { type: 'string', widget: 'input', display: 'hidden', default: 'x' },
-//   hidden → 不渲染且不收集(等同 hidden:true)，值进 hidden`,
+    title: 'hidden 统一隐藏模型',
+    code: `// 统一 hidden 布尔模型
+track:  { type: 'string', widget: 'input', hidden: "{{ $deps[0] !== 'phone' }}", default: 'NA' },
+//   表达式 hidden → 满足条件才渲染+收集；不满足时值进 hidden 值区
+secret: { type: 'string', widget: 'input', hidden: true, default: 'x' },
+//   hidden:true → 不渲染且不收集（值进 hidden 值区）`,
   },
   enum: {
     title: '依赖驱动的动态 enum',
@@ -354,20 +353,20 @@ export function P2FeaturesPage() {
           <CodeBlock {...codeFragments.run} />
         </Card>
 
-        {/* ── B. display 三态 ── */}
-        <Divider titlePlacement='left'>B. display 三态模型</Divider>
+        {/* ── B. hidden 统一隐藏模型 ── */}
+        <Divider titlePlacement='left'>B. hidden 统一隐藏模型</Divider>
         <Card size='small' style={{ marginBottom: 16 }}>
           <Paragraph type='secondary'>
-            <code>track</code>（<code>display:'none'</code>）无占位符但在{' '}
-            <code>formData</code> 中；<code>secret</code>（{' '}
-            <code>display:'hidden'</code>）不渲染也不收集。
+            <code>track</code>（<code>hidden</code> 表达式）选「电话」时才参与
+            收集，否则值进 hidden 值区；<code>secret</code>（<code>hidden: true</code>
+            ）不渲染也不收集。
           </Paragraph>
           <NexusForm
             form={displayForm}
             schema={displaySchema}
             onFinish={async (data) => {
               const all = displayForm.getAllValues();
-              setDisplayData({ visible: data, all });
+              setDisplayData({ formData: data, all });
             }}
             footer={renderFooter(() => {
               displayForm.resetFields();

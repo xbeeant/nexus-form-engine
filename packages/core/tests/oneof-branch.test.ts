@@ -4,7 +4,7 @@
  * 覆盖：
  * 1. 分支容器 Key 不进入 formData 数据路径（布局透明）
  * 2. 活动分支字段收集数据；非活动分支字段不收集
- * 3. 渲染树 RenderBranchNode：branches 按分支分组，非活动分支字段 visible=false
+ * 3. 渲染树 RenderBranchNode：branches 按分支分组，非活动分支字段 hidden=true
  * 4. anyOf 条件分支：源字段变化 → 自动切换激活分支（DependencyGraph _oneOfBranch 边）
  * 5. oneOf 手动切换：setOneOfActiveIndex 翻转可见性与值保留/清除
  * 6. 跨分支共享键：保留值；离开分支字段：清除值
@@ -64,7 +64,7 @@ describe('P1-1 条件分支容器 (oneOf / anyOf)', () => {
       expect(b.branches[1]).toHaveLength(1);
     });
 
-    it('非活动分支字段 visible=false，活动分支字段 visible=true', () => {
+    it('非活动分支字段 hidden=true，活动分支字段 hidden=false', () => {
       const schema: NexusSchema = {
         type: 'object',
         properties: {
@@ -90,9 +90,9 @@ describe('P1-1 条件分支容器 (oneOf / anyOf)', () => {
       const { fieldStates } = SchemaParser.parse(schema);
 
       // 活动分支（cashAmount）可见
-      expect(fieldStates.get('cashAmount')?.visible).toBe(true);
+      expect(fieldStates.get('cashAmount')?.hidden).toBe(false);
       // 非活动分支（cardNo）隐藏
-      expect(fieldStates.get('cardNo')?.visible).toBe(false);
+      expect(fieldStates.get('cardNo')?.hidden).toBe(true);
     });
 
     it('meta.oneOf.fieldBranches 正确聚合字段→分支成员关系（跨分支同名键合并）', () => {
@@ -159,8 +159,8 @@ describe('P1-1 条件分支容器 (oneOf / anyOf)', () => {
         cashAmount: [1],
       });
       // 活动分支字段可见
-      expect(fieldStates.get('cashAmount')?.visible).toBe(true);
-      expect(fieldStates.get('cardNo')?.visible).toBe(false);
+      expect(fieldStates.get('cashAmount')?.hidden).toBe(false);
+      expect(fieldStates.get('cardNo')?.hidden).toBe(true);
       expect(renderTree.some((n) => n.type === 'branch')).toBe(true);
     });
 
@@ -266,21 +266,21 @@ describe('P1-1 条件分支容器 (oneOf / anyOf)', () => {
       engine.init(schema);
       // 初始：无 payType 值 → 条件0不满足（formData.payType undefined ≠ 'card'）→ 回落当前 activeIndex=0
       expect(engine.getOneOfActiveIndex('payment')).toBe(0);
-      expect(engine.getFieldState('cardNo')!.visible).toBe(true);
-      expect(engine.getFieldState('cashAmount')!.visible).toBe(false);
+      expect(engine.getFieldState('cardNo')!.hidden).toBe(false);
+      expect(engine.getFieldState('cashAmount')!.hidden).toBe(true);
 
       // 源字段值满足分支1条件 → 自动切换
       engine.setFieldValue('payType', 'cash');
       expect(engine.getOneOfActiveIndex('payment')).toBe(1);
-      expect(engine.getFieldState('cashAmount')!.visible).toBe(true);
-      expect(engine.getFieldState('cardNo')!.visible).toBe(false);
-      expect(engine.getFieldState('creditLimit')!.visible).toBe(false);
+      expect(engine.getFieldState('cashAmount')!.hidden).toBe(false);
+      expect(engine.getFieldState('cardNo')!.hidden).toBe(true);
+      expect(engine.getFieldState('creditLimit')!.hidden).toBe(true);
 
       // 切回分支0（共享字段 payMethod 同理可验，这里验证独占字段回流）
       engine.setFieldValue('payType', 'card');
       expect(engine.getOneOfActiveIndex('payment')).toBe(0);
-      expect(engine.getFieldState('cardNo')!.visible).toBe(true);
-      expect(engine.getFieldState('cashAmount')!.visible).toBe(false);
+      expect(engine.getFieldState('cardNo')!.hidden).toBe(false);
+      expect(engine.getFieldState('cashAmount')!.hidden).toBe(true);
     });
 
     it('切走分支时独占字段值清除，切回时还原（数据合法性对齐）', () => {
@@ -319,7 +319,7 @@ describe('P1-1 条件分支容器 (oneOf / anyOf)', () => {
 
       // 切回分支0：cardNo 重新可见，值已还原为空
       engine.setFieldValue('payType', 'card');
-      expect(engine.getFieldState('cardNo')!.visible).toBe(true);
+      expect(engine.getFieldState('cardNo')!.hidden).toBe(false);
       expect(engine.getFieldValue('cardNo')).toBe('');
     });
 
@@ -361,7 +361,7 @@ describe('P1-1 条件分支容器 (oneOf / anyOf)', () => {
       engine.setFieldValue('payType', 'cash');
       expect(engine.getFieldValue('payMethod')).toBe('alipay');
       expect(engine.getFieldValue('cardNo')).toBe('');
-      expect(engine.getFieldState('cashAmount')!.visible).toBe(true);
+      expect(engine.getFieldState('cashAmount')!.hidden).toBe(false);
     });
   });
 
@@ -400,12 +400,12 @@ describe('P1-1 条件分支容器 (oneOf / anyOf)', () => {
 
       // 共享键保留
       expect(engine.getFieldValue('name')).toBe('shared');
-      expect(engine.getFieldState('name')!.visible).toBe(true);
+      expect(engine.getFieldState('name')!.hidden).toBe(false);
       // 独占键 aOnly 离开 → 隐藏 + 值清除
-      expect(engine.getFieldState('aOnly')!.visible).toBe(false);
+      expect(engine.getFieldState('aOnly')!.hidden).toBe(true);
       expect(engine.getFieldValue('aOnly')).toBe('');
       // 新分支字段 bOnly 可见
-      expect(engine.getFieldState('bOnly')!.visible).toBe(true);
+      expect(engine.getFieldState('bOnly')!.hidden).toBe(false);
     });
   });
 
@@ -438,9 +438,13 @@ describe('P1-1 条件分支容器 (oneOf / anyOf)', () => {
 
       const { fieldStates, renderTree } = SchemaParser.parse(schema);
 
-      // 分支内布局容器内的字段被正确收集（wrap Key 被丢弃，inner 直接进父路径）
+      // 分支内布局容器自身的合成状态存在（layout key 不进入数据路径，containerOnly 跳过收集）
+      const wrapState = fieldStates.get('wrap');
+      expect(wrapState).toBeDefined();
+      expect(wrapState?.meta.containerOnly).toBe(true);
+      // 布局 Key 不进入数据路径（inner 仍进父路径，wrap.inner 不存在）
       expect(fieldStates.get('inner')).toBeDefined();
-      expect(fieldStates.get('wrap')).toBeUndefined();
+      expect(fieldStates.get('wrap.inner')).toBeUndefined();
       expect(fieldStates.get('wrap.inner')).toBeUndefined();
       // 标记所属分支
       expect(fieldStates.get('inner')?.meta.branchOf).toBe(0);
@@ -455,8 +459,8 @@ describe('P1-1 条件分支容器 (oneOf / anyOf)', () => {
       const engine = new NexusEngine();
       engine.init(schema);
       engine.setOneOfActiveIndex('choice', 1);
-      expect(engine.getFieldState('inner')!.visible).toBe(false);
-      expect(engine.getFieldState('other')!.visible).toBe(true);
+      expect(engine.getFieldState('inner')!.hidden).toBe(true);
+      expect(engine.getFieldState('other')!.hidden).toBe(false);
     });
   });
 });

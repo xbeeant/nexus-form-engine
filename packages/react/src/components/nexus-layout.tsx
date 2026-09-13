@@ -1,6 +1,6 @@
 import type { NexusNodeProps, RenderLayoutNode } from '@xbeeant/form-engine';
 import type { CSSProperties } from 'react';
-import { useContext, useMemo } from 'react';
+import { useContext, useMemo, useSyncExternalStore } from 'react';
 
 import { GridContext } from '../contexts/grid-context';
 import {
@@ -36,6 +36,34 @@ const TRANSPARENT_GRID_LAYOUTS = new Set([
 export function NexusLayout({ node }: NexusNodeProps<RenderLayoutNode>) {
   const { engine } = useNexusContext();
 
+  // 按容器状态路径精准订阅：布局容器自身 hidden 变化（含 hidden 表达式联动）时重渲染，
+  // 渲染「占位符 / 完全移除 / 正常容器」三态切换。渲染树结构不变（字段级版本隔离）。
+  // ⚠️ 所有 Hooks 必须位于下方 early return（隐藏占位符）之前，保证调用顺序稳定。
+  useSyncExternalStore(
+    (onStoreChange) => engine.subscribeField(node.dataPath, onStoreChange),
+    () => engine.getFieldVersion(node.dataPath),
+    () => engine.getFieldVersion(node.dataPath),
+  );
+
+  // 布局容器在父 24 栅格中的跨列/宽度（与 NexusField wrapper 一致）
+  const gridCtx = useContext(GridContext);
+
+  const layoutConfigValue = useMemo<LayoutConfigContextValue>(
+    () => ({ removeHidden: node.props.removeHidden }),
+    [node.props.removeHidden],
+  );
+
+  const state = engine.getFieldState(node.dataPath);
+
+  // 隐藏布局容器：默认渲染 display:none 占位符以保持布局（防栅格塌陷，对齐隐藏字段）；
+  // 布局自身配置 removeHidden=true 时完全从 DOM 移除。
+  if (state?.hidden === true) {
+    if (node.props.removeHidden === true) {
+      return null;
+    }
+    return <div className='hidden' data-nexus-hidden={node.dataPath} />;
+  }
+
   const LayoutComponent = engine.getLayout(node.type);
 
   // 透传布局不打乱栅格上下文；其余容器子项重置为 null（退出 24 栅格跨度计算）
@@ -50,8 +78,6 @@ export function NexusLayout({ node }: NexusNodeProps<RenderLayoutNode>) {
     ),
   );
 
-  // 布局容器在父 24 栅格中的跨列/宽度（与 NexusField wrapper 一致）
-  const gridCtx = useContext(GridContext);
   // width（占比：百分比/0~1 数值）在栅格内换算为 gridColumn span，
   // 非栅格（Flex/inline）场景字面生效（flexShrink:0 防压缩）
   const effectiveSpan = resolveGridSpan(
@@ -65,11 +91,6 @@ export function NexusLayout({ node }: NexusNodeProps<RenderLayoutNode>) {
       : {}),
     ...(effectiveSpan ? { gridColumn: `span ${effectiveSpan}` } : {}),
   };
-
-  const layoutConfigValue = useMemo<LayoutConfigContextValue>(
-    () => ({ removeHidden: node.props.removeHidden }),
-    [node.props.removeHidden],
-  );
 
   if (!LayoutComponent) {
     return (

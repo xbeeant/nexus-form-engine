@@ -77,9 +77,9 @@ describe('SchemaParser', () => {
 
       const { fieldStates, renderTree } = SchemaParser.parse(schema);
 
-      // 布局节点 Key 不进入 formData 路径
-      expect(fieldStates.has('card')).toBe(false);
-      expect(fieldStates.has('grid')).toBe(false);
+      // 布局节点 Key 不进入 formData 路径（合成 containerOnly 状态仅承载 UI 状态）
+      expect(fieldStates.get('card')?.meta.containerOnly).toBe(true);
+      expect(fieldStates.get('grid')?.meta.containerOnly).toBe(true);
 
       // 布局节点下的数据字段 Key 进入路径
       expect(fieldStates.has('name')).toBe(true);
@@ -111,8 +111,9 @@ describe('SchemaParser', () => {
 
       const { fieldStates, renderTree } = SchemaParser.parse(schema);
 
-      // space 属于布局容器白名单：Key 被丢弃，子字段进入根路径
-      expect(fieldStates.has('space')).toBe(false);
+      // space 属于布局容器白名单：Key 不进入 formData 路径，子字段进入根路径。
+      // 布局容器自身有 containerOnly 合成状态（承载 hidden 订阅，跳过数据收集）。
+      expect(fieldStates.get('space')?.meta.containerOnly).toBe(true);
       expect(fieldStates.has('name')).toBe(true);
       expect(fieldStates.has('email')).toBe(true);
 
@@ -137,8 +138,8 @@ describe('SchemaParser', () => {
 
       const { fieldStates, renderTree } = SchemaParser.parse(schema);
 
-      // passThrough 属于布局容器白名单：Key 被丢弃，子字段进入根路径
-      expect(fieldStates.has('pt')).toBe(false);
+      // passThrough 属于布局容器白名单：Key 不进入 formData 路径，子字段进入根路径
+      expect(fieldStates.get('pt')?.meta.containerOnly).toBe(true);
       expect(fieldStates.has('name')).toBe(true);
 
       const layoutTypes = renderTree
@@ -208,12 +209,13 @@ describe('SchemaParser', () => {
 
       const { fieldStates } = SchemaParser.parse(schema);
 
-      // 各层级布局节点 Key 全部被丢弃
-      expect(fieldStates.has('container')).toBe(false);
-      expect(fieldStates.has('container.tab1')).toBe(false);
-      expect(fieldStates.has('container.tab1.nested')).toBe(false);
+      // 各层级布局节点 Key 不进入数据路径 —— 各自挂 containerOnly 合成状态（hidden 订阅）。
+      // 布局 Key 在路径计算中被丢弃，因此嵌套布局的合成状态路径保持扁平（仅取布局自身 Key）。
+      expect(fieldStates.get('container')?.meta.containerOnly).toBe(true);
+      expect(fieldStates.get('tab1')?.meta.containerOnly).toBe(true);
+      expect(fieldStates.get('nested')?.meta.containerOnly).toBe(true);
 
-      // 数据字段 Key 正确进入路径
+      // 数据字段 Key 正确进入路径（所有布局 Key 被透传丢弃）
       expect(fieldStates.has('field')).toBe(true);
     });
   });
@@ -230,7 +232,7 @@ describe('SchemaParser', () => {
             reactions: [
               {
                 dependencies: ['province'],
-                fulfill: { state: { visible: true } },
+                fulfill: { state: { hidden: false } },
               },
             ],
           },
@@ -262,7 +264,7 @@ describe('SchemaParser', () => {
                     reactions: [
                       {
                         dependencies: ['email'],
-                        fulfill: { state: { visible: true } },
+                        fulfill: { state: { hidden: false } },
                       },
                     ],
                   },

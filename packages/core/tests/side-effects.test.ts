@@ -73,7 +73,7 @@ describe('sideEffects 附带编辑器解析（P1-4）', () => {
     // string 字段默认值与 sideEffects 无关（类型默认值 ''）
     expect(state?.value).not.toBeUndefined();
     expect(state?.meta.rules).toHaveLength(0);
-    expect(state?.visible).toBe(true);
+    expect(state?.hidden).toBe(false);
   });
 });
 

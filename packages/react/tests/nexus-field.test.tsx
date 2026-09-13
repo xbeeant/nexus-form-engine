@@ -89,7 +89,7 @@ describe('NexusField 渲染逻辑', () => {
     expect(container.querySelector('.text-red-500')).not.toBeNull();
   });
 
-  it('display:none 时直接不渲染（无占位符）', () => {
+  it('兼容旧 display 属性：不再影响渲染（统一 hidden 模型）', () => {
     const { container } = render(
       <TestForm
         schema={{
@@ -109,7 +109,8 @@ describe('NexusField 渲染逻辑', () => {
         }}
       />,
     );
-    expect(container.querySelectorAll('input')).toHaveLength(1);
+    // display 属性已废弃：字段照常渲染（无占位符）
+    expect(container.querySelectorAll('input')).toHaveLength(2);
     expect(container.querySelector('[data-nexus-hidden="ghost"]')).toBeNull();
   });
 

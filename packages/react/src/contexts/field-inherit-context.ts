@@ -6,7 +6,7 @@ import { createContext } from 'react';
  * 语义：
  * - 仅「激活」状态被下发：disabled/readOnly 只在父容器显式启用时
  *   携带 true（父级未设置时上下文不存在该键），子字段自行合并
- * - visible 为 false 表示祖先对象容器隐藏，子树整体不可见
+ * - hidden 为 true 表示祖先对象容器隐藏，子树整体隐藏
  * - 合并优先级：祖先（已激活） > 字段自身状态 > 默认值
  */
 export interface FieldInheritValue {
@@ -14,8 +14,8 @@ export interface FieldInheritValue {
   disabled?: boolean;
   /** 祖先对象容器只读（仅 true 存在） */
   readOnly?: boolean;
-  /** 祖先对象容器隐藏 → 子树不可见（false 存在时子树全部隐藏） */
-  visible?: boolean;
+  /** 祖先对象容器隐藏 → 子树隐藏（true 存在时子树全部隐藏） */
+  hidden?: boolean;
 }
 
 export const FieldInheritContext = createContext<FieldInheritValue>({});

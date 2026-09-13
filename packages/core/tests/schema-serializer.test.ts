@@ -138,8 +138,8 @@ describe('serialize', () => {
           {
             dependencies: ['fieldB'],
             when: '{{ formData.fieldB === 1 }}',
-            fulfill: { state: { visible: true } },
-            otherwise: { state: { visible: false } },
+            fulfill: { state: { hidden: true } },
+            otherwise: { state: { hidden: false } },
             crossForm: 'other-form',
           } as any,
         ],
@@ -150,8 +150,8 @@ describe('serialize', () => {
     const reaction = result.properties.fieldA.reactions[0];
     expect(reaction.dependencies).toEqual(['fieldB']);
     expect(reaction.when).toBe('{{ formData.fieldB === 1 }}');
-    expect(reaction.fulfill).toEqual({ state: { visible: true } });
-    expect(reaction.otherwise).toEqual({ state: { visible: false } });
+    expect(reaction.fulfill).toEqual({ state: { hidden: true } });
+    expect(reaction.otherwise).toEqual({ state: { hidden: false } });
     expect(reaction.crossForm).toBe('other-form');
   });
 

@@ -83,7 +83,7 @@ export const reactionsDoc: WidgetDoc = {
     {
       title: 'when / fulfill / otherwise',
       description:
-        '条件成立执行 fulfill，否则执行 otherwise。这里用单选控制两个字段的显示与必填互斥切换（visible + required 状态补丁）。',
+        '条件成立执行 fulfill，否则执行 otherwise。这里用单选控制两个字段的显示与必填互斥切换（hidden + required 状态补丁）。',
       schema: {
         type: 'object',
         displayType: 'row',
@@ -111,8 +111,8 @@ export const reactionsDoc: WidgetDoc = {
               {
                 dependencies: ['contactMethod'],
                 when: '{{ $deps[0] === "phone" }}',
-                fulfill: { state: { visible: true, required: true } },
-                otherwise: { state: { visible: false, required: false } },
+                fulfill: { state: { hidden: false, required: true } },
+                otherwise: { state: { hidden: true, required: false } },
               },
             ],
           },
@@ -131,8 +131,8 @@ export const reactionsDoc: WidgetDoc = {
               {
                 dependencies: ['contactMethod'],
                 when: '{{ $deps[0] === "email" }}',
-                fulfill: { state: { visible: true, required: true } },
-                otherwise: { state: { visible: false, required: false } },
+                fulfill: { state: { hidden: false, required: true } },
+                otherwise: { state: { hidden: true, required: false } },
               },
             ],
           },
@@ -301,7 +301,7 @@ export const reactionsDoc: WidgetDoc = {
     {
       name: 'fulfill / otherwise',
       description:
-        '状态补丁（value/visible/hidden/disabled/readOnly/required/loading/title/description/props.*）与 schema 补丁（点路径覆盖，如 props.options）',
+        '状态补丁(value/hidden/disabled/readOnly/required/loading/title/description/props.*)与 schema 补丁（点路径覆盖，如 props.options）',
       type: '{ state?, schema? }',
     },
     {

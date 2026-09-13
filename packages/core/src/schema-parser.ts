@@ -16,7 +16,9 @@ import type {
   FieldHooks,
   FieldState,
   LayoutBaseProps,
+  LayoutContainerSchema,
   LayoutNode,
+  LayoutPaneSchema,
   LayoutType,
   NexusSchema,
   OneOfMeta,
@@ -108,7 +110,6 @@ const REACTION_EXPR_FIELDS = [
   'disabled',
   'readOnly',
   'hidden',
-  'display',
 ] as const;
 
 /**
@@ -137,43 +138,23 @@ const REACTION_TEXT_FIELDS = [
 ] as const;
 
 /**
- * 解析字段的显示状态（formily `display` 三态对齐）
- * - 声明了 display 表达式/布尔时取声明值（'none'/'hidden'/'visible'）
- * - 未声明 display，但 hidden: true / visible: false → 'hidden'
- * - 其余默认 'visible'
+ * 解析字段的隐藏状态（统一 hidden 模型）
+ * - 声明了 hidden（布尔/表达式）时，布尔值直接取声明值
+ * - 未声明默认 false（可见）
  *
- * @param node - Schema 节点（读取 hidden / display 字段）
- * @returns 解析后的显示状态
+ * 注意：hidden 为表达式时由 collectExpressionReactions 转成 _autoExpr reaction，
+ * 求值后经 applyStatePatch 写入运行时状态，因此静态解析只处理布尔值。
+ *
+ * @param node - Schema 节点（读取 hidden 字段）
+ * @returns 解析后的隐藏状态
  */
-function resolveDisplay(node: {
-  hidden?: unknown;
-  display?: unknown;
-}): 'visible' | 'none' | 'hidden' {
-  if (node.display !== undefined) {
-    if (node.display === 'none' || node.display === 'hidden') {
-      return node.display;
-    }
-    return 'visible';
-  }
-  if (node.hidden === true) {
-    return 'hidden';
-  }
-  return 'visible';
+function resolveHidden(node: { hidden?: unknown }): boolean {
+  return node.hidden === true;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
 // 通用辅助函数（消除重复的布尔解析 / 状态合并 / 规则构建逻辑）
 // ────────────────────────────────────────────────────────────────────────────
-
-/**
- * 将 hidden 布尔值转换为 visible（!hidden），非布尔值默认 true
- *
- * @param node - Schema 节点（读取 hidden 字段）
- * @returns visible 布尔值
- */
-function hiddenToVisible(node: { hidden?: unknown }): boolean {
-  return typeof node.hidden === 'boolean' ? !node.hidden : true;
-}
 
 /**
  * 将值解析为布尔值，非布尔值返回 defaultValue
@@ -226,7 +207,7 @@ function resolveWidget(
 }
 
 interface InheritedState {
-  visible: boolean;
+  hidden: boolean;
   disabled: boolean;
   readOnly: boolean;
 }
@@ -236,21 +217,21 @@ interface InheritedState {
  *
  * @param node - Schema 节点（读取 hidden/disabled/readOnly 字段）
  * @param parentObjectState - 父级数据对象容器的继承状态（可选）
- * @returns `{ visible, disabled, readOnly }` 合并后的状态对象
+ * @returns `{ hidden, disabled, readOnly }` 合并后的状态对象
  */
 function resolveInheritedState(
   node: { hidden?: unknown; disabled?: unknown; readOnly?: unknown },
   parentObjectState?: {
-    visible?: boolean;
+    hidden?: boolean;
     disabled?: boolean;
     readOnly?: boolean;
   },
 ): InheritedState {
   return {
-    visible:
-      parentObjectState?.visible !== undefined
-        ? parentObjectState.visible
-        : hiddenToVisible(node),
+    hidden:
+      parentObjectState?.hidden !== undefined
+        ? parentObjectState.hidden
+        : resolveHidden(node),
     disabled:
       parentObjectState?.disabled !== undefined
         ? parentObjectState.disabled
@@ -260,20 +241,6 @@ function resolveInheritedState(
         ? parentObjectState.readOnly
         : boolOrDefault(node.readOnly, false),
   };
-}
-
-/**
- * 同时解析 visible 与 display（缓存 resolveDisplay 调用，避免重复计算）
- * - display: 'hidden' → visible: false
- * - display: 'none' / 'visible' → visible 由 hidden 取反
- */
-function resolveVisibleDisplay(node: { hidden?: unknown; display?: unknown }): {
-  visible: boolean;
-  display: 'visible' | 'none' | 'hidden';
-} {
-  const display = resolveDisplay(node);
-  const visible = display === 'hidden' ? false : hiddenToVisible(node);
-  return { visible, display };
 }
 
 /**
@@ -578,7 +545,7 @@ function walkProperties(
   renderTree: RenderTreeNode[],
   initialValues?: Record<string, unknown>,
   parentObjectState?: {
-    visible?: boolean;
+    hidden?: boolean;
     disabled?: boolean;
     readOnly?: boolean;
   },
@@ -720,7 +687,7 @@ export function extractDepsFromExpression(expr: string): string[] {
  * 5. 添加新的 reaction
  *
  * 自动转换覆盖两类（判定顺序不可颠倒）：
- * - 状态字段（required/disabled/readOnly/hidden/display）
+ * - 状态字段（required/disabled/readOnly/hidden）
  * - 选项字段（enum/enumNames）
  * - 文本/元数据字段（placeholder/title/description/extra/tooltip）
  * - props.*（如 `props: { options: "{{ formData.xxx }}" }`）
@@ -734,7 +701,6 @@ export function collectExpressionReactions(node: {
   disabled?: unknown;
   readOnly?: unknown;
   hidden?: unknown;
-  display?: unknown;
   enum?: unknown;
   enumNames?: unknown;
   placeholder?: string;
@@ -1159,7 +1125,7 @@ function processDataField(
   renderTree: RenderTreeNode[],
   initialValues?: Record<string, unknown>,
   parentObjectState?: {
-    visible?: boolean;
+    hidden?: boolean;
     disabled?: boolean;
     readOnly?: boolean;
   },
@@ -1207,17 +1173,14 @@ function processDataField(
   const reactions = collectAndMergeReactions(node, widgetMeta);
 
   // 合并父对象状态（父对象状态优先级更高）
-  const { visible, disabled, readOnly } = resolveInheritedState(
+  const { hidden, disabled, readOnly } = resolveInheritedState(
     node,
     parentObjectState,
   );
-  // 分支字段：visible 统一由分支容器解析收尾时的「成员关系可见性」翻转
-  // （activate 分支成员 visible，其余隐藏）。此处仅存基础可见性（不含分支判定），
-  // 避免跨分支同名键被非活动分支的解析覆盖成隐藏。
-  const branchVisible = visible;
-  // display 三态：'hidden' 隐含不可见（不收集）；'none' 仍可见可收集（仅不渲染）
-  const { display } = resolveVisibleDisplay(node);
-  const effectiveVisible = display === 'hidden' ? false : branchVisible;
+  // 分支字段：hidden 统一由分支容器解析收尾时的「成员关系可见性」翻转
+  // （activate 分支成员 hidden=false，其余分支成员 hidden=true）。此处仅存基础
+  // 隐藏状态（不含分支判定），避免跨分支同名键被非活动分支的解析覆盖成隐藏。
+  const branchHidden = hidden;
 
   const state: FieldState = {
     path: dataPath,
@@ -1225,8 +1188,7 @@ function processDataField(
     initialValue,
     touched: false,
     dirty: false,
-    visible: effectiveVisible,
-    display,
+    hidden: branchHidden,
     disabled,
     readOnly,
     required: boolOrDefault(node.required, false),
@@ -1286,7 +1248,7 @@ function processDataObject(
 
   // 获取对象级别状态（从显式配置或默认值）
   // 优先使用显式配置的布尔值，表达式会通过 reactions 动态处理
-  const visible = hiddenToVisible(node);
+  const hidden = resolveHidden(node);
   const disabled = boolOrDefault(node.disabled, false);
   const readOnly = boolOrDefault(node.readOnly, false);
 
@@ -1329,18 +1291,16 @@ function processDataObject(
   // （对象容器自身的 _autoExpr reaction 作用于容器状态，UI 层再下发给子组件）
   collectExpressionReactions(node);
 
-  // 数据对象容器状态：仅承载 UI 状态（visible/disabled/readOnly + reactions），
+  // 数据对象容器状态：仅承载 UI 状态（hidden/disabled/readOnly + reactions），
   // 不持有值（value 恒为 undefined），不参与数据收集（meta.containerOnly 标记）。
   // 其 disabled/readOnly/hidden 由 Renderer 经 context 下发给子树中的字段继承。
-  const { display, visible: displayVisible } = resolveVisibleDisplay(node);
   fieldStates.set(objectPath, {
     path: objectPath,
     value: undefined,
     initialValue: undefined,
     touched: false,
     dirty: false,
-    visible: displayVisible,
-    display,
+    hidden,
     disabled,
     readOnly,
     required: boolOrDefault(node.required, false),
@@ -1363,7 +1323,7 @@ function processDataObject(
     layoutKey: key,
     title: node.title,
     children,
-    visible,
+    hidden,
     disabled,
     readOnly,
   } satisfies RenderObjectNode);
@@ -1394,7 +1354,7 @@ function processDataArray(
   renderTree: RenderTreeNode[],
   initialValues?: Record<string, unknown>,
   parentObjectState?: {
-    visible?: boolean;
+    hidden?: boolean;
     disabled?: boolean;
     readOnly?: boolean;
   },
@@ -1414,16 +1374,14 @@ function processDataArray(
   const reactions = collectAndMergeReactions(node, widgetMeta);
 
   // 合并父对象状态（父对象状态优先级更高）
-  const { visible, disabled, readOnly } = resolveInheritedState(
+  const { hidden, disabled, readOnly } = resolveInheritedState(
     node,
     parentObjectState,
   );
-  // 分支字段：visible 统一由分支容器解析收尾时的「成员关系可见性」翻转
-  // （activate 分支成员 visible，其余隐藏）。此处仅存基础可见性（不含分支判定），
-  // 避免跨分支同名键被非活动分支的解析覆盖成隐藏。
-  const branchVisible = visible;
-
-  const { display } = resolveVisibleDisplay(node);
+  // 分支字段：hidden 统一由分支容器解析收尾时的「成员关系可见性」翻转
+  // （activate 分支成员 hidden=false，其余分支成员 hidden=true）。此处仅存基础
+  // 隐藏状态（不含分支判定），避免跨分支同名键被非活动分支的解析覆盖成隐藏。
+  const branchHidden = hidden;
 
   const state: FieldState = {
     path: arrayPath,
@@ -1431,8 +1389,7 @@ function processDataArray(
     initialValue,
     touched: false,
     dirty: false,
-    visible: display === 'hidden' ? false : branchVisible,
-    display,
+    hidden: branchHidden,
     disabled,
     readOnly,
     required: boolOrDefault(node.required, false),
@@ -1490,7 +1447,7 @@ function processDataArray(
  * @param branchContext - 所在分支上下文
  */
 function processLayoutNode(
-  _key: string, // 布局节点的 key 被丢弃，不进入数据路径
+  key: string, // 布局节点的 key 被丢弃，不进入数据路径（仅合成容器状态路径用）
   node: LayoutNode, // 运行时仅布局容器/面板可达（分支容器已先行路由），BranchSchema 分支为 TS 联合余量
   parentDataPath: string, // ⚡ 直接使用父路径，不拼接当前 key
   fieldStates: Map<string, FieldState>,
@@ -1499,10 +1456,8 @@ function processLayoutNode(
   widgetMetas?: WidgetDescriptors,
   branchContext?: { branchIndex: number; isActive: boolean },
 ): void {
-  const layoutNode = node as LayoutNode & {
+  const layoutNode = node as (LayoutContainerSchema | LayoutPaneSchema) & {
     type: LayoutType;
-    properties: Record<string, SchemaNode>;
-    title?: string;
   };
   const children: RenderTreeNode[] = [];
 
@@ -1517,8 +1472,41 @@ function processLayoutNode(
     branchContext, // 布局节点透传分支上下文（嵌套在分支内的布局字段继续标记）
   );
 
+  // 布局容器的合成状态路径（layout key 不进入数据路径，containerOnly 跳过收集）。
+  // 布局 Key 在路径计算中被丢弃，故合成状态路径扁平仅取布局自身 Key（对齐分支容器约定）。
+  const containerPath = joinPath(parentDataPath, key);
+
+  // required/disabled/readOnly/hidden 为表达式时，自动转 _autoExpr reaction
+  // （作用于布局容器自身的状态，Renderer 层经 dataPath 订阅实时显隐）
+  collectExpressionReactions(layoutNode);
+
+  // 布局容器状态：仅承载 UI 状态（hidden/disabled/readOnly + reactions），
+  // 不持有值（value 恒为 undefined）、不参与数据收集（meta.containerOnly 标记）。
+  fieldStates.set(containerPath, {
+    path: containerPath,
+    value: undefined,
+    initialValue: undefined,
+    touched: false,
+    dirty: false,
+    hidden: resolveHidden(layoutNode),
+    disabled: boolOrDefault(layoutNode.disabled, false),
+    readOnly: boolOrDefault(layoutNode.readOnly, false),
+    required: boolOrDefault(layoutNode.required, false),
+    loading: false,
+    errors: [],
+    props: layoutNode.props || {},
+    reactions: getReactions(layoutNode),
+    meta: buildFieldMeta(layoutNode, {
+      widget: '',
+      rules: [],
+      containerOnly: true,
+      branchOf: branchContext?.branchIndex,
+    }),
+  } satisfies FieldState);
+
   renderTree.push({
     type: layoutNode.type,
+    dataPath: containerPath,
     title: layoutNode.title,
     props: extractLayoutProps(layoutNode as unknown as Record<string, unknown>),
     children,
@@ -1566,9 +1554,9 @@ function extractBranchInfo(
  *
  * 职责：
  * 1. 容器 Key 不进数据路径（布局透明），子字段共享父路径并在 fieldStates 中合并
- * 2. 预解析所有分支的属性字段（非活动分支字段 visible=false，切换时引擎翻转标志，无需重建渲染树）
+ * 2. 预解析所有分支的属性字段（非活动分支字段 hidden=true，切换时引擎翻转标志，无需重建渲染树）
  * 3. 构建「源字段变化 → 重算激活分支」的 _oneOfBranch reaction 边（依赖 branchNode.dependencies）
- * 4. 收集字段 → 分支成员关系（fieldBranches），支撑引擎按分支精确翻转可见性
+ * 4. 收集字段 → 分支成员关系（fieldBranches），支撑引擎按分支精确翻转隐藏状态
  * 5. 生成容器自身 FieldState（meta.oneOf 承载 activeIndex / branches / fieldBranches）
  * 6. 登记渲染树 branch 节点（Renderer 依据 activeIndex 渲染活动分支分组）
  *
@@ -1600,8 +1588,8 @@ function processBranchNode(
     Math.max(branches.length - 1, 0),
   );
 
-  // 预解析所有分支的属性字段（非活动分支字段 visible=false，
-  // 切换分支时引擎统一翻转 visible 标志，无需重建渲染树）。
+  // 预解析所有分支的属性字段（非活动分支字段 hidden=true，
+  // 切换分支时引擎统一翻转 hidden 标志，无需重建渲染树）。
   const branchRenderChildren: RenderTreeNode[][] = branches.map(
     (branch, index) => {
       const children: RenderTreeNode[] = [];
@@ -1691,17 +1679,17 @@ function processBranchNode(
     }
   });
 
-  // 应用分支可见性：活动分支成员 visible，其余分支成员隐藏。
+  // 应用分支可见性：活动分支成员 hidden=false，其余分支成员 hidden=true。
   // 分支语境下被覆盖的共享字段（如非活动分支先写入、活动分支后写入的
   // 同名键）最终以「是否属于活动分支」为准，保证活动分支字段可渲染。
   for (const [path, list] of Object.entries(fieldBranches)) {
     const state = fieldStates.get(path);
     if (state && !list.includes(activeIndexClamped)) {
-      state.visible = false;
+      state.hidden = true;
     }
   }
 
-  // 分支容器状态：仅承载 UI 状态（visible/disabled/readOnly + 分支元数据），
+  // 分支容器状态：仅承载 UI 状态（hidden/disabled/readOnly + 分支元数据），
   // 不持值、不参与数据收集（meta.containerOnly + meta.oneOf）。
   const bnode = branchNode as BranchSchema & {
     title?: string;
@@ -1710,15 +1698,13 @@ function processBranchNode(
     readOnly?: boolean;
     props?: Record<string, unknown>;
   };
-  const { display, visible: bnodeVisible } = resolveVisibleDisplay(bnode);
   fieldStates.set(containerPath, {
     path: containerPath,
     value: undefined,
     initialValue: undefined,
     touched: false,
     dirty: false,
-    visible: bnodeVisible,
-    display,
+    hidden: resolveHidden(bnode),
     disabled: boolOrDefault(bnode.disabled, false),
     readOnly: boolOrDefault(bnode.readOnly, false),
     required: false,
@@ -1911,16 +1897,13 @@ export function createArrayItemState(
   // （$index 等上下文变量依赖各数组项自身路径，解析后天然按项生效）
   const reactions = collectAndMergeReactions(node, widgetMeta);
 
-  const { display, visible } = resolveVisibleDisplay(node);
-
   return {
     path,
     value,
     initialValue: value,
     touched: false,
     dirty: false,
-    visible,
-    display,
+    hidden: resolveHidden(node),
     disabled: boolOrDefault(node.disabled, false),
     readOnly: boolOrDefault(node.readOnly, false),
     required: boolOrDefault(node.required, false),

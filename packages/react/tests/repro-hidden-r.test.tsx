@@ -120,6 +120,54 @@ describe('hidden expression on layout container (renderer)', () => {
     expect(Object.keys(holder.form!.getValues())).toContain('show');
     expect(Object.keys(holder.form!.getValues())).not.toContain('cardArea');
   });
+
+  it('布局容器自身 removeHidden=true 时隐藏完全移除（不含占位符）', () => {
+    const schemaLayout: any = {
+      type: 'object',
+      properties: {
+        flag: { type: 'boolean', widget: 'radio', enum: ['1', '0'] },
+        cardArea: {
+          type: 'card',
+          hidden: "{{formData.flag === '1'}}",
+          removeHidden: true,
+          properties: {
+            name: { type: 'string', widget: 'user' },
+          },
+        },
+      },
+    };
+
+    function LayoutApp() {
+      const [form] = useForm();
+      holder.form = form;
+      return (
+        <NexusForm
+          form={form}
+          schema={schemaLayout}
+          footer={false}
+          widgets={{ radio: StubRadio, user: StubUser }}
+        />
+      );
+    }
+
+    const { getByTestId, container, rerender } = render(<LayoutApp />);
+    const hiddenOf = (path: string) =>
+      container.querySelector(`[data-nexus-hidden="${path}"]`);
+
+    // flag 未选择 → 正常渲染卡片
+    expect(container.querySelector('[data-nexus-layout="card"]')).toBeTruthy();
+
+    // flag = '1' → hidden + removeHidden=true → 完全移除（无占位符、无卡片）
+    act(() => {
+      fireEvent.click(getByTestId('flag-opt-1'));
+    });
+    rerender(<LayoutApp />);
+    expect(container.querySelector('[data-nexus-layout="card"]')).toBeNull();
+    expect(hiddenOf('cardArea')).toBeNull();
+    expect(container.querySelector('[data-nexus-hidden]')).toBeNull();
+    // 容器完全移除 → 子字段也不再渲染
+    expect(container.querySelector('[data-testid="user-name"]')).toBeNull();
+  });
 });
 
 describe('hidden expression renderer repro', () => {

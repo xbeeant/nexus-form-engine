@@ -243,7 +243,7 @@ describe('Engine.getDependencies', () => {
           reactions: [
             {
               dependencies: ['fieldB'],
-              fulfill: { state: { visible: true } },
+              fulfill: { state: { hidden: false } },
             } as Reaction,
           ],
         },

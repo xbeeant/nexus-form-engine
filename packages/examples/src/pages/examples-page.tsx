@@ -129,7 +129,7 @@ export default function ExamplesPage() {
             ]}
           />
           <Typography.Text type='secondary' style={{ fontSize: 12 }}>
-            「促销配置」卡片演示 visible/required
+            「促销配置」卡片演示 hidden/required
             联动（勾选秒杀/优惠券显示对应字段） 与计算字段（售价 × 折扣 =
             折后价）
           </Typography.Text>

@@ -21,7 +21,7 @@ import { resolveGridSpan } from '../utils/resolve-grid-span';
 export function NexusObject({ node }: NexusNodeProps<RenderObjectNode>) {
   const { engine, config } = useNexusContext();
   const parentInherit = useContext(FieldInheritContext);
-  // 按路径精准订阅：自身 disabled/readOnly/visible 变化时重渲染并下发新上下文
+  // 按路径精准订阅：自身 disabled/readOnly/hidden 变化时重渲染并下发新上下文
   useSyncExternalStore(
     (onStoreChange) => engine.subscribeField(node.dataPath, onStoreChange),
     () => engine.getFieldVersion(node.dataPath),
@@ -59,12 +59,12 @@ export function NexusObject({ node }: NexusNodeProps<RenderObjectNode>) {
       parentInherit.disabled ?? (state?.disabled === true ? true : undefined),
     readOnly:
       parentInherit.readOnly ?? (state?.readOnly === true ? true : undefined),
-    visible:
-      parentInherit.visible === false || state?.visible === false
-        ? false
+    hidden:
+      parentInherit.hidden === true || state?.hidden === true
+        ? true
         : undefined,
   };
-  const hidden = inherit.visible === false;
+  const hidden = inherit.hidden === true;
 
   const toggleCollapsed = () => setCollapsed((prev) => !prev);
 

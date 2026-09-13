@@ -71,7 +71,7 @@ describe('DependencyGraph', () => {
               {
                 dependencies: ['username'],
                 fulfill: {
-                  state: { visible: true },
+                  state: { hidden: false },
                 },
               } as Reaction,
             ],
@@ -103,7 +103,7 @@ describe('DependencyGraph', () => {
             reactions: [
               {
                 dependencies: ['fieldB', 'fieldC'],
-                fulfill: { state: { visible: true } },
+                fulfill: { state: { hidden: false } },
               } as Reaction,
             ],
           },
@@ -185,7 +185,7 @@ describe('DependencyGraph', () => {
             reactions: [
               {
                 dependencies: ['fieldA'],
-                fulfill: { state: { visible: true } },
+                fulfill: { state: { hidden: false } },
               } as Reaction,
             ],
           },

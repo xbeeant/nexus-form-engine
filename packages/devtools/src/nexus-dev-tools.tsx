@@ -1,7 +1,7 @@
 // ============================================================================
 // NexusDevTools — 表单引擎调试面板
 // 三个 Tab：
-//  1. 字段状态：全量字段的 value/errors/visible/required/version 一览
+//  1. 字段状态：全量字段的 value/errors/hidden/required/version 一览
 //  2. 依赖关系：依赖源（getDependencies）与依赖方（getDependents）可视化
 //  3. 事件时间线：DevToolsEventPlugin 采集的引擎生命周期事件
 // 数据均来自 engine 公开 API（subscribeStore 订阅刷新），不侵入 Core 行为。
@@ -124,7 +124,7 @@ function FieldStateTable({
                 title={state.errors.join('；')}
               />
             )}
-            {!state.visible && (
+            {state.hidden && (
               <Tag color='default' style={{ fontSize: 11 }}>
                 hidden
               </Tag>

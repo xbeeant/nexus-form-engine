@@ -139,7 +139,7 @@ describe('NexusForm', () => {
     expect(container.querySelectorAll('input')).toHaveLength(1);
   });
 
-  it("display:'none' → 不渲染任何节点（无占位符），但值仍在 formData", () => {
+  it('hidden 字段渲染占位符且值进入 getHiddenValues（不污染 formData）', () => {
     const { container } = render(
       <TestForm
         schema={{
@@ -150,26 +150,23 @@ describe('NexusForm', () => {
               type: 'string',
               widget: 'input',
               default: 'kept',
-              display: 'none',
-            },
-            hidden: {
-              type: 'string',
-              widget: 'input',
-              default: 'removed',
-              display: 'hidden',
+              hidden: true,
             },
           },
         }}
       />,
     );
-    // 'none' 与 'hidden' 都不渲染输入框
+    // 隐藏字段渲染占位符，不渲染输入框
+    expect(
+      container.querySelector('[data-nexus-hidden="ghost"]'),
+    ).not.toBeNull();
     expect(container.querySelectorAll('input')).toHaveLength(1);
-    // 'none' 不输出任何节点（连占位符都没有）
-    expect(container.querySelector('[data-nexus-hidden="ghost"]')).toBeNull();
-    // 值语义：'none' 收集，'hidden' 不收集
+    // 值语义：hidden 字段不参与 formData 收集
     const data = holder.form!._getEngine().getFormData();
-    expect(data.ghost).toBe('kept');
-    expect(data.hidden).toBeUndefined();
+    expect(data.ghost).toBeUndefined();
+    expect(data.name).toBe('a');
+    // 值进入 hidden 值区
+    expect(holder.form!._getEngine().getHiddenValues().ghost).toBe('kept');
   });
 
   it('布局节点 removeHidden=true 时隐藏字段完全移除（含占位符）', () => {

@@ -611,7 +611,7 @@ export class NexusEngine implements IFormEngine {
           continue;
         }
         // 只收集可见字段（隐藏字段由 getHiddenValues 处理）
-        if (!state.visible) {
+        if (state.hidden) {
           continue;
         }
         // 祖先对象容器隐藏 → 整个子树视为隐藏
@@ -638,7 +638,7 @@ export class NexusEngine implements IFormEngine {
       if (state.meta.itemOf || state.meta.containerOnly) {
         continue;
       }
-      if (!state.visible) {
+      if (state.hidden) {
         continue;
       }
       if (this.isContainerHidden(path)) {
@@ -709,7 +709,7 @@ export class NexusEngine implements IFormEngine {
   /**
    * 判断字段是否存在隐藏的对象容器祖先
    *
-   * 数据对象容器隐藏（visible: false）时，其整棵子树视为隐藏，
+   * 数据对象容器隐藏（hidden: true）时，其整棵子树视为隐藏，
    * 子字段不参与 getFormData 收集、并入 getHiddenValues。
    *
    * @param path - 字段路径（如 "user.name"）
@@ -720,7 +720,7 @@ export class NexusEngine implements IFormEngine {
     for (let i = segments.length - 1; i >= 1; i--) {
       const ancestor = segments.slice(0, i).join('.');
       const state = this._inst().fieldStates.get(ancestor);
-      if (state?.meta.containerOnly && !state.visible) {
+      if (state?.meta.containerOnly && state.hidden) {
         return true;
       }
     }
@@ -755,7 +755,7 @@ export class NexusEngine implements IFormEngine {
    *
    * 可更新的属性：
    * - value: 字段值
-   * - visible: 可见性
+   * - hidden: 隐藏状态
    * - disabled: 禁用状态
    * - required: 必填状态（同时同步校验规则）
    * - loading: 加载状态
@@ -787,13 +787,10 @@ export class NexusEngine implements IFormEngine {
         this.syncArrayItemStates(path);
       }
     }
-    if (patch.visible !== undefined) {
-      state.visible = patch.visible;
-    }
-    if (patch.display !== undefined) {
-      state.display = patch.display;
-      // 'hidden' → 不参与数据收集（visible=false）；'none'/'visible' → 参与
-      state.visible = state.display !== 'hidden';
+    if (patch.hidden !== undefined) {
+      state.hidden = patch.hidden;
+      // 隐藏 → 不参与数据收集（getFormData 跳过）；显示 → 参与
+      this.markFormDataDirty();
     }
     if (patch.disabled !== undefined) {
       state.disabled = patch.disabled;
@@ -875,7 +872,7 @@ export class NexusEngine implements IFormEngine {
     state: FieldState,
     trigger: ValidationTrigger = 'change',
   ): void {
-    if (!state.visible) {
+    if (state.hidden) {
       return;
     }
 
@@ -1227,7 +1224,7 @@ export class NexusEngine implements IFormEngine {
 
     for (const path of targetPaths) {
       const state = this._inst().fieldStates.get(path);
-      if (!state?.visible) {
+      if (!state || state.hidden) {
         continue;
       }
 
@@ -1369,7 +1366,7 @@ export class NexusEngine implements IFormEngine {
     for (const [, state] of this._inst().fieldStates) {
       state.value = state.initialValue;
       state.errors = [];
-      state.visible = true;
+      state.hidden = false;
       state.disabled = false;
       state.loading = false;
       state.props = {};
@@ -1436,7 +1433,7 @@ export class NexusEngine implements IFormEngine {
         continue;
       }
       // 自身隐藏或祖先对象容器隐藏 → 均视为隐藏字段
-      if (!state.visible || this.isContainerHidden(path)) {
+      if (state.hidden || this.isContainerHidden(path)) {
         this.applyBindToData(data, path, state);
       }
     }
@@ -2172,7 +2169,7 @@ export class NexusEngine implements IFormEngine {
    * 用于运行时重建的字段（如数组项子字段 syncArrayItemStates 重建 items[0].name 等）：
    * 这些字段在解析期 buildDependencyGraph 时已建立静态依赖边，但重建 state 节点后
    * 未经过 runAllReactions（其依赖源当前值可能已初始化）。立即执行一次确保 schema 中
-   * `{{ }}` 表达式求值结果（placeholder/props/enum/visible 等）在创建当下即写入 state，
+   * `{{ }}` 表达式求值结果（placeholder/props/enum/hidden 等）在创建当下即写入 state，
    * 表达式字符串永不直达 UI 层。
    *
    * @param paths - 新创建字段的路径列表
@@ -2371,7 +2368,7 @@ export class NexusEngine implements IFormEngine {
    * 1. 依据源字段值重新判定激活分支索引
    *    - anyOf 语义（配置 conditions）：逐条求值，首个满足条件的分支激活
    *    - oneOf 语义（无 conditions）：默认沿用当前 activeIndex（由调用方显式 setOneOfActiveIndex 切换）
-   * 2. 翻转各分支字段的 visible（旧分支隐藏，新分支显示）
+   * 2. 翻转各分支字段的 hidden（旧分支隐藏，新分支显示）
    * 3. 清除仅在旧分支存在、新分支不存在的字段值（对齐 BranchSchema 数据对齐语义）
    * 4. 标记 formData 缓存失效 + bump + 通知订阅方
    *
@@ -2464,17 +2461,17 @@ export class NexusEngine implements IFormEngine {
   }
 
   /**
-   * 依据目标激活索引翻转分支字段可见性并清理失效值
+   * 依据目标激活索引翻转分支字段隐藏状态并清理失效值
    *
    * 依赖 meta.oneOf.fieldBranches（字段数据路径 → 包含它的分支索引列表，
-   * 静态构建于解析期）精确判定每个字段的可见性成员关系，避免
+   * 静态构建于解析期）精确判定每个字段的隐藏成员关系，避免
    * 跨分支同名键在 fieldStates 中合并（各分支共享父路径）导致的误判：
-   * - 字段包含于活动分支 → visible = true
-   * - 字段不包含于活动分支 → visible = false
+   * - 字段包含于活动分支 → hidden = false
+   * - 字段不包含于活动分支 → hidden = true
    * - 字段含旧分支但含新分支 → 共享字段，保留值
    * - 字段仅含旧分支 → 离开分支，清除值（还原初始值）
    *
-   * 同时更新容器 meta.oneOf.activeIndex 与容器自身可见性（父级联动）并通知。
+   * 同时更新容器 meta.oneOf.activeIndex 与容器自身隐藏状态（父级联动）并通知。
    *
    * @param containerPath - 分支容器路径
    * @param targetIndex - 目标激活分支索引
@@ -2512,17 +2509,17 @@ export class NexusEngine implements IFormEngine {
       }
     }
 
-    // 翻转可见性：进入新分支的字段显示，离开的隐藏
+    // 翻转隐藏状态：进入新分支的字段显示（hidden=false），离开的隐藏（hidden=true）
     for (const path of enteredFields) {
       const state = this._inst().fieldStates.get(path);
       if (state) {
-        state.visible = true;
+        state.hidden = false;
       }
     }
     for (const path of leavingFields) {
       const state = this._inst().fieldStates.get(path);
       if (state) {
-        state.visible = false;
+        state.hidden = true;
         // 离开分支的叶子数据字段清除值（还原初始值）
         if (!state.meta.itemOf && !state.meta.containerOnly) {
           state.value = state.initialValue;
@@ -2532,7 +2529,7 @@ export class NexusEngine implements IFormEngine {
       }
     }
 
-    // 通知受影响字段（可见性/值变化的订阅方）
+    // 通知受影响字段（隐藏/值变化的订阅方）
     for (const path of enteredFields) {
       this.notifyField(path);
     }
@@ -2540,11 +2537,11 @@ export class NexusEngine implements IFormEngine {
       this.notifyField(path);
     }
 
-    // 更新容器 activeIndex + 可见性 + 缓存失效 + bump + 通知
+    // 更新容器 activeIndex + 隐藏状态 + 缓存失效 + bump + 通知
     if (oneOfMeta.activeIndex !== clamped) {
       oneOfMeta.activeIndex = clamped;
     }
-    container.visible = true;
+    container.hidden = false;
     this.markFormDataDirty();
     this.bumpStore();
     this.notifyField(containerPath);
@@ -2863,24 +2860,9 @@ export class NexusEngine implements IFormEngine {
     if (patch.disabled !== undefined) {
       state.disabled = toBoolean(this.resolveValue(patch.disabled, context));
     }
-    // 处理可见性（visible 优先于 hidden）
-    if (patch.visible !== undefined) {
-      state.visible = toBoolean(this.resolveValue(patch.visible, context));
-      this.markFormDataDirty();
-    }
+    // 处理隐藏状态
     if (patch.hidden !== undefined) {
-      const hidden = toBoolean(this.resolveValue(patch.hidden, context));
-      state.visible = !hidden;
-      this.markFormDataDirty();
-    }
-    // 处理显示状态（formily display 三态，优先于 visible/hidden）
-    if (patch.display !== undefined) {
-      state.display = this.resolveValue(
-        patch.display,
-        context,
-      ) as FieldState['display'];
-      // 'hidden' → 不参与数据收集（visible=false）；'none'/'visible' → 参与
-      state.visible = state.display !== 'hidden';
+      state.hidden = toBoolean(this.resolveValue(patch.hidden, context));
       this.markFormDataDirty();
     }
 
@@ -2961,6 +2943,7 @@ export class NexusEngine implements IFormEngine {
    * Schema 补丁是「点路径 → 表达式/值」映射，运行时动态覆盖目标字段的
    * 状态与 props（不持久化回 Schema 定义）：
    * - visible / hidden / disabled / readOnly / required / loading：字段状态
+   *   （visible 兼容映射：visible=false 等价 hidden=true）
    * - title / description：字段元数据
    * - props.xxx：组件属性（支持多级，如 props.options）
    * - 其他顶层键：写入 props，避免 schema 结构漂移
@@ -2998,10 +2981,11 @@ export class NexusEngine implements IFormEngine {
 
       switch (head) {
         case 'visible':
-          state.visible = toBoolean(resolved);
+          // 兼容映射：visible=false 等价 hidden=true
+          state.hidden = !toBoolean(resolved);
           break;
         case 'hidden':
-          state.visible = !toBoolean(resolved);
+          state.hidden = toBoolean(resolved);
           break;
         case 'disabled':
           state.disabled = toBoolean(resolved);
@@ -3146,7 +3130,7 @@ export class NexusEngine implements IFormEngine {
     }
 
     // 重建后的项子字段立即执行初始 reactions：schema 中 {{ }} 表达式
-    // （placeholder/props/enum/visible 等）在创建当下即求值写回 state，
+    // （placeholder/props/enum/hidden 等）在创建当下即求值写回 state,
     // 保证表达式字符串不会作为落伍值残留在 widget 接收路径上
     this.runInitialReactionsForPaths(createdPaths);
 

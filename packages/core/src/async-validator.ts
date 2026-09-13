@@ -208,7 +208,7 @@ export class AsyncValidatorPlugin implements NexusPlugin {
     const timer = setTimeout(async () => {
       this.timers.delete(path);
       const latest = engine.getFieldState(path);
-      if (!latest?.visible) {
+      if (!latest || latest.hidden) {
         return;
       }
 

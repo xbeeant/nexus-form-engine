@@ -51,7 +51,7 @@ export const customWidgetCatalog: CatalogItem[] = [
 //   autoComplete/multiSelect/checkboxes/mentions/segmented/transfer/image/file/
 //   html/list/simpleList/tableList
 // - layout：card/grid/tabs/collapse/steps/flex/divider/space/void
-// - 特性：数据对象、reactions 联动（visible/required + 计算字段）、字段级校验
+// - 特性：数据对象、reactions 联动（hidden/required + 计算字段）、字段级校验
 //   （min/max/pattern）、hidden、readOnly、removeHiddenData
 // ============================================================================
 
@@ -632,7 +632,7 @@ export const demoSchema: NexusSchema = {
     promo: {
       widget: '',
       type: 'card',
-      title: '促销配置（visible / required / 计算字段）',
+      title: '促销配置（hidden / required / 计算字段）',
       properties: {
         useFlashSale: {
           type: 'boolean',

@@ -169,7 +169,7 @@ export interface ReactionFnContext {
   getValue: (path: string) => unknown;
   /** 设置任意字段值（含实时重校验与沿依赖图传播） */
   setValue: (path: string, value: unknown) => void;
-  /** 设置任意字段状态补丁（visible/disabled/required/value 等） */
+  /** 设置任意字段状态补丁（hidden/disabled/required/value 等） */
   setState: (path: string, patch: FieldStatePatch) => void;
   /** 底层引擎实例（高级操作，如 reloadRemoteData / validate） */
   form: ReadonlyFormEngine & {
@@ -243,14 +243,13 @@ export interface ReactionStatePatch {
    * 赋值后会触发该字段重校验并沿依赖图继续传播
    */
   value?: ExpressionOr<unknown>;
-  visible?: ExpressionOr<boolean>;
-  hidden?: ExpressionOr<boolean>;
   /**
-   * 显示状态（formily `display` 三态对齐）
-   * - 'none'：不渲染但仍收集提交（值保留）
-   * - 'hidden'：不渲染且不收集（等同 hidden:true）
+   * 隐藏状态（统一 hidden 模型）
+   * - false（默认）：正常渲染，参与数据收集与校验
+   * - true：不渲染，且不参与数据收集与校验（隐藏字段由 getHiddenValues 收集）
+   * 支持布尔值与表达式（如 `hidden: "{{ formData.x === 'y' }}"`）
    */
-  display?: ExpressionOr<'visible' | 'none' | 'hidden'>;
+  hidden?: ExpressionOr<boolean>;
   disabled?: ExpressionOr<boolean>;
   readOnly?: ExpressionOr<boolean>;
   required?: ExpressionOr<boolean>;
@@ -313,7 +312,7 @@ export interface Reaction {
    *   run: ({ state, deps, setState, setValue }) => {
    *     const type = deps[0];
    *     setState('remark', {
-   *       visible: type === 'other',
+   *       hidden: type !== 'other',
    *       required: type === 'other',
    *     });
    *   },
@@ -534,15 +533,13 @@ export interface BaseSchemaNode {
   disabled?: ExpressionOr<boolean>;
   /** 只读，支持布尔值或表达式 */
   readOnly?: ExpressionOr<boolean>;
-  /** 隐藏，支持布尔值或表达式 */
-  hidden?: ExpressionOr<boolean>;
   /**
-   * 显示状态（formily `display` 三态对齐）
-   * - 'none'：不渲染（无占位符），但仍参与数据收集与提交（值保留）
-   * - 'hidden'：不渲染且不参与数据收集（等同 hidden: true）
-   * 可声明为表达式（{{ }}）或经 reactions `fulfill.state.display` 联动
+   * 隐藏，支持布尔值或表达式
+   * - false（默认）：正常渲染，参与数据收集与校验
+   * - true：不渲染，且不参与数据收集与校验（隐藏字段由 getHiddenValues 收集）
+   * 可声明为表达式（{{ }}，Parser 自动转 _autoExpr reaction）或经 reactions `fulfill.state.hidden` 联动
    */
-  display?: ExpressionOr<'visible' | 'none' | 'hidden'>;
+  hidden?: ExpressionOr<boolean>;
   /**
    * 字段在整个表单 24 栅格中的宽度占比（百分比字符串如 '50%'，或 0~1 数值比例）。
    * 表单顶层为统一 24 栅格容器，字段按占比换算 `gridColumn: span` 跨度，
@@ -644,8 +641,14 @@ export type DataNode = DataFieldSchema | DataObjectSchema | DataArraySchema;
 /**
  * 布局基础属性
  * 所有布局节点的公共属性
+ *
+ * 继承 BaseSchemaNode，使布局容器/面板可携带通用状态与联动字段：
+ * `hidden / disabled / readOnly / required / reactions / dependencies / title /
+ * description / className / style / default` 等（§2.4 联动协议对布局节点同样生效，
+ * Parser 会将布局节点的 hidden 表达式自动转 _autoExpr reaction，渲染层经
+ * RenderLayoutNode.dataPath 订阅容器自身状态实时显隐）。
  */
-export interface LayoutBaseProps {
+export interface LayoutBaseProps extends BaseSchemaNode {
   /**
    * 组件类型，用于渲染该布局
    * 可选：省略时 Parser 按 type 推断布局容器类型
@@ -777,7 +780,7 @@ export interface BranchSchema {
 /**
  * 条件分支容器的运行时元数据（挂在 FieldState.meta 上）
  *
- * 除标准 UI 状态（visible/disabled/readOnly/loading）外，分支容器额外维护：
+ * 除标准 UI 状态（hidden/disabled/readOnly/loading）外，分支容器额外维护：
  * - 当前激活分支索引（meta.oneOf.activeIndex）
  * - 分支定义（meta.oneOf.branches）
  * - 字段→所属分支成员关系（meta.oneOf.fieldBranches）
@@ -793,7 +796,7 @@ export interface OneOfMeta {
    * 分支容器布局透明（Key 不进路径），各分支字段共享同一父路径，
    * 因此跨分支同名键会在 fieldStates 中合并为同一字段。该表记录每个字段
    * 出现在哪些分支，供引擎切换分支时判定：
-   * - visible = 活动分支是否包含该字段
+   * - hidden = 活动分支是否包含该字段（false 显示，true 隐藏）
    * - 若字段同时属于旧分支与新分支（membership 含两者）→ 共享字段，保留值
    * - 若字段仅属旧分支 → 离开分支，清除值
    */
@@ -941,15 +944,8 @@ export interface FieldState {
    * reset() 后归零
    */
   dirty: boolean;
-  /** 是否可见 */
-  visible: boolean;
-  /**
-   * 显示状态（formily `display` 三态对齐）
-   * - 'visible'（默认）：正常渲染，参与数据收集
-   * - 'none'：不渲染（连占位符都不输出），但**仍参与数据收集与校验**（值保留在 formData）
-   * - 'hidden'：不渲染，**不参与数据收集**（从 formData 移除，等价位与 visible=false）
-   */
-  display: 'visible' | 'none' | 'hidden';
+  /** 是否隐藏（统一 hidden 模型） */
+  hidden: boolean;
   /** 是否禁用 */
   disabled: boolean;
   /** 是否只读 */
@@ -1004,7 +1000,7 @@ export interface FieldState {
      */
     itemOf?: string;
     /**
-     * 数据对象容器标记：仅有 UI 状态（visible/disabled/readOnly + reactions），
+     * 数据对象容器标记：仅有 UI 状态（hidden/disabled/readOnly + reactions），
      * 无值（value 恒为 undefined），不参与任何数据收集。
      * 其禁用/只读/隐藏状态由 Renderer 层经 context 下发给子组件。
      */
@@ -1026,8 +1022,8 @@ export interface FieldState {
     /**
      * 所属条件分支的索引（oneOf/anyOf 分支的属性字段携带）
      * 存在时该字段是某分支的属性字段：
-     * - 分支容器切换时引擎据此设置各分支字段的 visible 标志
-     * - 非活动分支字段 visible=false，不参与数据收集与校验
+     * - 分支容器切换时引擎据此设置各分支字段的 hidden 标志
+     * - 非活动分支字段 hidden=true，不参与数据收集与校验
      */
     branchOf?: number;
 
@@ -1087,8 +1083,8 @@ export interface RenderObjectNode {
   title?: string;
   /** 子节点列表 */
   children: RenderTreeNode[];
-  /** 是否可见 */
-  visible?: boolean;
+  /** 是否隐藏 */
+  hidden?: boolean;
   /** 是否禁用 */
   disabled?: boolean;
   /** 是否只读 */
@@ -1102,6 +1098,12 @@ export interface RenderObjectNode {
 export interface RenderLayoutNode {
   /** 布局类型 */
   type: LayoutType;
+  /**
+   * 布局容器的合成状态路径（meta.containerOnly FieldState 所在路径，订阅用）。
+   * 布局 Key 不进入数据路径，此处仅用于持有/订阅容器 UI 状态（hidden 等）。
+   * 注：布局 Key 在路径计算中被丢弃，嵌套布局的合成状态路径保持扁平（仅取布局自身 Key）。
+   */
+  dataPath: string;
   /** 布局标题 */
   title?: string;
   /** 布局属性（继承自 LayoutBaseProps） */
@@ -1120,11 +1122,11 @@ export interface RenderLayoutNode {
 /**
  * 渲染树节点 - 条件分支容器（oneOf / anyOf）
  *
- * 分支容器本身承载 UI 状态（visible/disabled/readOnly + activeIndex，存于容器 FieldState），
- * `branches` 按分支索引分组保存各分支的渲染子节点 —— 所有分支的字段都已在 Parser
- * 阶段预解析进 fieldStates（非活动分支字段 visible=false），因此：
- * - 切换分支只更新容器 FieldState.activeIndex + 各分支字段的 visible 标志，
- *   不会触发渲染树重建（Rendere 据此 O(1) 重渲染活动分支）。
+* 分支容器本身承载 UI 状态（hidden/disabled/readOnly + activeIndex，存于容器 FieldState），
+   * `branches` 按分支索引分组保存各分支的渲染子节点 —— 所有分支的字段都已在 Parser
+   * 阶段预解析进 fieldStates（非活动分支字段 hidden=true），因此：
+   * - 切换分支只更新容器 FieldState.activeIndex + 各分支字段的 hidden 标志，
+   *   不会触发渲染树重建（Rendere 据此 O(1) 重渲染活动分支）。
  * - 容器 Key 不进入数据路径（布局透明），仅活动分支的字段收集数据。
  */
 export interface RenderBranchNode {

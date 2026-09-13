@@ -76,13 +76,13 @@ describe('ExpressionSandbox', () => {
       const ctx = baseCtx({
         $self: {
           value: 'test',
-          visible: true,
+          hidden: false,
           disabled: false,
         } as unknown as FieldState,
       });
 
       expect(sandbox.evaluate('$self.value', ctx)).toBe('test');
-      expect(sandbox.evaluate('$self.visible', ctx)).toBe(true);
+      expect(sandbox.evaluate('$self.hidden', ctx)).toBe(false);
       expect(sandbox.evaluate('$self.disabled', ctx)).toBe(false);
     });
 
