@@ -64,8 +64,10 @@ describe('同一 form 挂载多个 schema（聚合操作）', () => {
     expect(nameInput).not.toBeNull();
     expect(cityInput).not.toBeNull();
 
-    fireEvent.change(nameInput, { target: { value: '张三' } });
-    fireEvent.change(cityInput, { target: { value: '北京' } });
+    await act(async () => {
+      fireEvent.change(nameInput, { target: { value: '张三' } });
+      fireEvent.change(cityInput, { target: { value: '北京' } });
+    });
 
     // 各实例数据独立，form API 聚合返回
     expect(holder.form!.getValues()).toEqual({ name: '张三', city: '北京' });
@@ -203,13 +205,17 @@ describe('同一 form 挂载多个 schema（聚合操作）', () => {
     const cityInput = container.querySelector(
       'input[data-testid="input-city"]',
     ) as HTMLInputElement;
-    fireEvent.change(cityInput, { target: { value: '北京' } });
+    await act(async () => {
+      fireEvent.change(cityInput, { target: { value: '北京' } });
+    });
     expect(watchA).not.toHaveBeenCalled();
 
     const nameInput = container.querySelector(
       'input[data-testid="input-name"]',
     ) as HTMLInputElement;
-    fireEvent.change(nameInput, { target: { value: '张三' } });
+    await act(async () => {
+      fireEvent.change(nameInput, { target: { value: '张三' } });
+    });
     expect(watchA).toHaveBeenCalledWith('张三', expect.any(Object));
   });
 
@@ -277,8 +283,10 @@ describe('同一 form 挂载多个 schema（聚合操作）', () => {
     const { container } = render(<Multi />);
 
     // A 必填未填：提交被阻止，A 的 onFinish 不触发，B 也不触发
-    fireEvent.submit(container.querySelectorAll('form')[0]);
-    await act(() => new Promise((r) => setTimeout(r, 50)));
+    await act(async () => {
+      fireEvent.submit(container.querySelectorAll('form')[0]);
+    });
+    await new Promise((r) => setTimeout(r, 50));
     expect(onFinishFailedA).toHaveBeenCalled();
     expect(onFinishA).not.toHaveBeenCalled();
     expect(onFinishB).not.toHaveBeenCalled();
@@ -287,11 +295,13 @@ describe('同一 form 挂载多个 schema（聚合操作）', () => {
     const nameInput = container.querySelector(
       'input[data-testid="input-name"]',
     ) as HTMLInputElement;
-    act(() => {
+    await act(async () => {
       fireEvent.change(nameInput, { target: { value: '张三' } });
     });
-    fireEvent.submit(container.querySelectorAll('form')[0]);
-    await act(() => new Promise((r) => setTimeout(r, 50)));
+    await act(async () => {
+      fireEvent.submit(container.querySelectorAll('form')[0]);
+    });
+    await new Promise((r) => setTimeout(r, 50));
     expect(onFinishA).toHaveBeenCalledWith({ name: '张三' });
     expect(onFinishB).toHaveBeenCalledWith({ city: '' });
   });
@@ -327,10 +337,10 @@ describe('同一 form 挂载多个 schema（聚合操作）', () => {
         value === 'bad' ? ['城市不合法'] : [],
       );
     });
-    act(() => {
+    await act(async () => {
       fireEvent.change(cityInput, { target: { value: 'bad' } });
     });
-    await act(() => new Promise((r) => setTimeout(r, 50)));
+    await new Promise((r) => setTimeout(r, 50));
     expect(holder.form!.getFieldError('city')).toContain('城市不合法');
     // name 无该校验器
     expect(holder.form!.getFieldError('name')).toEqual([]);
@@ -370,8 +380,10 @@ describe('不同 form = 不同引擎宿主（完全独立）', () => {
     ) as HTMLInputElement;
     expect(holder.form!.getEngine()).not.toBe(holder.formB!.getEngine());
 
-    fireEvent.change(nameInput, { target: { value: '张三' } });
-    fireEvent.change(cityInput, { target: { value: '北京' } });
+    await act(async () => {
+      fireEvent.change(nameInput, { target: { value: '张三' } });
+      fireEvent.change(cityInput, { target: { value: '北京' } });
+    });
 
     expect(holder.form!.getValues()).toEqual({ name: '张三' });
     expect(holder.formB!.getValues()).toEqual({ city: '北京' });
@@ -459,8 +471,10 @@ describe('引擎宿主与 form 解耦', () => {
     const cityInput = container.querySelector(
       'input[data-testid="input-city"]',
     ) as HTMLInputElement;
-    fireEvent.change(nameInput, { target: { value: '张三' } });
-    fireEvent.change(cityInput, { target: { value: '北京' } });
+    await act(async () => {
+      fireEvent.change(nameInput, { target: { value: '张三' } });
+      fireEvent.change(cityInput, { target: { value: '北京' } });
+    });
 
     // 同一宿主、不同实例：值互不影响
     expect(holder.form!.getValues()).toEqual({ name: '张三' });

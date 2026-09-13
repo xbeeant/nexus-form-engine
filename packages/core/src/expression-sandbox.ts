@@ -7,10 +7,13 @@
 import type { ReactionContext } from './types/schema';
 
 /**
- * 黑名单：禁止访问的属性和API
- * 包括：window, document, eval, Function构造函数等
+ * 全局标识符黑名单：仅在作为「独立标识符」出现时拦截
+ * 包括：window, document, eval 等全局对象/API。
+ * 注意：当这些名字作为白名单上下文变量（formData/rootValue/$self...）的
+ * 属性名出现时（如表单里恰好有名为 window / parent / self 的字段，
+ * 表达式写 `formData.window`），属于合法数据访问，**不**拦截误伤。
  */
-const BLACKLIST = new Set([
+const GLOBAL_BLACKLIST = new Set([
   // 全局对象
   'window',
   'self',
@@ -30,7 +33,7 @@ const BLACKLIST = new Set([
   'parent',
   'top',
 
-  // 构造函数
+  // 全局 API / 构造函数
   'eval',
   'setTimeout',
   'setInterval',
@@ -42,20 +45,26 @@ const BLACKLIST = new Set([
   'localStorage',
   'sessionStorage',
 
-  // 危险方法
+  // 其他危险全局 API
+  'importScripts',
+  'BroadcastChannel',
+  'Worker',
+  'import',
+  'require',
+]);
+
+/**
+ * 属性级黑名单：无论作为独立标识符还是属性名出现都拦截。
+ * 这些名字参与原型链操纵，即使通过白名单对象（formData / $self）的
+ * 属性访问也能发起原型污染 / 沙箱逃逸，因此不做位置豁免。
+ */
+const PROPERTY_BLACKLIST = new Set([
   'constructor',
   'prototype',
   '__proto__',
   'apply',
   'call',
   'bind',
-
-  // 其他危险API
-  'importScripts',
-  'BroadcastChannel',
-  'Worker',
-  'import',
-  'require',
 ]);
 
 /**
@@ -171,6 +180,8 @@ export class ExpressionSandbox {
 
     try {
       // 1. 清理并检查表达式
+      // 先记录原始表达式：sanitize 阶段抛错时 lastExpression 仍能还原现场
+      this.lastExpression = expression;
       const sanitized = this.sanitizeExpression(expression);
       this.lastExpression = sanitized;
 
@@ -278,12 +289,26 @@ export class ExpressionSandbox {
     }
 
     // 3. 检查是否包含危险标识符（token 级黑名单检查）
-    // 使用 token 匹配而非 substring，避免误伤 $self / $deps / formData 等上下文变量
-    const tokens = trimmed.match(/[a-zA-Z_$][a-zA-Z0-9_$]*/g) ?? [];
-    for (const token of tokens) {
-      if (BLACKLIST.has(token)) {
+    // 使用 token 匹配而非 substring，避免误伤 $self / $deps / formData 等上下文变量。
+    // 判定规则：
+    // - 作为「独立全局标识符」出现 → 命中 GLOBAL_BLACKLIST 拦截
+    //   （如 window.location / document.body / localStorage.getItem）
+    // - 作为属性名出现（如 formData.window / rootValue.parent / $self.value）
+    //   → 仅 PROPERTY_BLACKLIST 中的原型链危险名拦截，全局名豁免，
+    //     避免把表单纯粹以 window/parent/self 命名的字段误判为危险代码
+    const tokenRegex = /[a-zA-Z_$][a-zA-Z0-9_$]*/g;
+    let tokenMatch = tokenRegex.exec(trimmed);
+    while (tokenMatch !== null) {
+      const token = tokenMatch[0];
+      const prefix = trimmed.slice(0, tokenMatch.index).trim();
+      const isPropertyAccess = prefix.endsWith('.') || prefix.endsWith('?.');
+      if (
+        PROPERTY_BLACKLIST.has(token) ||
+        (!isPropertyAccess && GLOBAL_BLACKLIST.has(token))
+      ) {
         throw new Error(`Expression contains blocked keyword: ${token}`);
       }
+      tokenMatch = tokenRegex.exec(trimmed);
     }
 
     // 4. 检查是否包含危险的方法调用
@@ -333,26 +358,23 @@ export class ExpressionSandbox {
   /**
    * 记录错误日志
    *
+   * 日志职责按策略划分，避免「抛出 + 打日志」多重报告：
+   * - strict: 错误已 throw 给调用方，由调用方决定如何处理，沙箱不再落日志
+   * - default: 静默降级为默认值，打 warn 提示求值失败
+   * - silent: 完全不处理、不打日志
+   *
    * @param error - 捕获的错误对象
    */
   private recordError(error: unknown): void {
-    const message = error instanceof Error ? error.message : String(error);
-
-    if (this.errorHandler === ErrorHandlerStrategy.STRICT) {
-      console.error(
-        `[ExpressionSandbox] Evaluation failed:`,
-        message,
-        '\nExpression:',
-        this.lastExpression,
-        '\nContext keys:',
-        CONTEXT_KEYS,
-      );
-    } else {
-      console.warn(
-        `[ExpressionSandbox] Evaluation failed (fallback to default):`,
-        message,
-      );
+    if (this.errorHandler !== ErrorHandlerStrategy.DEFAULT) {
+      return;
     }
+
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(
+      `[ExpressionSandbox] Evaluation failed (fallback to default):`,
+      message,
+    );
   }
 
   /**

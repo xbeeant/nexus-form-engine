@@ -20,13 +20,7 @@ export function renderTreeNode(
   index: number,
 ): ReactElement {
   if (node.type === 'field') {
-    return (
-      <NexusField
-        key={node.layoutKey || node.dataPath}
-        dataPath={node.dataPath}
-        layoutKey={node.layoutKey}
-      />
-    );
+    return <NexusField key={node.layoutKey || node.dataPath} node={node} />;
   }
   if (node.type === 'object') {
     return (

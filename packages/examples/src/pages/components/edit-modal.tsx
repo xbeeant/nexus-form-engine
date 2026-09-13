@@ -20,7 +20,7 @@ const ModalForm = ({ visible, value, onCancel }) => {
     registerAntdUI(engineB);
 
     form2.setValues(value);
-  }, [formController, form2]);
+  }, [formController, form2, value]);
 
   return (
     <Modal

@@ -168,7 +168,9 @@ const renderScalarLabel = (
   if (typeof v === 'boolean') {
     return v ? bundle.readonlyDisplay.yes : bundle.readonlyDisplay.no;
   }
-  const hit = mapped.find((o) => o.value === v || String(o.value) === String(v));
+  const hit = mapped.find(
+    (o) => o.value === v || String(o.value) === String(v),
+  );
   return hit ? hit.label : String(v);
 };
 
@@ -478,7 +480,9 @@ export function withFormItem(render: (props: WidgetProps) => React.ReactNode) {
 export function mapOptions(
   options?: Record<string, unknown>[] | WidgetProps['options'],
 ): Array<{ value: string | number | null | undefined; label: string }> {
-  return (options ?? []).map((opt) => {
+  // 仅纯数组参与映射；其余输入（字符串/对象/空值）容错为空，避免非数组入参直接崩溃
+  const source = Array.isArray(options) ? options : [];
+  return source.map((opt) => {
     const v =
       typeof opt === 'object' && opt !== null ? (opt as any).value : opt;
     const l =

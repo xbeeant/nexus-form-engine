@@ -1,4 +1,4 @@
-import type { RenderObjectNode } from '@xbeeant/form-engine';
+import type { NexusNodeProps, RenderObjectNode } from '@xbeeant/form-engine';
 import type { CSSProperties } from 'react';
 import { useContext, useState, useSyncExternalStore } from 'react';
 
@@ -7,10 +7,6 @@ import { GRID_TOTAL, GridContext } from '../contexts/grid-context';
 import { useNexusContext } from '../contexts/nexus-context';
 import { renderTreeNode } from '../utils/render-tree-node';
 import { resolveGridSpan } from '../utils/resolve-grid-span';
-
-interface NexusObjectProps {
-  node: RenderObjectNode;
-}
 
 /**
  * NexusObject — 数据对象容器（可折叠，支持 disabled/hidden/readOnly 属性配置）
@@ -22,7 +18,7 @@ interface NexusObjectProps {
  * disabled / readOnly / hidden 会经 FieldInheritContext 下发给子树，
  * 子树中的字段继承对应状态（disabled/readOnly 仅父级激活时生效）。
  */
-export function NexusObject({ node }: NexusObjectProps) {
+export function NexusObject({ node }: NexusNodeProps<RenderObjectNode>) {
   const { engine, config } = useNexusContext();
   const parentInherit = useContext(FieldInheritContext);
   // 按路径精准订阅：自身 disabled/readOnly/visible 变化时重渲染并下发新上下文

@@ -101,21 +101,13 @@ function isNumberFormat(format: string): boolean {
  */
 function formatDate(value: unknown, format: string): string {
   if (value instanceof Date) {
-    const map = {
-      YYYY: value.getFullYear().toString(),
-      MM: String(value.getMonth() + 1).padStart(2, '0'),
-      DD: String(value.getDate()).padStart(2, '0'),
-      HH: String(value.getHours()).padStart(2, '0'),
-      mm: String(value.getMinutes()).padStart(2, '0'),
-      ss: String(value.getSeconds()).padStart(2, '0'),
-    };
-
-    let formatted = format;
-    for (const [key, val] of Object.entries(map)) {
-      formatted = formatted.replace(new RegExp(key, 'gi'), val);
-    }
-
-    return formatted;
+    return format
+      .replace(/YYYY/g, value.getFullYear().toString())
+      .replace(/mm/g, String(value.getMinutes()).padStart(2, '0'))
+      .replace(/MM/g, String(value.getMonth() + 1).padStart(2, '0'))
+      .replace(/DD/g, String(value.getDate()).padStart(2, '0'))
+      .replace(/HH/g, String(value.getHours()).padStart(2, '0'))
+      .replace(/ss/g, String(value.getSeconds()).padStart(2, '0'));
   }
 
   return String(value ?? '');
@@ -134,7 +126,11 @@ function formatCurrency(value: unknown, format: string): string {
     return String(value ?? '');
   }
 
-  const currency = /￥|\$|¥/.test(format) ? /￥|\$|¥/.exec(format)![0] : '￥';
+  let currency = '￥';
+  const match = /￥|\$|¥/.exec(format);
+  if (match) {
+    currency = match[0];
+  }
   return `${currency}${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 

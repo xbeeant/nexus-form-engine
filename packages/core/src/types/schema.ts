@@ -1149,6 +1149,19 @@ export type RenderTreeNode =
   | RenderObjectNode
   | RenderBranchNode;
 
+/**
+ * 节点组件统一 Props —— 渲染层各节点渲染器（Field/Object/Branch/Layout）的
+ * 统一入参契约。
+ *
+ * Renderer 层（如 React）的节点渲染组件（NexusField / NexusObject / NexusBranch
+ * / NexusLayout）均以该类型作为 Props 类型：仅携带 `node` 一个字段，由节点类型
+ * 决定渲染组件的选择与内部解构。
+ */
+export interface NexusNodeProps<T extends RenderTreeNode = RenderTreeNode> {
+  /** 渲染树节点 */
+  node: T;
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // 9. 插件系统
 // ────────────────────────────────────────────────────────────────────────────

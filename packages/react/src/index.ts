@@ -5,6 +5,8 @@
 
 import './styles.css';
 
+// 节点组件统一 Props（定义于 core，供 NexusField/NexusObject/NexusBranch/NexusLayout 消费）
+export type { NexusNodeProps } from '@xbeeant/form-engine';
 // ── 组件 ────────────────────────────────────────────────────────────────────
 export { FormController } from './components/form-controller';
 export { NexusBranch } from './components/nexus-branch';

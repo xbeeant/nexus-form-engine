@@ -95,11 +95,11 @@ export function buildWidgetProps(
     dataPath: addonsDataPath,
     path: addonsPath,
     index: opts.addonsIndex,
-        parentValues: opts.addonsItemOf
-          ? form.getValueByPath(opts.addonsItemOf)
-          : undefined,
-        dependValues: opts.dependValues,
-        getValue: (p: string) => form.getValueByPath(p),
+    parentValues: opts.addonsItemOf
+      ? form.getValueByPath(opts.addonsItemOf)
+      : undefined,
+    dependValues: opts.dependValues,
+    getValue: (p: string) => form.getValueByPath(p),
     setValue: (p: string, v: unknown) => form.setValueByPath(p, v),
     onItemChange: (p: string, v: unknown) => form.setValueByPath(p, v),
     validate: async (p?: string) => {

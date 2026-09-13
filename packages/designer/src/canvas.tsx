@@ -543,8 +543,11 @@ const CanvasNode = memo(
           {isField && (
             <div className='px-2 pb-2'>
               <NexusField
-                dataPath={dataPath}
-                layoutKey={path[path.length - 1]}
+                node={{
+                  type: 'field',
+                  dataPath,
+                  layoutKey: path[path.length - 1],
+                }}
               />
             </div>
           )}

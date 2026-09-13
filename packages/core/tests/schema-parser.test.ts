@@ -522,4 +522,185 @@ describe('SchemaParser', () => {
       expect(rule?.trigger).toBe('change');
     });
   });
+
+  describe('统一 FieldState.meta 构建（buildFieldMeta）', () => {
+    it('数据字段 meta：公共元数据键齐全，label 默认 true', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            widget: 'input',
+            title: '姓名',
+            description: 'desc',
+            placeholder: '请输入',
+            tooltip: '提示',
+            readOnlyWidget: 'text',
+            sideEffects: { editor: 'html', title: '编辑' },
+            hooks: { onChange: () => undefined },
+            bind: 'user.name',
+            width: '50%',
+            colSpan: 12,
+            extra: '额外说明',
+            displayType: 'inline',
+            labelWidth: 80,
+            column: 2,
+          },
+        },
+      };
+
+      const { fieldStates } = SchemaParser.parse(schema);
+      const meta = fieldStates.get('name')!.meta;
+
+      expect(meta.widget).toBe('input');
+      expect(meta.type).toBe('string');
+      expect(meta.title).toBe('姓名');
+      expect(meta.description).toBe('desc');
+      expect(meta.placeholder).toBe('请输入');
+      expect(meta.tooltip).toBe('提示');
+      expect(meta.readOnlyWidget).toBe('text');
+      expect(meta.sideEffects).toEqual({ editor: 'html', title: '编辑' });
+      expect(meta.hooks).toBeDefined();
+      expect(meta.bind).toBe('user.name');
+      expect(meta.extra).toBe('额外说明');
+      expect(meta.width).toBe('50%');
+      expect(meta.colSpan).toBe(12);
+      expect(meta.displayType).toBe('inline');
+      expect(meta.labelWidth).toBe(80);
+      expect(meta.column).toBe(2);
+      // 未声明 label 默认 true（字段级覆盖表单级）
+      expect(meta.label).toBe(true);
+      // 容器类标记不出现
+      expect(meta.containerOnly).toBeUndefined();
+      expect(meta.itemOf).toBeUndefined();
+    });
+
+    it('数据数组 meta：bind / items / label 一并映射（修复 bind 丢失）', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          list: {
+            type: 'array',
+            widget: 'list',
+            title: '列表',
+            bind: 'payload.items',
+            items: { type: 'string' },
+          },
+        },
+      };
+
+      const { fieldStates } = SchemaParser.parse(schema);
+      const meta = fieldStates.get('list')!.meta;
+
+      expect(meta.type).toBe('array');
+      expect(meta.widget).toBe('list');
+      expect(meta.bind).toBe('payload.items');
+      expect(meta.items).toBeDefined();
+      expect(meta.label).toBe(true);
+    });
+
+    it('数据对象容器 meta：containerOnly + type object，公共键保留', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          profile: {
+            type: 'object',
+            title: '资料',
+            description: 'desc',
+            width: '50%',
+            order: 2,
+            colSpan: 12,
+            properties: {
+              age: { type: 'number', widget: 'number' },
+            },
+          },
+        },
+      };
+
+      const { fieldStates } = SchemaParser.parse(schema);
+      const meta = fieldStates.get('profile')!.meta;
+
+      expect(meta.containerOnly).toBe(true);
+      expect(meta.widget).toBe('');
+      expect(meta.type).toBe('object');
+      expect(meta.rules).toEqual([]);
+      expect(meta.title).toBe('资料');
+      expect(meta.description).toBe('desc');
+      expect(meta.width).toBe('50%');
+      expect(meta.order).toBe(2);
+      expect(meta.colSpan).toBe(12);
+    });
+
+    it('数组项子字段 meta：保留布局键并携带 itemOf', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            widget: 'list',
+            items: {
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string',
+                  widget: 'input',
+                  width: '50%',
+                  colSpan: 12,
+                  label: false,
+                },
+              },
+            },
+          },
+        },
+      };
+
+      const { fieldStates } = SchemaParser.parse(schema, {
+        items: [{ name: 'a' }],
+      } as never);
+      const itemState = fieldStates.get('items[0].name');
+      const meta = itemState!.meta;
+
+      expect(meta.itemOf).toBe('items');
+      expect(meta.widget).toBe('input');
+      expect(meta.width).toBe('50%');
+      expect(meta.colSpan).toBe(12);
+      expect(meta.label).toBe(false);
+    });
+
+    it('分支容器 meta：type 固定 object（不透传 oneOf trait）', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          payment: {
+            type: 'anyOf',
+            title: '支付方式',
+            oneOf: [
+              {
+                title: 'credit',
+                properties: {
+                  cardNo: { type: 'string', widget: 'input' },
+                },
+              },
+              {
+                title: 'cash',
+                properties: {
+                  cashAmount: { type: 'number', widget: 'number' },
+                },
+              },
+            ],
+          },
+        },
+      } as unknown as NexusSchema;
+
+      const { fieldStates } = SchemaParser.parse(schema);
+      const container = fieldStates.get('payment');
+
+      expect(container?.meta.containerOnly).toBe(true);
+      expect(container?.meta.type).toBe('object');
+      expect(container?.meta.widget).toBe('');
+      expect(container?.meta.title).toBe('支付方式');
+      expect(container?.meta.oneOf?.activeIndex).toBe(0);
+      expect(container?.meta.oneOf?.branches).toHaveLength(2);
+    });
+  });
 });

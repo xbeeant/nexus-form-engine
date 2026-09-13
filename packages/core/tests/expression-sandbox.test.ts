@@ -143,6 +143,26 @@ describe('ExpressionSandbox', () => {
       expect(sandbox.evaluate('formData.user.missing', ctx)).toBeUndefined();
       expect(sandbox.evaluate('$deps[99]', ctx)).toBeUndefined();
     });
+
+    it('字符串方法等合法属性访问不被误伤', () => {
+      const sandbox = createExpressionSandbox();
+      const ctx = baseCtx({ formData: { name: 'a@b.com' } });
+
+      expect(sandbox.evaluate('formData.name.trim()', ctx)).toBe('a@b.com');
+      expect(sandbox.evaluate('formData.name.length', ctx)).toBe(7);
+    });
+
+    it('数组/对象字面量内安全求值', () => {
+      const sandbox = createExpressionSandbox();
+      const ctx = baseCtx({ formData: { a: 1, b: 2 } });
+
+      expect(
+        sandbox.evaluate(
+          '(function(){ return formData.a + formData.b })()',
+          ctx,
+        ),
+      ).toBe(3);
+    });
   });
 
   describe('安全性黑名单过滤', () => {
@@ -166,6 +186,85 @@ describe('ExpressionSandbox', () => {
       expect(() => sandbox.evaluate('window.location', baseCtx())).toThrow(
         /blocked keyword/,
       );
+    });
+
+    it('拦截与全局重名的字段作为独立标识符使用', () => {
+      const sandbox = createExpressionSandbox({
+        errorHandler: ErrorHandlerStrategy.STRICT,
+      });
+
+      expect(() => sandbox.evaluate('window', baseCtx())).toThrow(
+        /blocked keyword/,
+      );
+      expect(() => sandbox.evaluate('parent', baseCtx())).toThrow(
+        /blocked keyword/,
+      );
+    });
+
+    it('表单字段名与全局重名时不被误伤（属性访问豁免）', () => {
+      const sandbox = createExpressionSandbox();
+      const ctx = baseCtx({
+        formData: {
+          window: 'closed',
+          parent: 'p001',
+          self: 's1',
+          top: 't1',
+          screen: 'lg',
+          location: 'cn',
+          document: 'doc-1',
+          body: 'body-1',
+        },
+        rootValue: {
+          document: 'doc-1',
+          body: 'body-1',
+        },
+      });
+
+      expect(sandbox.evaluate('formData.window', ctx)).toBe('closed');
+      expect(sandbox.evaluate('formData.window === "closed"', ctx)).toBe(true);
+      expect(sandbox.evaluate('formData.parent', ctx)).toBe('p001');
+      expect(sandbox.evaluate('formData.self', ctx)).toBe('s1');
+      expect(sandbox.evaluate('formData.top', ctx)).toBe('t1');
+      expect(sandbox.evaluate('formData.screen', ctx)).toBe('lg');
+      expect(sandbox.evaluate('formData.location', ctx)).toBe('cn');
+      expect(sandbox.evaluate('rootValue.document', ctx)).toBe('doc-1');
+      expect(sandbox.evaluate('rootValue.body', ctx)).toBe('body-1');
+    });
+
+    it('strict 模式下属性访问豁免同样生效', () => {
+      const sandbox = createExpressionSandbox({
+        errorHandler: ErrorHandlerStrategy.STRICT,
+      });
+      const ctx = baseCtx({ formData: { window: 'ok' } });
+
+      expect(sandbox.evaluate('formData.window', ctx)).toBe('ok');
+      expect(() => sandbox.evaluate('window.location', ctx)).toThrow(
+        /blocked keyword/,
+      );
+    });
+
+    it('可选链属性访问同样豁免全局名', () => {
+      const sandbox = createExpressionSandbox({
+        errorHandler: ErrorHandlerStrategy.STRICT,
+      });
+      const ctx = baseCtx({ formData: { window: 'ok' } });
+
+      expect(sandbox.evaluate('formData?.window', ctx)).toBe('ok');
+      expect(() => sandbox.evaluate('window?.location', ctx)).toThrow(
+        /blocked keyword/,
+      );
+    });
+
+    it('原型链危险名作为属性访问仍被拦截（constructor）', () => {
+      const sandbox = createExpressionSandbox();
+      const ctx = baseCtx({
+        formData: { a: 'x' },
+        $self: { constructor: {} } as unknown as FieldState,
+      });
+
+      expect(sandbox.evaluate('formData.a.constructor', ctx)).toBeUndefined();
+      expect(sandbox.evaluate('$self.constructor', ctx)).toBeUndefined();
+      expect(sandbox.evaluate('formData.a.__proto__', ctx)).toBeUndefined();
     });
 
     it('拦截 eval / constructor / Function 等危险方法', () => {

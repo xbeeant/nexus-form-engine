@@ -1,4 +1,8 @@
-import type { FieldHooks } from '@xbeeant/form-engine';
+import type {
+  FieldHooks,
+  NexusNodeProps,
+  RenderFieldNode,
+} from '@xbeeant/form-engine';
 import type { CSSProperties, FocusEvent, ReactElement, ReactNode } from 'react';
 import { useCallback, useContext, useMemo, useSyncExternalStore } from 'react';
 import { FieldInheritContext } from '../contexts/field-inherit-context';
@@ -9,11 +13,6 @@ import { buildWidgetProps } from '../utils/build-widget-props';
 import { reactNodeFromString } from '../utils/react-node-from-string';
 import { resolveGridSpan } from '../utils/resolve-grid-span';
 import { resolveReadOnlyWidget } from '../utils/resolve-readonly-widget';
-
-interface NexusFieldProps {
-  dataPath: string;
-  layoutKey: string;
-}
 
 // ────────────────────────────────────────────────────────────────────────────
 // NexusAddons — x-render addons 对齐
@@ -118,7 +117,8 @@ function useFieldHookRunner(
 /**
  * NexusField — 单个字段渲染器
  */
-export function NexusField({ dataPath, layoutKey }: NexusFieldProps) {
+export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
+  const { dataPath, layoutKey } = node;
   const { engine, config, form } = useNexusContext();
   // 按路径精准订阅：仅该字段版本变化时重渲染（reaction 影响其他字段不会触发本组件）
   // 第三个参数 getServerSnapshot 与 getSnapshot 一致（引擎状态同步，SSR 必需）

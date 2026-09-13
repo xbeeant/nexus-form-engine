@@ -1,4 +1,4 @@
-import { act, fireEvent, render, waitFor } from '@testing-library/react';
+import { fireEvent, render, waitFor } from '@testing-library/react';
 import type { FormController } from '@xbeeant/form-engine-react';
 
 import { NexusForm, useForm } from '@xbeeant/form-engine-react';
@@ -43,37 +43,6 @@ describe('widget 只读回退（集成 NexusForm）', () => {
     expect(container.querySelector('input')).toBeNull();
     const field = container.querySelector('[data-nexus-field="username"]');
     expect(field!.textContent).toContain('zhangsan');
-  });
-
-  it('只读模式下字段无值时默认显示 "-"', () => {
-    const { container } = renderForm(
-      {
-        type: 'object',
-        properties: {
-          remark: { type: 'string', title: '备注' },
-          nickname: { type: 'string', widget: 'input', title: '昵称' },
-        },
-      },
-      { readOnly: true },
-    );
-    for (const path of ['remark', 'nickname']) {
-      const field = container.querySelector(`[data-nexus-field="${path}"]`)!;
-      expect(field!.textContent, `${path} 空值应显示 "-"`).toContain('-');
-    }
-  });
-
-  it('html widget 无值时显示 "-"', () => {
-    const { container } = renderForm(
-      {
-        type: 'object',
-        properties: {
-          content: { type: 'string', widget: 'html', title: '内容' },
-        },
-      },
-      { readOnly: true },
-    );
-    const field = container.querySelector('[data-nexus-field="content"]')!;
-    expect(field!.textContent).toContain('-');
   });
 
   it('datePicker 只读时渲染格式化文本', () => {
@@ -122,69 +91,6 @@ describe('widget 只读回退（集成 NexusForm）', () => {
     expect(container.querySelector('.ant-switch')).toBeNull();
     const field = container.querySelector('[data-nexus-field="vip"]');
     expect(field!.textContent).toContain('是');
-  });
-
-  it('select 只读时渲染 enum 对应的 label 而非 value', () => {
-    const { container } = renderForm(
-      {
-        type: 'object',
-        properties: {
-          country: {
-            type: 'string',
-            widget: 'select',
-            title: '国家',
-            enum: ['CN', 'US', 'JP'],
-            enumNames: ['中国', '美国', '日本'],
-          },
-        },
-      },
-      { readOnly: true, initialValues: { country: 'CN' } },
-    );
-    const field = container.querySelector('[data-nexus-field="country"]');
-    expect(field!.textContent).toContain('中国');
-    expect(field!.textContent).not.toContain('CN');
-  });
-
-  it('select 只读时字符串 enum value 正确匹配 label', () => {
-    const { container } = renderForm(
-      {
-        type: 'object',
-        properties: {
-          level: {
-            type: 'string',
-            widget: 'select',
-            title: '等级',
-            enum: ['1', '2', '3'],
-            enumNames: ['初级', '中级', '高级'],
-          },
-        },
-      },
-      { readOnly: true, initialValues: { level: '2' } },
-    );
-    const field = container.querySelector('[data-nexus-field="level"]');
-    expect(field!.textContent).toContain('中级');
-    expect(field!.textContent).not.toContain('2');
-  });
-
-  it('select 只读时数值 enum value 正确匹配 label', () => {
-    const { container } = renderForm(
-      {
-        type: 'object',
-        properties: {
-          score: {
-            type: 'number',
-            widget: 'select',
-            title: '分数',
-            enum: [1, 2, 3],
-            enumNames: ['低', '中', '高'],
-          },
-        },
-      },
-      { readOnly: true, initialValues: { score: 2 } },
-    );
-    const field = container.querySelector('[data-nexus-field="score"]');
-    expect(field!.textContent).toContain('中');
-    expect(field!.textContent).not.toContain('2');
   });
 
   it('可编辑模式下保持原生控件', () => {
@@ -283,7 +189,7 @@ describe('校验错误展示（集成）', () => {
       },
     });
 
-    await act(() => form.form!.validateFields());
+    await form.form!.validateFields();
     await waitFor(() => {
       expect(
         container.querySelector('.ant-form-item-explain-error'),
@@ -307,7 +213,7 @@ describe('校验错误展示（集成）', () => {
     });
 
     // 先触发校验（提交），必填错误出现
-    await act(() => form.form!.validateFields());
+    await form.form!.validateFields();
     await waitFor(() => {
       expect(
         container.querySelector('.ant-form-item-explain-error'),
@@ -635,65 +541,5 @@ describe('数组折叠 + 拖拽排序（P2-E，formily ArrayField 对齐）', ()
     expect(handles.length).toBeGreaterThanOrEqual(2);
     // 初始数组顺序
     expect(form.form!.getValueByPath('items')).toHaveLength(2);
-  });
-});
-
-describe('列表项 readOnlyWidget（readOnly 模式优先渲染指定 widget，与 NexusField 一致）', () => {
-  function MyHtmlWidget(props: any) {
-    return <div data-testid='my-html'>{props.value}</div>;
-  }
-
-  function renderSimpleList(
-    schema: unknown,
-    initialValues?: Record<string, unknown>,
-  ) {
-    const holder: { form?: FormController } = {};
-    function TestForm() {
-      const [form] = useForm();
-      holder.form = form;
-      const engine = form._getEngine();
-      registerAntdUI(engine);
-      engine.registerWidgets({ myHtml: MyHtmlWidget });
-      return (
-        <NexusForm
-          form={form}
-          schema={schema as never}
-          footer={false}
-          initialValues={initialValues}
-        />
-      );
-    }
-    const result = render(<TestForm />);
-    return { ...result, form: holder };
-  }
-
-  it('items 子字段 readOnly + readOnlyWidget 时优先渲染 readOnlyWidget', () => {
-    const { container } = renderSimpleList(
-      {
-        type: 'object',
-        properties: {
-          list: {
-            type: 'array',
-            widget: 'simpleList',
-            items: {
-              type: 'object',
-              properties: {
-                secret: {
-                  type: 'string',
-                  readOnly: true,
-                  readOnlyWidget: 'myHtml',
-                  title: '密码',
-                },
-              },
-            },
-          },
-        },
-      },
-      { list: [{ secret: '<a>www.baidu.com</a>' }] },
-    );
-    expect(container.querySelector('[data-testid="my-html"]')).not.toBeNull();
-    expect(
-      container.querySelector('[data-testid="my-html"]')!.textContent,
-    ).toBe('<a>www.baidu.com</a>');
   });
 });

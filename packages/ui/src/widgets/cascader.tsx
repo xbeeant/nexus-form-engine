@@ -9,10 +9,13 @@ import {
 
 type CascaderValue = unknown[];
 
-/** 扁平 enum 转级联叶子节点（无 children，一级选择） */
+/** 扁平 enum 转级联叶子节点（无 children，一级选择；非数组输入容错为空） */
 function leafOptions(
   options?: Record<string, unknown>[] | WidgetProps['options'],
 ): DefaultOptionType[] {
+  if (!Array.isArray(options)) {
+    return [];
+  }
   return mapOptions(options).map((o) => ({
     value: o.value as string | number,
     label: o.label,
@@ -90,8 +93,8 @@ export const cascaderWidget = ({
   ) {
     // 嵌套 options
     dataSource = options as DefaultOptionType[];
-  } else {
-    // 扁平 enum 叶子
+  } else if (Array.isArray(options)) {
+    // 扁平 enum 叶子（仅纯数组进入；JSON 字符串已在上方解析，不传入 leafOptions）
     dataSource = leafOptions(options as Record<string, unknown>[] | undefined);
   }
 
@@ -193,8 +196,8 @@ export const remoteCascaderWidget = ({
     ) {
       // 嵌套 options
       dataSource = options as DefaultOptionType[];
-    } else {
-      // 扁平 enum 叶子
+    } else if (Array.isArray(options)) {
+      // 扁平 enum 叶子（仅纯数组进入；JSON 字符串已在上方解析，不传入 leafOptions）
       dataSource = leafOptions(
         options as Record<string, unknown>[] | undefined,
       );

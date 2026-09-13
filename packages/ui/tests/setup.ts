@@ -30,10 +30,9 @@ if (!window.ResizeObserver) {
   });
 }
 
-// getComputedStyle：antd @rc-component/portal 的 useScrollLocker 调用
-// measureScrollbarSize → getComputedStyle，jsdom 已定义但未实现，需覆盖
-Object.defineProperty(window, 'getComputedStyle', {
-  value: () => ({ getPropertyValue: () => '' }),
-  configurable: true,
-  writable: true,
-});
+// getComputedStyle 的 CSS 变量读取（antd 主题 token 依赖）
+if (!window.getComputedStyle) {
+  Object.defineProperty(window, 'getComputedStyle', {
+    value: () => ({ getPropertyValue: () => '' }),
+  });
+}

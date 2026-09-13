@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { NexusEngine } from '../src';
 
 describe('hidden expression repro', () => {
@@ -79,16 +79,33 @@ describe('hidden expression repro', () => {
     const fullSchema: any = {
       type: 'object',
       properties: {
-        message_management_instance_title: { title: '流程标题', type: 'string', widget: 'input', readOnly: true },
+        message_management_instance_title: {
+          title: '流程标题',
+          type: 'string',
+          widget: 'input',
+          readOnly: true,
+        },
         multi_c_standard_approval_result: {
-          title: '是否同意', type: 'string', enum: ['1', '0'], enumNames: ['同意', '不同意'], widget: 'radio', required: '1',
+          title: '是否同意',
+          type: 'string',
+          enum: ['1', '0'],
+          enumNames: ['同意', '不同意'],
+          widget: 'radio',
+          required: '1',
           other: { tableOrder: 0 },
         },
         c_standard_multi_task_comment: {
-          title: '审批意见', type: 'string', widget: 'textArea', required: '1', hidden: '',
+          title: '审批意见',
+          type: 'string',
+          widget: 'textArea',
+          required: '1',
+          hidden: '',
         },
         message_management_external_assessment_reviewer: {
-          title: '需求域外评审人', type: 'any', widget: 'user', required: '1',
+          title: '需求域外评审人',
+          type: 'any',
+          widget: 'user',
+          required: '1',
           hidden: "{{formData.multi_c_standard_approval_result!== '1'}}",
           props: { mode: 'multiple', placeholder: '请选择用户' },
           extra: '请选择副总师和总师审核',

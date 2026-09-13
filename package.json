@@ -13,7 +13,8 @@
     "lint:fix": "biome check --write .",
     "lint:fix:unsafe": "biome check --write --unsafe .",
     "prettier": "biome check --write .",
-    "test": "lerna run test"
+    "test": "lerna run test",
+    "test:all": "bun scripts/test-and-report.js"
   },
   "devDependencies": {
     "@ant-design/pro-components": "^2.8.10",
@@ -35,9 +36,11 @@
     "vite": "^7.0.4",
     "vite-plugin-dts": "^5.0.3",
     "vite-plugin-lib-inject-css": "^2.2.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "@vitest/coverage-v8": "^5.0.0"
   },
   "dependencies": {
+    "@xbeeant/form-engine": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

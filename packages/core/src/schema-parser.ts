@@ -5,15 +5,21 @@
 
 import { DependencyGraph } from './dependency-graph';
 import type {
+  BindSchema,
   BranchSchema,
   DataArraySchema,
   DataFieldSchema,
   DataObjectSchema,
+  DataType,
+  ExpressionOr,
+  FieldFormat,
+  FieldHooks,
   FieldState,
   LayoutBaseProps,
   LayoutNode,
   LayoutType,
   NexusSchema,
+  OneOfMeta,
   Reaction,
   ReactionStatePatch,
   RenderBranchNode,
@@ -22,6 +28,7 @@ import type {
   RenderObjectNode,
   RenderTreeNode,
   SchemaNode,
+  SideEffectsConfig,
   ValidateSchema,
   ValidationRule,
   WidgetDescriptors,
@@ -319,6 +326,116 @@ function buildFieldRules(
     mergeWidgetRules(rules, widgetMeta.rules);
   }
   return rules;
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// FieldState.meta 统一构建（消除 5 处重复的 meta 字面量）
+// ────────────────────────────────────────────────────────────────────────
+
+/**
+ * Schema 节点上可映射进 `FieldState.meta` 的元数据键
+ * 统一按可选结构访问：键未声明时自然为 undefined，无需逐节点类型开关
+ */
+interface MetaBuildableNode {
+  title?: string;
+  readOnlyWidget?: string;
+  sideEffects?: SideEffectsConfig;
+  hooks?: FieldHooks;
+  type?: DataType;
+  description?: string;
+  tooltip?: string;
+  placeholder?: string;
+  enum?: ExpressionOr<Array<string | number>>;
+  enumNames?: ExpressionOr<Array<string>>;
+  format?: FieldFormat;
+  min?: number;
+  max?: number;
+  extra?: string;
+  width?: number | string;
+  order?: number;
+  colSpan?: number;
+  displayType?: 'row' | 'column' | 'inline';
+  label?: boolean;
+  labelWidth?: number | string;
+  column?: number;
+  bind?: BindSchema;
+  items?: DataFieldSchema | DataObjectSchema;
+}
+
+/**
+ * `buildFieldMeta` 的构建选项（节点类型特有的 meta 键，改由调用方显式注入）
+ */
+interface BuildFieldMetaOptions {
+  /** 解析后的 widget 名称（数据对象 / 分支容器固定传入 ''） */
+  widget: string;
+  /** 构建后的校验规则列表（数据对象 / 分支容器固定传入 []） */
+  rules: ValidationRule[];
+  /**
+   * 覆写 meta.type。默认取 `node.type`；
+   * 分支容器的分支 trait（'oneOf'/'anyOf'）需固定为 'object' 对齐容器语义
+   */
+  type?: DataType;
+  /** 所属条件分支索引（oneOf/anyOf 分支容器内字段携带） */
+  branchOf?: number;
+  /** 数据对象 / 分支容器标记：仅为 UI 状态容器，不参与数据收集 */
+  containerOnly?: boolean;
+  /** 数组项子字段标记：值为所属数组路径（如 "items"） */
+  itemOf?: string;
+  /** 条件分支容器运行时元数据（激活分支 / 分支定义 / 字段归属） */
+  oneOf?: OneOfMeta;
+}
+
+/**
+ * 统一构建 `FieldState.meta`（processDataField / processDataObject /
+ * processDataArray / processBranchNode / createArrayItemState 共用）
+ *
+ * 公共元数据键（title / widget / rules / schema / 布局与文本描述等）统一从
+ * 节点按可选结构聚合；节点类型特有的标记（containerOnly / itemOf / oneOf /
+ * branchOf）经 options 显式注入，保证各站点 key 集合一致、不再各自手写。
+ *
+ * @param node - Schema 节点（读取 title/description/width/colSpan 等公共键）
+ * @param options - 构建选项（widget/rules + 类型特有标记）
+ * @returns 完整的 FieldState.meta
+ */
+function buildFieldMeta(
+  node: SchemaNode,
+  options: BuildFieldMetaOptions,
+): FieldState['meta'] {
+  const metaNode = node as unknown as MetaBuildableNode;
+  const { widget, rules, type, branchOf, containerOnly, itemOf, oneOf } =
+    options;
+  return {
+    title: metaNode.title,
+    widget,
+    readOnlyWidget: metaNode.readOnlyWidget,
+    sideEffects: metaNode.sideEffects,
+    hooks: metaNode.hooks,
+    type: type ?? metaNode.type,
+    rules,
+    description: metaNode.description,
+    tooltip: metaNode.tooltip as string | undefined,
+    placeholder: metaNode.placeholder,
+    enum: metaNode.enum,
+    enumNames: metaNode.enumNames,
+    format: metaNode.format,
+    min: metaNode.min,
+    max: metaNode.max,
+    extra: metaNode.extra,
+    width: metaNode.width,
+    order: metaNode.order,
+    colSpan: metaNode.colSpan,
+    displayType: metaNode.displayType,
+    label: metaNode.label ?? true,
+    labelWidth: metaNode.labelWidth,
+    column: metaNode.column,
+    bind: metaNode.bind,
+    items: metaNode.items,
+    containerOnly,
+    branchOf,
+    itemOf,
+    oneOf,
+    schema: node,
+  };
 }
 
 /**
@@ -1122,34 +1239,11 @@ function processDataField(
       (node as unknown as Record<string, unknown>).remoteData,
     ),
     reactions,
-    meta: {
-      title: node.title,
+    meta: buildFieldMeta(node, {
       widget: widgetName,
-      readOnlyWidget: node.readOnlyWidget,
-      sideEffects: node.sideEffects,
-      hooks: node.hooks,
-      type: node.type,
       rules,
-      description: node.description,
-      tooltip: node.tooltip as string | undefined,
-      placeholder: node.placeholder,
-      enum: node.enum,
-      enumNames: node.enumNames,
-      format: node.format,
-      min: node.min,
-      max: node.max,
-      extra: node.extra,
-      width: node.width,
-      order: node.order,
-      colSpan: node.colSpan,
-      displayType: node.displayType,
-      label: node.label ?? true,
-      labelWidth: node.labelWidth,
-      column: node.column,
-      bind: node.bind,
       branchOf: branchContext?.branchIndex,
-      schema: node,
-    },
+    }),
   };
 
   fieldStates.set(dataPath, state);
@@ -1254,21 +1348,12 @@ function processDataObject(
     errors: [],
     props: node.props || {},
     reactions: getReactions(node),
-    meta: {
-      title: node.title,
+    meta: buildFieldMeta(node, {
       widget: '',
-      type: 'object',
       rules: [],
-      description: node.description,
-      tooltip: node.tooltip as string | undefined,
-      extra: node.extra,
-      width: node.width,
-      order: node.order,
-      colSpan: node.colSpan,
       containerOnly: true,
       branchOf: branchContext?.branchIndex,
-      schema: node,
-    },
+    }),
   } satisfies FieldState);
 
   // 数据对象本身不是字段（无 widget），渲染为容器节点包裹子节点
@@ -1355,26 +1440,11 @@ function processDataArray(
     errors: [],
     props: mergeWidgetProps(widgetMeta?.props, node.props),
     reactions,
-    meta: {
-      title: node.title,
+    meta: buildFieldMeta(node, {
       widget: widgetName,
-      type: node.type,
       rules,
-      description: node.description,
-      tooltip: node.tooltip as string | undefined,
-      min: node.min,
-      max: node.max,
-      extra: node.extra,
-      width: node.width,
-      order: node.order,
-      colSpan: node.colSpan,
-      displayType: node.displayType,
-      labelWidth: node.labelWidth,
-      column: node.column,
-      items: node.items,
       branchOf: branchContext?.branchIndex,
-      schema: node,
-    },
+    }),
   };
 
   fieldStates.set(arrayPath, state);
@@ -1656,11 +1726,10 @@ function processBranchNode(
     errors: [],
     props: bnode.props || {},
     reactions,
-    meta: {
-      title: bnode.title,
+    meta: buildFieldMeta(node, {
       widget: '',
-      type: 'object',
       rules: [],
+      type: 'object', // 分支 trait（oneOf/anyOf）不进 meta，容器语义统一为 object
       containerOnly: true,
       branchOf: branchContext?.branchIndex, // 嵌套分支：标记所在外层分支
       oneOf: {
@@ -1668,8 +1737,7 @@ function processBranchNode(
         branches,
         fieldBranches,
       },
-      schema: node,
-    },
+    }),
   } satisfies FieldState);
 
   // 渲染树：分支容器节点（Renderer 依据 activeIndex 渲染活动分支的分组子节点）
@@ -1865,25 +1933,11 @@ export function createArrayItemState(
       (node as unknown as Record<string, unknown>).remoteData,
     ),
     reactions,
-    meta: {
-      title: node.title,
+    meta: buildFieldMeta(node, {
       widget: widgetName,
-      readOnlyWidget: node.readOnlyWidget,
-      type: node.type,
       rules,
-      description: node.description,
-      tooltip: node.tooltip as string | undefined,
-      placeholder: node.placeholder,
-      enum: node.enum,
-      enumNames: node.enumNames,
-      format: node.format,
-      min: node.min,
-      max: node.max,
-      extra: node.extra,
       itemOf: arrayPath,
-      hooks: node.hooks,
-      schema: node,
-    },
+    }),
   };
 }
 

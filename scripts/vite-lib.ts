@@ -46,7 +46,10 @@ const workspaceRoot = fileURLToPath(new URL('..', import.meta.url));
 export function workspaceAliases(): Record<string, string> {
   return {
     '@xbeeant/form-engine': resolve(workspaceRoot, 'packages/core/src'),
-    '@xbeeant/form-engine-react': resolve(workspaceRoot, 'packages/react/src'),
+    '@xbeeant/form-engine-react': resolve(
+      workspaceRoot,
+      'packages/react/src',
+    ),
     '@xbeeant/form-engine-ui': resolve(workspaceRoot, 'packages/ui/src'),
     '@xbeeant/form-engine-devtools': resolve(
       workspaceRoot,

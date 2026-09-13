@@ -71,6 +71,7 @@ export type {
   NexusEngineOptions,
   NexusFormInstance,
   NexusFormValidator,
+  NexusNodeProps,
   NexusPlugin,
   NexusSchema,
   OneOfBranchOption,

@@ -9,7 +9,7 @@
  * 修复：改用 useRef + lazy init，保证整个生命周期只分配一次实例 ID。
  */
 
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import React, { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -87,7 +87,7 @@ describe('回归：detail(readOnly) + edit 模态框共用 form', () => {
     cleanup();
   });
 
-  it('StrictMode 下打开编辑模态框不卡死', () => {
+  it('StrictMode 下打开编辑模态框不卡死', async () => {
     const { container } = render(
       <StrictMode>
         <DetailWithEditModal />
@@ -98,7 +98,9 @@ describe('回归：detail(readOnly) + edit 模态框共用 form', () => {
       container.querySelector('input[data-testid="input-name"]'),
     ).not.toBeNull();
 
-    fireEvent.click(container.querySelector('button')!);
+    await act(async () => {
+      fireEvent.click(container.querySelector('button')!);
+    });
 
     const inputs = container.querySelectorAll(
       'input[data-testid="input-name"]',
@@ -106,7 +108,7 @@ describe('回归：detail(readOnly) + edit 模态框共用 form', () => {
     expect(inputs.length).toBe(2);
   });
 
-  it('每个 NexusForm 分配独立实例（detail 只读，edit 可编辑）', () => {
+  it('每个 NexusForm 分配独立实例（detail 只读，edit 可编辑）', async () => {
     const { container } = render(
       <StrictMode>
         <DetailWithEditModal />
@@ -122,7 +124,9 @@ describe('回归：detail(readOnly) + edit 模态框共用 form', () => {
       expect(el.hasAttribute('readonly')).toBe(true);
     }
 
-    fireEvent.click(container.querySelector('button')!);
+    await act(async () => {
+      fireEvent.click(container.querySelector('button')!);
+    });
 
     const editInputs = container.querySelectorAll(
       '[data-testid="edit-modal"] input',
@@ -130,7 +134,7 @@ describe('回归：detail(readOnly) + edit 模态框共用 form', () => {
     expect(editInputs.length).toBe(2);
   });
 
-  it('渲染次数在合理范围（无无限循环）', () => {
+  it('渲染次数在合理范围（无无限循环）', async () => {
     const { container } = render(
       <StrictMode>
         <DetailWithEditModal />
@@ -139,7 +143,9 @@ describe('回归：detail(readOnly) + edit 模态框共用 form', () => {
 
     const rendersAfterDetail = renderCount.input;
 
-    fireEvent.click(container.querySelector('button')!);
+    await act(async () => {
+      fireEvent.click(container.querySelector('button')!);
+    });
 
     const rendersAfterEdit = renderCount.input;
     const editRenders = rendersAfterEdit - rendersAfterDetail;
@@ -149,14 +155,16 @@ describe('回归：detail(readOnly) + edit 模态框共用 form', () => {
     expect(editRenders).toBeLessThan(50);
   });
 
-  it('detail 与 edit 实例数据独立', () => {
+  it('detail 与 edit 实例数据独立', async () => {
     const { container } = render(
       <StrictMode>
         <DetailWithEditModal />
       </StrictMode>,
     );
 
-    fireEvent.click(container.querySelector('button')!);
+    await act(async () => {
+      fireEvent.click(container.querySelector('button')!);
+    });
 
     expect(holder.form!.getValues()).toEqual({ name: '', price: undefined });
 
@@ -164,7 +172,9 @@ describe('回归：detail(readOnly) + edit 模态框共用 form', () => {
     const editInputs = container.querySelectorAll(
       'input[data-testid="input-name"]',
     );
-    fireEvent.change(editInputs[1], { target: { value: '编辑' } });
+    await act(async () => {
+      fireEvent.change(editInputs[1], { target: { value: '编辑' } });
+    });
 
     const afterEdit = container.querySelectorAll(
       'input[data-testid="input-name"]',

@@ -41,18 +41,20 @@ import { getPathValue, setPathValue } from './value-utils';
  *
  * @type {ReadonlySet<LayoutContainerType>}
  */
-export const LAYOUT_CONTAINER_TYPES: ReadonlySet<LayoutContainerType> = new Set([
-  'card',
-  'tabs',
-  'grid',
-  'flex',
-  'space',
-  'steps',
-  'collapse',
-  'divider',
-  'void',
-  'passThrough',
-]);
+export const LAYOUT_CONTAINER_TYPES: ReadonlySet<LayoutContainerType> = new Set(
+  [
+    'card',
+    'tabs',
+    'grid',
+    'flex',
+    'space',
+    'steps',
+    'collapse',
+    'divider',
+    'void',
+    'passThrough',
+  ],
+);
 
 /**
  * 所有有效的布局面板类型标识集合

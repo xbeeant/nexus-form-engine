@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -69,7 +69,9 @@ describe('NexusForm persist（草稿持久化）', () => {
       <TestForm schema={schema} persist={{ key: 'draft-2' }} />,
     );
     const input = container.querySelector('input') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'zhangsan' } });
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'zhangsan' } });
+    });
 
     expect(localStorage.getItem('draft-2')).toBeNull();
     await new Promise((r) => setTimeout(r, 400));
@@ -132,7 +134,9 @@ describe('NexusForm persist（草稿持久化）', () => {
     // 等待恢复 + 防抖保存（存储中应仍为草稿）
     await new Promise((r) => setTimeout(r, 400));
 
-    fireEvent.submit(container.querySelector('form')!);
+    await act(async () => {
+      fireEvent.submit(container.querySelector('form')!);
+    });
     await new Promise((r) => setTimeout(r, 50));
 
     expect(onFinish).toHaveBeenCalled();
@@ -157,7 +161,9 @@ describe('NexusForm persist（草稿持久化）', () => {
       );
     }
     const { container } = render(<WithSubmit />);
-    fireEvent.submit(container.querySelector('form')!);
+    await act(async () => {
+      fireEvent.submit(container.querySelector('form')!);
+    });
     await new Promise((r) => setTimeout(r, 50));
     expect(localStorage.getItem('draft-6')).not.toBeNull();
   });
@@ -186,9 +192,13 @@ describe('NexusForm persist（草稿持久化）', () => {
     const toggle = container.querySelector(
       'button[type="button"]',
     ) as HTMLButtonElement;
-    fireEvent.click(toggle);
+    await act(async () => {
+      fireEvent.click(toggle);
+    });
     const input = container.querySelector('input') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: '动态开启' } });
+    await act(async () => {
+      fireEvent.change(input, { target: { value: '动态开启' } });
+    });
 
     await new Promise((r) => setTimeout(r, 400));
     expect(JSON.parse(localStorage.getItem('draft-7')!)).toEqual({
@@ -215,7 +225,9 @@ describe('NexusForm persist（草稿持久化）', () => {
       );
     }
     const { container } = render(<NoPersist />);
-    fireEvent.submit(container.querySelector('form')!);
+    await act(async () => {
+      fireEvent.submit(container.querySelector('form')!);
+    });
     await new Promise((r) => setTimeout(r, 50));
 
     expect(onFinish).toHaveBeenCalled();

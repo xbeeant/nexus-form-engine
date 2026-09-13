@@ -1,4 +1,4 @@
-import type { RenderBranchNode } from '@xbeeant/form-engine';
+import type { NexusNodeProps, RenderBranchNode } from '@xbeeant/form-engine';
 import type { CSSProperties } from 'react';
 import { useContext, useSyncExternalStore } from 'react';
 
@@ -7,10 +7,6 @@ import { GridContext } from '../contexts/grid-context';
 import { useNexusContext } from '../contexts/nexus-context';
 import { renderTreeNode } from '../utils/render-tree-node';
 import { resolveGridSpan } from '../utils/resolve-grid-span';
-
-interface NexusBranchProps {
-  node: RenderBranchNode;
-}
 
 /**
  * NexusBranch — 条件分支容器渲染器（oneOf / anyOf）
@@ -29,7 +25,7 @@ interface NexusBranchProps {
  * - 容器自身 disabled/readOnly/hidden 经 FieldInheritContext 下发给子树，
  *   与 NexusObject 语义一致（父级已激活的状态不可被子级覆盖）
  */
-export function NexusBranch({ node }: NexusBranchProps) {
+export function NexusBranch({ node }: NexusNodeProps<RenderBranchNode>) {
   const { engine } = useNexusContext();
   const parentInherit = useContext(FieldInheritContext);
 

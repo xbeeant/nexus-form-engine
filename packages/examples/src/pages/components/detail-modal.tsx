@@ -13,7 +13,7 @@ const ModalForm = ({ visible, value, onCancel }) => {
     const engineA = detailForm._getEngine();
     registerAntdUI(engineA);
     detailForm.setValues(value);
-  }, [detailForm]);
+  }, [detailForm, value]);
 
   return (
     <Modal

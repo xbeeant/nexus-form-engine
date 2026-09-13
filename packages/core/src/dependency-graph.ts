@@ -97,32 +97,32 @@ export class DependencyGraph {
     }
   }
 
-/**
- * 返回依赖指定字段的所有字段集合（副本，供外部安全使用）
- *
- * source 变化时，这些字段的 reactions 需要重新执行。
- * 返回防御性拷贝，防止外部篡改依赖图。
- * 注意：热路径（如联动执行）应使用 getDependentsRef 避免拷贝开销。
- *
- * @param path - 源字段路径
- * @returns 依赖该字段的所有字段集合（副本）
- */
-getDependents(path: string): Set<string> {
-  return new Set(this.dependentsOf.get(path));
-}
+  /**
+   * 返回依赖指定字段的所有字段集合（副本，供外部安全使用）
+   *
+   * source 变化时，这些字段的 reactions 需要重新执行。
+   * 返回防御性拷贝，防止外部篡改依赖图。
+   * 注意：热路径（如联动执行）应使用 getDependentsRef 避免拷贝开销。
+   *
+   * @param path - 源字段路径
+   * @returns 依赖该字段的所有字段集合（副本）
+   */
+  getDependents(path: string): Set<string> {
+    return new Set(this.dependentsOf.get(path));
+  }
 
-/**
- * 返回依赖指定字段的所有字段集合（只读引用，内部热路径使用，避免复制）
- *
- * 返回内部 Set 的直接引用（只读封装），调用方不应修改返回集合；
- * 引擎内部联动执行（runReactionsForSource）用它做 O(k) 遍历，避免每次拷贝。
- *
- * @param path - 源字段路径
- * @returns 只读的依赖字段集合；无依赖时返回空只读 Set（非 undefined）
- */
-getDependentsRef(path: string): ReadonlySet<string> {
-  return this.dependentsOf.get(path) ?? EMPTY_SET;
-}
+  /**
+   * 返回依赖指定字段的所有字段集合（只读引用，内部热路径使用，避免复制）
+   *
+   * 返回内部 Set 的直接引用（只读封装），调用方不应修改返回集合；
+   * 引擎内部联动执行（runReactionsForSource）用它做 O(k) 遍历，避免每次拷贝。
+   *
+   * @param path - 源字段路径
+   * @returns 只读的依赖字段集合；无依赖时返回空只读 Set（非 undefined）
+   */
+  getDependentsRef(path: string): ReadonlySet<string> {
+    return this.dependentsOf.get(path) ?? EMPTY_SET;
+  }
 
   /**
    * 获取指定字段所依赖的所有源字段集合

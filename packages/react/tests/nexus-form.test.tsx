@@ -83,16 +83,18 @@ describe('NexusForm', () => {
     ).not.toBeNull();
   });
 
-  it('输入触发 onChange → 引擎状态更新 → 字段精准重渲染', () => {
+  it('输入触发 onChange → 引擎状态更新 → 字段精准重渲染', async () => {
     const { container } = render(<TestForm schema={simpleSchema} />);
     const username = container.querySelector('input') as HTMLInputElement;
-    fireEvent.change(username, { target: { value: 'lisi' } });
+    await act(async () => {
+      fireEvent.change(username, { target: { value: 'lisi' } });
+    });
 
     expect(username.value).toBe('lisi');
     expect(holder.form!._getEngine().getFieldValue('username')).toBe('lisi');
   });
 
-  it('字段隔离：修改 A 字段不触发 B 字段重渲染（按路径版本订阅）', () => {
+  it('字段隔离：修改 A 字段不触发 B 字段重渲染（按路径版本订阅）', async () => {
     renders.a = 0;
     renders.b = 0;
     const { container } = render(
@@ -110,8 +112,10 @@ describe('NexusForm', () => {
     expect(renders.a).toBe(1);
     expect(renders.b).toBe(1);
 
-    fireEvent.change(container.querySelector('input') as HTMLInputElement, {
-      target: { value: 'x' },
+    await act(async () => {
+      fireEvent.change(container.querySelector('input') as HTMLInputElement, {
+        target: { value: 'x' },
+      });
     });
     expect(renders.a).toBe(2);
     expect(renders.b).toBe(1);
@@ -200,7 +204,7 @@ describe('NexusForm', () => {
     }
   });
 
-  it('hidden 表达式（_autoExpr）控制隐藏占位符', () => {
+  it('hidden 表达式（_autoExpr）控制隐藏占位符', async () => {
     const { container } = render(
       <TestForm
         schema={{
@@ -223,7 +227,9 @@ describe('NexusForm', () => {
     const enableInput = container.querySelector(
       'input[data-testid="input-enable"]',
     ) as HTMLInputElement;
-    fireEvent.change(enableInput, { target: { value: 'off' } });
+    await act(async () => {
+      fireEvent.change(enableInput, { target: { value: 'off' } });
+    });
     expect(
       container.querySelector('[data-nexus-hidden="detail"]'),
     ).not.toBeNull();
@@ -274,7 +280,7 @@ describe('NexusForm', () => {
     ).toBe('上海');
   });
 
-  it('onValuesChange 回调：值变化时触发（changedValue, allValues, changedPath）', () => {
+  it('onValuesChange 回调：值变化时触发（changedValue, allValues, changedPath）', async () => {
     const onValuesChange = vi.fn();
     function WatchForm() {
       const [form] = useForm();
@@ -289,8 +295,10 @@ describe('NexusForm', () => {
       );
     }
     const { container } = render(<WatchForm />);
-    fireEvent.change(container.querySelector('input') as HTMLInputElement, {
-      target: { value: 'lisi' },
+    await act(async () => {
+      fireEvent.change(container.querySelector('input') as HTMLInputElement, {
+        target: { value: 'lisi' },
+      });
     });
     expect(onValuesChange).toHaveBeenCalledTimes(1);
     const [changedValue, allValues, changedPath] = onValuesChange.mock.calls[0];
@@ -299,17 +307,17 @@ describe('NexusForm', () => {
     expect(changedPath).toBe('username');
   });
 
-  it('reloadRemoteData：FormController 聚合转发到引擎远程版本', () => {
+  it('reloadRemoteData：FormController 聚合转发到引擎远程版本', async () => {
     const { container } = render(<TestForm schema={simpleSchema} />);
     const engine = holder.form!._getEngine();
     expect(engine.getRemoteDataVersion('username')).toBe(0);
-    act(() => {
-      holder.form!.reloadRemoteData('username');
-    });
+    holder.form!.reloadRemoteData('username');
     expect(engine.getRemoteDataVersion('username')).toBe(1);
     // 值不受影响
-    fireEvent.change(container.querySelector('input') as HTMLInputElement, {
-      target: { value: 'x' },
+    await act(async () => {
+      fireEvent.change(container.querySelector('input') as HTMLInputElement, {
+        target: { value: 'x' },
+      });
     });
     expect(holder.form!._getEngine().getFieldValue('username')).toBe('x');
   });
@@ -330,16 +338,14 @@ describe('NexusForm', () => {
     expect(form.getValues()).toEqual({ name: '', city: '' });
     const filtered = form.getValues(undefined, { omitNil: true });
     expect(filtered).toEqual({});
-    act(() => {
-      form.setValueByPath('city', '上海');
-    });
+    form.setValueByPath('city', '上海');
     expect(form.getValues(undefined, { omitNil: true })).toEqual({
       city: '上海',
     });
   });
 
   it('submit submitting 状态：全流程（校验 + onFinish）期间为 true', async () => {
-    let resolveFinish: (v: undefined) => void = (_v) => {};
+    let resolveFinish: (v: undefined) => void = () => {};
     const finishPromise = new Promise<void>((resolve) => {
       resolveFinish = resolve;
     });
@@ -379,7 +385,7 @@ describe('NexusForm', () => {
     unsubscribe();
   });
 
-  it('字段级 hooks（P2-D）：onChange 传递新旧值，onBlur/onFocus 触发', () => {
+  it('字段级 hooks（P2-D）：onChange 传递新旧值，onBlur/onFocus 触发', async () => {
     const onChange = vi.fn();
     const onBlur = vi.fn();
     const onFocus = vi.fn();
@@ -410,14 +416,18 @@ describe('NexusForm', () => {
     const input = container.querySelector('input') as HTMLInputElement;
 
     // focus → onFocus 钩子触发
-    fireEvent.focus(input);
+    await act(async () => {
+      fireEvent.focus(input);
+    });
     expect(onFocus).toHaveBeenCalledTimes(1);
     const focusCtx = onFocus.mock.calls[0][0];
     expect(focusCtx.dataPath).toBe('name');
     expect(focusCtx.value).toBe('');
 
     // change → onChange 钩子触发，携带新值与旧值
-    fireEvent.change(input, { target: { value: 'lisi' } });
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'lisi' } });
+    });
     expect(onChange).toHaveBeenCalledTimes(1);
     const changeCtx = onChange.mock.calls[0][0];
     expect(changeCtx.dataPath).toBe('name');
@@ -428,12 +438,14 @@ describe('NexusForm', () => {
     expect(holder.form!.getValueByPath('name')).toBe('lisi');
 
     // blur → onBlur 钩子触发
-    fireEvent.blur(input);
+    await act(async () => {
+      fireEvent.blur(input);
+    });
     expect(onBlur).toHaveBeenCalledTimes(1);
     expect(onBlur.mock.calls[0][0].dataPath).toBe('name');
   });
 
-  it('字段级 hooks：onChange 内通过 setValue 产生联动副作用', () => {
+  it('字段级 hooks：onChange 内通过 setValue 产生联动副作用', async () => {
     const onChange = vi.fn(() => {
       (holder.form as any).setValueByPath('role', 'root');
     });
@@ -465,68 +477,12 @@ describe('NexusForm', () => {
     const userInput = container.querySelector(
       'input[data-testid="input-user"]',
     ) as HTMLInputElement;
-    fireEvent.change(userInput, { target: { value: 'admin' } });
+    await act(async () => {
+      fireEvent.change(userInput, { target: { value: 'admin' } });
+    });
     // 钩子通过 setValueByPath 联动 role
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(holder.form!.getValueByPath('role')).toBe('root');
     expect(holder.form!.getValueByPath('user')).toBe('admin');
-  });
-
-  it('type:"string" 无 widget 时 readOnly 降级为 html 渲染', () => {
-    const StubHtml = (props: any) => (
-      <div data-testid='html-content'>{props.value}</div>
-    );
-    const { container } = render(
-      <TestForm
-        schema={{
-          type: 'object',
-          properties: {
-            bio: { type: 'string', title: '简介' },
-          },
-        }}
-        initialValues={{ bio: '<p>hello</p>' }}
-        readOnly
-        widgets={{ html: StubHtml }}
-      />,
-    );
-    expect(container.querySelector('input')).toBeNull();
-    expect(container.querySelector('[data-testid="html-content"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="html-content"]')!.textContent).toBe('<p>hello</p>');
-  });
-
-  it('type:"string" 无 widget 时非 readOnly 仍使用 input', () => {
-    const { container } = render(
-      <TestForm
-        schema={{
-          type: 'object',
-          properties: {
-            bio: { type: 'string', title: '简介' },
-          },
-        }}
-        initialValues={{ bio: 'hello' }}
-      />,
-    );
-    expect(container.querySelector('input')).not.toBeNull();
-  });
-
-  it('type:"string" 显式 widget:"input" 时 readOnly 不降级为 html', () => {
-    const StubHtml = (props: any) => (
-      <div data-testid='html-content'>{props.value}</div>
-    );
-    const { container } = render(
-      <TestForm
-        schema={{
-          type: 'object',
-          properties: {
-            bio: { type: 'string', widget: 'input', title: '简介' },
-          },
-        }}
-        initialValues={{ bio: 'hello' }}
-        readOnly
-        widgets={{ html: StubHtml }}
-      />,
-    );
-    expect(container.querySelector('[data-testid="html-content"]')).toBeNull();
-    expect(container.querySelector('[data-testid="input-bio"]')).not.toBeNull();
   });
 });

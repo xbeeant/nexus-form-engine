@@ -124,10 +124,10 @@ describe('P1-1 条件分支容器 (oneOf / anyOf)', () => {
 
       expect(fieldBranches).toBeDefined();
       // 共享键 name 属于两个分支
-      expect(fieldBranches!['name']).toEqual([0, 1]);
+      expect(fieldBranches!.name).toEqual([0, 1]);
       // 独有键只属于对应分支
-      expect(fieldBranches!['aOnly']).toEqual([0]);
-      expect(fieldBranches!['bOnly']).toEqual([1]);
+      expect(fieldBranches!.aOnly).toEqual([0]);
+      expect(fieldBranches!.bOnly).toEqual([1]);
     });
 
     it('支持 branches 字段直接挂分支（非 oneOf/anyOf 键形态）', () => {

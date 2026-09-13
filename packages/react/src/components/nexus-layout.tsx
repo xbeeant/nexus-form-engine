@@ -1,4 +1,4 @@
-import type { RenderLayoutNode } from '@xbeeant/form-engine';
+import type { NexusNodeProps, RenderLayoutNode } from '@xbeeant/form-engine';
 import type { CSSProperties } from 'react';
 import { useContext, useMemo } from 'react';
 
@@ -10,10 +10,6 @@ import {
 import { useNexusContext } from '../contexts/nexus-context';
 import { renderTreeNode } from '../utils/render-tree-node';
 import { resolveGridSpan } from '../utils/resolve-grid-span';
-
-interface NexusLayoutProps {
-  node: RenderLayoutNode;
-}
 
 // 透传布局：不产生 DOM 边界，子项沿用父级栅格上下文（不做 null 重置）
 // - grid：自身重新下发 24 栅格上下文（{ column }）
@@ -37,7 +33,7 @@ const TRANSPARENT_GRID_LAYOUTS = new Set([
  * （inline-block/flex 流式排布），避免 form 级 GridContext 泄漏导致
  * gridColumn span 在非栅格容器中失效、字面 width 被抑制。
  */
-export function NexusLayout({ node }: NexusLayoutProps) {
+export function NexusLayout({ node }: NexusNodeProps<RenderLayoutNode>) {
   const { engine } = useNexusContext();
 
   const LayoutComponent = engine.getLayout(node.type);
