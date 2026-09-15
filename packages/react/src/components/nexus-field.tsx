@@ -35,8 +35,8 @@ export interface NexusAddons {
   index?: number;
   /** 父级值（数组项→父数组，对象字段→父对象） */
   parentValues?: unknown;
-  /** 依赖字段的实时值映射（key 为字段路径，value 为字段值），x-render dependValues 对齐 */
-  dependValues?: Record<string, unknown>;
+  /** 依赖字段的实时值数组（按 reactions.dependencies 顺序取值），x-render dependValues 对齐 */
+  dependValues?: unknown[];
   /** 按路径取值 */
   getValue(path: string): unknown;
 
@@ -196,7 +196,8 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
       : undefined;
   }, [state?.meta.enum, state?.meta.enumNames, state?.props.options]);
 
-  // 从 reactions 依赖构建 dependValues，供 widget 获取关联字段值。
+  // 从 reactions 依赖构建 dependValues（数组），供 widget 获取关联字段值。
+  // 数组顺序与 dependencies 声明顺序一致，与 Core 层 $deps 语义对齐。
   // reactions 引用稳定，值在 memo 执行时读取；避免每次渲染新建对象。
   // fieldVersion 作为依赖：依赖字段更新触发本字段 reaction（notifyField → 版本+1）
   // 后重算，保证 widget 拿到的是依赖字段的最新（已计算）值，而非首次渲染的旧快照。
@@ -205,12 +206,16 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
     // reaction 数组引用稳定，deps 无法捕获依赖字段值的更新；不依赖版本号将返回
     // 首次渲染的旧 dependValues（staleness）。void 使该依赖被显式声明。
     void fieldVersion;
-    const values: Record<string, unknown> = {};
+    const values: unknown[] = [];
+    const seen = new Set<string>();
     if (state?.reactions) {
       for (const reaction of state.reactions) {
         if (reaction.dependencies) {
           for (const dep of reaction.dependencies) {
-            values[dep] = engine.getFieldValue(dep);
+            if (!seen.has(dep)) {
+              seen.add(dep);
+              values.push(engine.getFieldValue(dep));
+            }
           }
         }
       }
@@ -348,6 +353,13 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
     dataPath,
   };
 
+  // 处理 dependencies 差异性：x-render 的 dependencies 是分割后的数组（string[][]），不是原 key（如 a.b.c）
+  let dependencies: string[][] | undefined;
+  if (state.meta.schema?.dependencies) {
+    dependencies = (state.meta.schema.dependencies as string[]).map((dep) =>
+      (Array.isArray(dep) ? dep : dep.split('.')).filter((item) => item !== ''),
+    );
+  }
   // widget 仅接收控件相关 props（value/onChange/状态/选项/表单引用/自有 props）
   const widgetProps = {
     // ...state.props 在构建后展开，避免 props 中的键覆盖 meta 值
@@ -377,7 +389,19 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
       },
     ),
     ...state.props,
+    dependencies,
   };
+
+  // @ts-expect-error
+  if (widgetProps.schema) {
+    // @ts-expect-error
+    widgetProps.schema.dependencies = dependencies;
+  } else {
+    // @ts-expect-error
+    widgetProps.schema = {};
+    // @ts-expect-error
+    widgetProps.schema.dependencies = dependencies;
+  }
 
   let control: ReactElement;
   if (FieldWrapper) {

@@ -10,6 +10,7 @@
  * 6. arrayOperation 不可变更新 + 数组项状态重建
  * 7. 精准订阅（subscribeField / getFieldVersion）
  * 8. reset() 依据 Schema 重建初始状态
+ * 9. 非 Schema 字段值存储与返回（extraValues）
  */
 
 import { describe, expect, it } from 'vitest';
@@ -474,5 +475,129 @@ describe('插件 onSubmit 钩子（提交拦截）', () => {
     expect(await engine.submit({ name: '张三' })).toBe(false);
     // 两个插件都被调用（阻塞不短路）
     expect(calls).toHaveLength(2);
+  });
+
+  // =========================================================================
+  // 非 Schema 字段值（extraValues）
+  // =========================================================================
+
+  describe('extraValues — 非 Schema 字段的值捕获与返回', () => {
+    it('setFieldValues 设置不在 schema 中的 key，getFormData 能返回', () => {
+      const engine = new NexusEngine();
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          name: { type: 'string', widget: 'input' },
+        },
+      };
+
+      engine.init(schema);
+      engine.setFieldValues({ name: 'test', extraKey: 'extraValue' });
+      const data = engine.getFormData();
+      expect(data.name).toBe('test');
+      expect(data.extraKey).toBe('extraValue');
+    });
+
+    it('多个 setFieldValues 调用累积 extraValues', () => {
+      const engine = new NexusEngine();
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          name: { type: 'string', widget: 'input' },
+        },
+      };
+
+      engine.init(schema);
+      engine.setFieldValues({ name: 'first', extra1: 'a' });
+      let data = engine.getFormData();
+      expect(data.extra1).toBe('a');
+
+      engine.setFieldValues({ name: 'second', extra2: 'b' });
+      data = engine.getFormData();
+      expect(data.extra1).toBe('a');
+      expect(data.extra2).toBe('b');
+    });
+
+    it('getFormData 指定 paths 时只返回匹配的 extra 键', () => {
+      const engine = new NexusEngine();
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {},
+      };
+
+      engine.init(schema);
+      engine.setFieldValues({ extraA: 1, extraB: 2 });
+
+      let data = engine.getFormData(['extraA']);
+      expect(data).toEqual({ extraA: 1 });
+      expect(data).not.toHaveProperty('extraB');
+
+      data = engine.getFormData(['extraA', 'extraB']);
+      expect(data).toEqual({ extraA: 1, extraB: 2 });
+    });
+
+    it('getAllFormData 也返回 extraValues', () => {
+      const engine = new NexusEngine();
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          name: { type: 'string', widget: 'input' },
+        },
+      };
+
+      engine.init(schema);
+      engine.setFieldValues({ name: 'test', secret: 'hidden' });
+
+      const allData = engine.getAllFormData();
+      expect(allData.name).toBe('test');
+      expect(allData.secret).toBe('hidden');
+    });
+
+    it('extraValues 覆盖：后续调用覆盖之前的值', () => {
+      const engine = new NexusEngine();
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {},
+      };
+
+      engine.init(schema);
+      engine.setFieldValues({ extraKey: 'first' });
+      engine.setFieldValues({ extraKey: 'second' });
+
+      const data = engine.getFormData();
+      expect(data.extraKey).toBe('second');
+    });
+
+    it('setFieldValue 设置额外 key 不会存入 extraValues', () => {
+      const engine = new NexusEngine();
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {},
+      };
+
+      engine.init(schema);
+      engine.setFieldValue('unknownKey', 'value');
+
+      // setFieldValue 对未知字段只打印警告，不修改任何数据
+      const data = engine.getFormData();
+      expect(data).not.toHaveProperty('unknownKey');
+    });
+
+    it('destroy 时 extraValues 被清空', () => {
+      const engine = new NexusEngine();
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {},
+      };
+
+      engine.init(schema);
+      engine.setFieldValues({ extraKey: 'value' });
+      engine.destroy();
+      engine.init(schema);
+      engine.setFieldValues({ extraKey: 'reinit' });
+
+      const data = engine.getFormData();
+      expect(data.extraKey).toBe('reinit');
+    });
   });
 });

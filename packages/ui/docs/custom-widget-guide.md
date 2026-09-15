@@ -62,7 +62,7 @@ import {
 | `labelWidth` | `number \| string` | 字段级 label 宽度 |
 | `column` | `number` | 字段级列数（24 栅格均分基准，未设 width 时默认占位 = `round(24/column)`） |
 | `form` | `NexusFormInstance` | 表单实例 |
-| `dependValues` | `Record<string, unknown>` | 依赖字段的值映射 |
+| `dependValues` | `unknown[]` | 依赖字段的值数组（按 `dependencies` 声明顺序取值，下标对应） |
 | `items` | `DataFieldSchema \| DataObjectSchema` | 数组节点的 items 定义 |
 
 ---
@@ -395,8 +395,9 @@ export const myWidget = withFormItem(({ form, value, onChange, ...props }: Widge
 
 ```typescript
 export const dependentWidget = withFormItem(
-  ({ dependValues, value, onChange, disabled, loading, path: _p, dataPath: _dp, ...props }: WidgetProps & { dependValues?: Record<string, unknown> }) => {
-    const parentValue = dependValues?.parentField;
+  ({ dependValues, value, onChange, disabled, loading, path: _p, dataPath: _dp, ...props }: WidgetProps & { dependValues?: unknown[] }) => {
+    // dependValues 为数组：按 dependencies 声明顺序取值，下标与 dependencies 对应
+    const parentValue = dependValues?.[0];
 
     // 根据 parentValue 的值决定是否显示或修改 behavior
     const isEnabled = parentValue === 'someValue';

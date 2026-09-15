@@ -222,6 +222,7 @@ export const simpleListWidget = ({
                         value={fieldValue}
                         onChange={(v) => handleFieldChange(index, key, v)}
                         disabled={disabled}
+                        readOnly={readOnly}
                       />
                     )}
                   </div>
@@ -243,6 +244,7 @@ export const simpleListWidget = ({
                     onChange={(v) => handleSimpleItemChange(index, v)}
                     disabled={disabled}
                     placeholder={simpleSchema?.placeholder}
+                    readOnly={readOnly}
                   />
                 )}
               </div>

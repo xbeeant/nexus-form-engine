@@ -62,8 +62,8 @@ export interface WidgetProps<T = Record<string, any>> {
   form?: NexusFormInstance;
   /** x-render addons — 表单取值、校验、Schema 操作入口 */
   addons?: NexusAddons;
-  /** 依赖字段的值映射（key 为字段路径，value 为字段值） */
-  dependValues?: Record<string, unknown>;
+  /** 依赖字段的值数组（按 reactions.dependencies 顺序取值），x-render dependValues 对齐 */
+  dependValues?: unknown[];
   /** 远程选项数据版本：engine.reloadRemoteData() 后递增，widget 据此跳过缓存重新请求 */
   remoteVersion?: number;
   /** 数组节点的 items 定义（DataArraySchema.items），供 list/simpleList/tableList widget 渲染每一项 */

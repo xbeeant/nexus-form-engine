@@ -18,7 +18,7 @@ interface WidgetAddons {
   path: string;
   index?: number;
   parentValues?: unknown;
-  dependValues?: Record<string, unknown>;
+  dependValues?: unknown[];
   getValue(path: string): unknown;
   getFieldsValue(
     paths?: string[],
@@ -51,26 +51,42 @@ interface WidgetAddons {
  *
  * 未声明（undefined）的键不写入，保持 schema 引用稳定（避免无谓重建）。
  */
-const EVALUATED_SCHEMA_KEYS = ['hidden', 'required', 'disabled', 'readOnly'] as const;
+const EVALUATED_SCHEMA_KEYS = [
+  'hidden',
+  'required',
+  'disabled',
+  'readOnly',
+] as const;
 
 function resolveEvaluatedSchema(
   schema: SchemaNode | undefined,
-  state: { hidden?: boolean; required?: boolean; disabled?: boolean; readOnly?: boolean },
-): SchemaNode | undefined {
+  state: {
+    hidden?: boolean;
+    required?: boolean;
+    disabled?: boolean;
+    readOnly?: boolean;
+  },
+): SchemaNode {
   if (!schema) {
-    return undefined;
+    return {};
   }
   const raw = schema as Record<string, unknown>;
+
   let copy: Record<string, unknown> | undefined;
   for (const key of EVALUATED_SCHEMA_KEYS) {
     const declared = raw[key];
     const live = state[key];
-    const isExpression = typeof declared === 'string' && declared.includes('{{');
-    if (isExpression || (declared !== undefined && live !== undefined && declared !== live)) {
+    const isExpression =
+      typeof declared === 'string' && declared.includes('{{');
+    if (
+      isExpression ||
+      (declared !== undefined && live !== undefined && declared !== live)
+    ) {
       copy ??= { ...raw };
       copy[key] = live;
     }
   }
+
   return copy ? (copy as SchemaNode) : schema;
 }
 
@@ -95,7 +111,7 @@ export function buildWidgetProps(
     hidden?: boolean;
     placeholder?: string;
     options?: Array<{ label: string; value: unknown } | string | number>;
-    dependValues?: Record<string, unknown>;
+    dependValues?: unknown[];
     items?: DataFieldSchema | DataObjectSchema;
     remoteVersion?: number;
     /** addons 的 value（默认取 base.value） */

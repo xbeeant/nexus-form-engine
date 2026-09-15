@@ -1008,7 +1008,6 @@ export interface FieldState {
 
     /**
      * 原始 Schema 节点（供 widget 组件读取完整声明）
-     * @deprecated
      */
     schema: SchemaNode;
 
@@ -1122,11 +1121,11 @@ export interface RenderLayoutNode {
 /**
  * 渲染树节点 - 条件分支容器（oneOf / anyOf）
  *
-* 分支容器本身承载 UI 状态（hidden/disabled/readOnly + activeIndex，存于容器 FieldState），
-   * `branches` 按分支索引分组保存各分支的渲染子节点 —— 所有分支的字段都已在 Parser
-   * 阶段预解析进 fieldStates（非活动分支字段 hidden=true），因此：
-   * - 切换分支只更新容器 FieldState.activeIndex + 各分支字段的 hidden 标志，
-   *   不会触发渲染树重建（Rendere 据此 O(1) 重渲染活动分支）。
+ * 分支容器本身承载 UI 状态（hidden/disabled/readOnly + activeIndex，存于容器 FieldState），
+ * `branches` 按分支索引分组保存各分支的渲染子节点 —— 所有分支的字段都已在 Parser
+ * 阶段预解析进 fieldStates（非活动分支字段 hidden=true），因此：
+ * - 切换分支只更新容器 FieldState.activeIndex + 各分支字段的 hidden 标志，
+ *   不会触发渲染树重建（Rendere 据此 O(1) 重渲染活动分支）。
  * - 容器 Key 不进入数据路径（布局透明），仅活动分支的字段收集数据。
  */
 export interface RenderBranchNode {

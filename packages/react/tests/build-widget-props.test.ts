@@ -69,7 +69,7 @@ describe('buildWidgetProps base props', () => {
       {
         placeholder: '请输入',
         options: [{ label: 'A', value: 1 }],
-        dependValues: { country: 'CN' },
+        dependValues: ['CN'],
         items: { type: 'string' },
         remoteVersion: 3,
       },
@@ -82,7 +82,7 @@ describe('buildWidgetProps base props', () => {
     );
     expect(props.placeholder).toBe('请输入');
     expect(props.options).toEqual([{ label: 'A', value: 1 }]);
-    expect(props.dependValues).toEqual({ country: 'CN' });
+    expect(props.dependValues).toEqual(['CN']);
     expect(props.items).toEqual({ type: 'string' });
     expect(props.remoteVersion).toBe(3);
   });

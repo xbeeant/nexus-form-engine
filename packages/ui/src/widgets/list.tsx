@@ -313,6 +313,7 @@ export const listWidget = ({
                               value={fieldValue}
                               onChange={(v) => handleFieldChange(index, key, v)}
                               disabled={disabled}
+                              readOnly={readOnly}
                             />
                           </div>
                         )}
@@ -431,6 +432,7 @@ export const listWidget = ({
                           value={fieldValue}
                           onChange={(v) => handleFieldChange(index, key, v)}
                           disabled={disabled}
+                          readOnly={readOnly}
                         />
                       </div>
                     )}

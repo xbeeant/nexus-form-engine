@@ -128,6 +128,8 @@ interface EngineInstanceState {
   remoteVersions: Map<string, number>;
   /** 远程选项数据全局版本（reloadRemoteData() 无 path 时递增，作用于全部字段） */
   remoteGlobalVersion: number;
+  /** 不在 schema 中申明的额外数据键值对（由 setFieldValues 捕获存储，getFormData 合并返回） */
+  extraValues: Record<string, unknown>;
 }
 
 /**
@@ -177,6 +179,7 @@ export class NexusEngine implements IFormEngine {
         formDataDirty: true,
         remoteVersions: new Map(),
         remoteGlobalVersion: 0,
+        extraValues: {},
       };
       this.instances.set(this.currentInstanceId, inst);
     }
@@ -453,10 +456,13 @@ export class NexusEngine implements IFormEngine {
       };
       return;
     }
+    const inst = this._inst();
     // values 是转换后的数据格式，根据 bind 反向解析到字段
     const changedPaths: string[] = [];
+    // 追踪 values 中已被 schema 字段消费的路径
+    const consumedPaths = new Set<string>();
 
-    for (const [path, state] of this._inst().fieldStates) {
+    for (const [path, state] of inst.fieldStates) {
       // 数据对象容器不接收值（仅承载 UI 状态，子字段各自独立接收）
       if (state.meta.containerOnly) {
         continue;
@@ -470,12 +476,17 @@ export class NexusEngine implements IFormEngine {
       } else if (typeof bind === 'string' && bind.length > 0) {
         // bind: string — 从 bind 路径读取（空字符串视为未配置）
         newValue = getPathValue(values, bind);
+        consumedPaths.add(bind);
       } else if (Array.isArray(bind)) {
         // bind: string[] — 从多个路径读取并组装成数组
         newValue = bind.map((b) => getPathValue(values, b));
+        bind.forEach((b) => {
+          consumedPaths.add(b);
+        });
       } else {
         // 无 bind — 从字段原始路径读取
         newValue = getPathValue(values, path);
+        consumedPaths.add(path);
       }
 
       if (newValue !== undefined) {
@@ -484,7 +495,22 @@ export class NexusEngine implements IFormEngine {
       }
     }
 
-    if (changedPaths.length === 0) {
+    // 未被 schema 字段消费的路径存入 extraValues
+    const extraValues = inst.extraValues;
+    let extraDirty = false;
+    for (const [key, value] of Object.entries(values)) {
+      if (!consumedPaths.has(key)) {
+        if (extraValues[key] !== value) {
+          extraValues[key] = value;
+          extraDirty = true;
+        }
+      }
+    }
+    if (extraDirty) {
+      this.markFormDataDirty();
+    }
+
+    if (changedPaths.length === 0 && !extraDirty) {
       return;
     }
 
@@ -625,6 +651,18 @@ export class NexusEngine implements IFormEngine {
         this.applyBindToData(data, path, state);
       }
 
+      // 合并 extraValues（仅当请求路径包含 extra key 时返回）
+      const inst = this._inst();
+      if (pathSet) {
+        for (const [key, value] of Object.entries(inst.extraValues)) {
+          if (pathSet.has(key)) {
+            data[key] = value;
+          }
+        }
+      } else {
+        Object.assign(data, inst.extraValues);
+      }
+
       return data;
     }
     // 无路径：使用缓存
@@ -646,6 +684,9 @@ export class NexusEngine implements IFormEngine {
       }
       this.applyBindToData(data, path, state);
     }
+
+    // 合并 extraValues
+    Object.assign(data, this._inst().extraValues);
 
     this._inst().formDataCache = data;
     this._inst().formDataDirty = false;
@@ -1411,6 +1452,8 @@ export class NexusEngine implements IFormEngine {
       }
       this.applyBindToData(data, path, state);
     }
+    // 合并 extraValues
+    Object.assign(data, this._inst().extraValues);
     return data;
   }
 
@@ -2080,6 +2123,7 @@ export class NexusEngine implements IFormEngine {
       inst.fieldValidators.clear();
       inst.formDataCache = null;
       inst.formDataDirty = true;
+      inst.extraValues = {};
     }
     this.instances.clear();
     this.currentInstanceId = 'default';

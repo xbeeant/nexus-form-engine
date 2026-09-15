@@ -64,7 +64,13 @@ export const tableListWidget = ({
   const actionColumnProps = _actionColumnProps as
     | Record<string, unknown>
     | undefined;
-  const array = Array.isArray(value) ? value : [];
+
+  const array = Array.isArray(value)
+    ? value.length === 0
+      ? [{}]
+      : value
+    : [{}];
+
   const itemSchema = items as DataObjectSchema | undefined;
   const itemProperties = itemSchema?.properties ?? {};
 
@@ -111,8 +117,16 @@ export const tableListWidget = ({
   const columns: ColumnsType<TableItemType> = [
     ...Object.entries(itemProperties).map(([key, fieldNode]) => {
       const fieldDef = fieldNode as DataFieldSchema;
+      const title = (
+        <>
+          {fieldDef.required && (
+            <span style={{ color: 'red', marginRight: '3px' }}>*</span>
+          )}
+          <span>{fieldDef.title}</span>
+        </>
+      );
       return {
-        title: fieldDef.title ?? key,
+        title: title,
         dataIndex: key,
         width: 160,
         render: (_val: unknown, record: TableItemType, index: number) => {
@@ -131,6 +145,7 @@ export const tableListWidget = ({
               value={record[key]}
               onChange={(v) => handleFieldChange(index, key, v)}
               disabled={disabled}
+              readOnly={readOnly}
             />
           );
         },
@@ -215,7 +230,7 @@ export const tableListWidget = ({
         bordered
         locale={{ emptyText: '暂无数据' }}
       />
-      {!readOnly && !hideAdd && (
+      {!readOnly && !hideAdd && !actionColumnProps?.hidden && (
         <Button
           type='dashed'
           onClick={handleAdd}
