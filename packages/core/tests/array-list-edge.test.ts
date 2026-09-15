@@ -3,7 +3,7 @@
  * 验证 remove/move 边界条件、batch 中断逻辑、maxItems 约束等
  */
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ArrayOperationsPlugin } from '../src/array-list';
 import { NexusEngine } from '../src/engine';
 import type { NexusSchema } from '../src/types/schema';
@@ -17,7 +17,12 @@ describe('ArrayOperationsPlugin - edge cases', () => {
   let engine: NexusEngine;
   let plugin: ArrayOperationsPlugin;
 
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
   afterEach(() => {
+    vi.restoreAllMocks();
     engine.destroy();
   });
 

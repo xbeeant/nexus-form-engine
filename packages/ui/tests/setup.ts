@@ -30,8 +30,17 @@ if (!window.ResizeObserver) {
   });
 }
 
-// getComputedStyle 的 CSS 变量读取（antd 主题 token 依赖）
-if (!window.getComputedStyle) {
+// getComputedStyle：jsdom 不支持 pseudoElt，antd/rc-table 滚动条测量会触发
+// "Not implemented" 日志；这里统一复用一个元素计算样式，保证测试输出干净。
+const originalGetComputedStyle = window.getComputedStyle.bind(window);
+if (typeof originalGetComputedStyle === 'function') {
+  Object.defineProperty(window, 'getComputedStyle', {
+    writable: true,
+    configurable: true,
+    value: (elt: Element) => originalGetComputedStyle(elt),
+  });
+} else {
+  // getComputedStyle 的 CSS 变量读取（antd 主题 token 依赖）
   Object.defineProperty(window, 'getComputedStyle', {
     value: () => ({ getPropertyValue: () => '' }),
   });

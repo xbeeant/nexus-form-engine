@@ -77,7 +77,7 @@ export interface TreeSelectConfig {
 // ── 工具函数 ──────────────────────────────────────────────────────────────
 
 /** 按点号路径从对象中取值 */
-function getNestedValue(obj: unknown, path: string): unknown {
+export function getNestedValue(obj: unknown, path: string): unknown {
   if (!path) {
     return obj;
   }
@@ -90,7 +90,10 @@ function getNestedValue(obj: unknown, path: string): unknown {
 }
 
 /** 构建请求 URL，新参数覆盖 URL 中已有的同名参数 */
-function buildUrl(baseUrl: string, params?: Record<string, unknown>): string {
+export function buildUrl(
+  baseUrl: string,
+  params?: Record<string, unknown>,
+): string {
   const [pathname, existingQuery] = baseUrl.split('?');
   const existing = new URLSearchParams(existingQuery || '');
   if (params && Object.keys(params).length > 0) {
@@ -107,7 +110,7 @@ function buildUrl(baseUrl: string, params?: Record<string, unknown>): string {
 }
 
 /** 默认 fetch 请求封装 */
-async function defaultFetch(
+export async function defaultFetch(
   url: string,
   method: 'GET' | 'POST',
   dataPath: string,
@@ -125,7 +128,7 @@ async function defaultFetch(
 }
 
 /** 后端数据 → antd TreeSelect treeData */
-function normalizeTreeData(
+export function normalizeTreeData(
   rawData: unknown[],
   cfg: {
     valueKey: string;
@@ -162,7 +165,7 @@ function normalizeTreeData(
 }
 
 /** 更新树中指定节点的 children（异步加载子节点后使用） */
-function updateTreeData(
+export function updateTreeData(
   list: DefaultOptionType[],
   key: React.Key,
   children: DefaultOptionType[],
@@ -182,7 +185,7 @@ function updateTreeData(
 }
 
 /** 在树中查找指定 value 的节点（返回节点本身，用于后续合并） */
-function findNodeInTree(
+export function findNodeInTree(
   tree: DefaultOptionType[],
   targetValue: unknown,
 ): DefaultOptionType | null {
@@ -205,7 +208,7 @@ function findNodeInTree(
  * - 同 key 节点：保留已有 title，合并 children
  * - 新节点：追加到列表
  */
-function mergeNodeList(
+export function mergeNodeList(
   list: DefaultOptionType[],
   newNode: DefaultOptionType,
 ): DefaultOptionType[] {
@@ -241,7 +244,10 @@ function mergeChildren(
 }
 
 /** 本地搜索过滤 */
-function localFilter(inputValue: string, treeNode: DefaultOptionType): boolean {
+export function localFilter(
+  inputValue: string,
+  treeNode: DefaultOptionType,
+): boolean {
   const title = String(treeNode.title ?? '');
   return title.toLowerCase().includes(inputValue.toLowerCase());
 }
@@ -251,7 +257,7 @@ function localFilter(inputValue: string, treeNode: DefaultOptionType): boolean {
  * - 记录之间通过 pidKey → valueKey 建立父子关系
  * - 根节点 = pid 为空/0/'0'/null/undefined 的记录
  */
-function buildTreeFromFlatRecords(
+export function buildTreeFromFlatRecords(
   records: Record<string, unknown>[],
   cfg: {
     valueKey: string;
@@ -334,8 +340,6 @@ function buildTreeFromFlatRecords(
   for (const rootPid of ['', '0', 'null', 'undefined']) {
     roots.push(...buildNodes(rootPid));
   }
-  // pid=0 的整数
-  roots.push(...buildNodes('0'));
   // 记录中 pid 不在所有 value 中的也是根节点
   for (const r of unique) {
     const pid = r[cfg.pidKey];

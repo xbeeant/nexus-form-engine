@@ -1,8 +1,8 @@
-import { fireEvent, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import type { FormController } from '@xbeeant/form-engine-react';
 
 import { NexusForm, useForm } from '@xbeeant/form-engine-react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   antdWidgets,
   datePickerWidget,
@@ -10,6 +10,13 @@ import {
   registerAntdUI,
   timeRangeWidget,
 } from '../src';
+
+afterEach(async () => {
+  // antd Form 的 useDebounce 会留下 10ms 定时器，等待它在 jsdom 销毁前触发。
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+});
 
 function renderForm(schema: unknown, props: Record<string, unknown> = {}) {
   const holder: { form?: FormController } = {};

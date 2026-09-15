@@ -41,24 +41,27 @@ describe('listWidget 集成测试', () => {
   });
 
   it('collapsible=false 时不渲染 Collapse', () => {
-    const { container } = renderWithForm({
-      type: 'object',
-      properties: {
-        items: {
-          type: 'array',
-          widget: 'list',
-          props: { collapsible: false, hideDelete: true },
+    const { container } = renderWithForm(
+      {
+        type: 'object',
+        properties: {
           items: {
-            type: 'object',
-            properties: {
-              name: { type: 'string', title: '名称', widget: 'input' },
+            type: 'array',
+            widget: 'list',
+            props: { collapsible: false, hideDelete: true },
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', title: '名称', widget: 'input' },
+              },
             },
           },
         },
       },
-    });
+      { initialValues: { items: [{ name: 'A' }] } },
+    );
     expect(container.querySelector('.ant-collapse')).toBeNull();
-    // 应该有 div 容器
+    // 非折叠模式仍应渲染卡片式列表项
     expect(container.querySelector('.ant-space')).not.toBeNull();
   });
 

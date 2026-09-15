@@ -124,12 +124,12 @@ export const tableListWidget = ({
     ...Object.entries(itemProperties).map(([key, fieldNode]) => {
       const fieldDef = fieldNode as DataFieldSchema;
       const title = (
-        <>
+        <span key={key}>
           {fieldDef.required && (
             <span style={{ color: 'red', marginRight: '3px' }}>*</span>
           )}
           <span>{fieldDef.title}</span>
-        </>
+        </span>
       );
       return {
         title: title,
