@@ -10,7 +10,11 @@
 //   与上移/下移按钮并存（无障碍回退）
 // ============================================================================
 
-import type { DataFieldSchema, DataObjectSchema } from '@xbeeant/form-engine';
+import type {
+  DataFieldSchema,
+  DataObjectSchema,
+  SchemaNode,
+} from '@xbeeant/form-engine';
 import { Button, Collapse, Space, Typography } from 'antd';
 import { useCallback, useRef, useState } from 'react';
 import {
@@ -44,7 +48,7 @@ export const listWidget = ({
   column: _col,
   form: _form,
   dependValues: _dv,
-  dataPath,
+  schema,
   path: _p,
   addText: _addText,
   removeText: _removeText,
@@ -58,6 +62,8 @@ export const listWidget = ({
   remoteVersion: _rv,
   ...rest
 }: WidgetProps) => {
+  // dataPath 从 schema 获取（不再作为独立 prop 透传）
+  const dataPath = (schema as SchemaNode & { dataPath?: string })?.dataPath;
   const addText = _addText as string | undefined;
   const removeText = _removeText as string | undefined;
   const copyText = _copyText as string | undefined;

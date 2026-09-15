@@ -18,7 +18,7 @@ import { useState } from 'react';
 
 export const confirmPasswordWidget = (props: WidgetProps) => {
   const {
-    dataPath,
+    schema,
     form,
     value,
     disabled,
@@ -32,7 +32,7 @@ export const confirmPasswordWidget = (props: WidgetProps) => {
 
   useFieldValidator(
     form,
-    dataPath,
+    (schema as { dataPath?: string })?.dataPath,
     (val, formData) => {
       const pwd = String((formData as Record<string, unknown>)?.password ?? '');
       const confirm = String(val ?? '');
@@ -72,7 +72,7 @@ export const confirmPasswordWidget = (props: WidgetProps) => {
 
 export const usernameUniqueWidget = (props: WidgetProps) => {
   const {
-    dataPath,
+    schema,
     form,
     value,
     disabled,
@@ -84,7 +84,7 @@ export const usernameUniqueWidget = (props: WidgetProps) => {
   const [toggle, setToggle] = useState(false);
   useFieldValidator(
     form,
-    dataPath,
+    (schema as { dataPath?: string })?.dataPath,
     async (val) => {
       console.log(toggle);
       const v = String(val ?? '');

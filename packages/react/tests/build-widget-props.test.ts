@@ -56,7 +56,7 @@ describe('buildWidgetProps base props', () => {
         form,
       },
     );
-    expect(props.schema).toEqual({ type: 'string' });
+    expect(props.schema).toEqual({ type: 'string', dataPath: 'username' });
     expect(props.disabled).toBe(true);
     expect(props.readOnly).toBe(true);
     expect(props.required).toBe(true);
@@ -87,7 +87,7 @@ describe('buildWidgetProps base props', () => {
     expect(props.remoteVersion).toBe(3);
   });
 
-  it('展开 base（dataPath/path/value/onChange）', () => {
+  it('展开 base（schema.dataPath/path/value/onChange），dataPath 不透传', () => {
     const onChange = vi.fn();
     const props = buildWidgetProps(
       {},
@@ -99,10 +99,24 @@ describe('buildWidgetProps base props', () => {
         form,
       },
     );
-    expect(props.dataPath).toBe('field-a');
+    // dataPath 不直接透传：widget 通过 schema.dataPath 读取
+    expect(props.dataPath).toBeUndefined();
+    expect(props.schema).toEqual({ dataPath: 'field-a' });
     expect(props.path).toBe('field-a');
     expect(props.value).toBe(42);
     expect(props.onChange).toBe(onChange);
+  });
+
+  it('dataPath 已声明于 schema 时以附加值为准', () => {
+    const props = buildWidgetProps(
+      { schema: { type: 'string', widget: 'input' } },
+      { dataPath: 'dp', path: 'dp', value: 1, onChange: vi.fn(), form },
+    );
+    expect(props.schema).toEqual({
+      type: 'string',
+      widget: 'input',
+      dataPath: 'dp',
+    });
   });
 });
 
@@ -359,7 +373,8 @@ describe('buildWidgetProps 边界情况', () => {
       {},
       { dataPath: 'a', value: 1, onChange: vi.fn(), form },
     );
-    expect(props.dataPath).toBe('a');
+    expect(props.dataPath).toBeUndefined();
+    expect(props.schema).toEqual({ dataPath: 'a' });
     expect(props.addons).toBeDefined();
   });
 
@@ -368,7 +383,8 @@ describe('buildWidgetProps 边界情况', () => {
       {},
       { dataPath: 'x', value: undefined, onChange: vi.fn(), form },
     );
-    expect(props.dataPath).toBe('x');
+    expect(props.dataPath).toBeUndefined();
+    expect(props.schema).toEqual({ dataPath: 'x' });
     expect(props.disabled).toBeUndefined();
     expect(props.readOnly).toBeUndefined();
     expect(props.required).toBeUndefined();

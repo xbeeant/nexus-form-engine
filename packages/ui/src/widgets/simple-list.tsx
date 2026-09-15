@@ -6,7 +6,11 @@
 // 支持新增 / 删除 / 上移 / 下移 / 复制
 // ============================================================================
 
-import type { DataFieldSchema, DataObjectSchema } from '@xbeeant/form-engine';
+import type {
+  DataFieldSchema,
+  DataObjectSchema,
+  SchemaNode,
+} from '@xbeeant/form-engine';
 import { Button, Space, Typography } from 'antd';
 import {
   arrayAdd,
@@ -40,7 +44,7 @@ export const simpleListWidget = ({
   column: _col,
   form: _form,
   dependValues: _dv,
-  dataPath,
+  schema,
   path: _p,
   addText: _addText,
   removeText: _removeText,
@@ -52,6 +56,8 @@ export const simpleListWidget = ({
   remoteVersion: _rv,
   ...rest
 }: WidgetProps) => {
+  // dataPath 从 schema 获取（不再作为独立 prop 透传）
+  const dataPath = (schema as SchemaNode & { dataPath?: string })?.dataPath;
   const addText = _addText as string | undefined;
   const removeText = _removeText as string | undefined;
   const copyText = _copyText as string | undefined;

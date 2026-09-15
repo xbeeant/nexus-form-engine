@@ -64,6 +64,7 @@ import {
 | `form` | `NexusFormInstance` | 表单实例 |
 | `dependValues` | `unknown[]` | 依赖字段的值数组（按 `dependencies` 声明顺序取值，下标对应） |
 | `items` | `DataFieldSchema \| DataObjectSchema` | 数组节点的 items 定义 |
+| `schema` | `SchemaNode` | 原始 Schema 节点（已附加 `schema.dataPath` 字段数据路径） |
 
 ---
 
@@ -395,7 +396,7 @@ export const myWidget = withFormItem(({ form, value, onChange, ...props }: Widge
 
 ```typescript
 export const dependentWidget = withFormItem(
-  ({ dependValues, value, onChange, disabled, loading, path: _p, dataPath: _dp, ...props }: WidgetProps & { dependValues?: unknown[] }) => {
+  ({ schema, dependValues, value, onChange, disabled, loading, path: _p, ...props }: WidgetProps & { dependValues?: unknown[] }) => {
     // dependValues 为数组：按 dependencies 声明顺序取值，下标与 dependencies 对应
     const parentValue = dependValues?.[0];
 

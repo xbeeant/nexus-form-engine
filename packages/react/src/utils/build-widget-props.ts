@@ -58,6 +58,13 @@ const EVALUATED_SCHEMA_KEYS = [
   'readOnly',
 ] as const;
 
+/**
+ * 仅附加 dataPath 的 schema 副本缓存：widget 不直接接收 dataPath 顶层 prop，
+ * 而是通过 `props.schema.dataPath` 读取字段数据路径。原始 schema 节点是稳定
+ * 引用，直接合并会破坏引用稳定；按 (schema 节点, dataPath) 缓存合并副本。
+ */
+const schemaDataPathCache = new WeakMap<SchemaNode, Map<string, SchemaNode>>();
+
 function resolveEvaluatedSchema(
   schema: SchemaNode | undefined,
   state: {
@@ -66,9 +73,10 @@ function resolveEvaluatedSchema(
     disabled?: boolean;
     readOnly?: boolean;
   },
+  dataPath?: string,
 ): SchemaNode {
   if (!schema) {
-    return {};
+    return dataPath !== undefined ? ({ dataPath } as SchemaNode) : {};
   }
   const raw = schema as Record<string, unknown>;
 
@@ -87,7 +95,31 @@ function resolveEvaluatedSchema(
     }
   }
 
-  return copy ? (copy as SchemaNode) : schema;
+  if (copy) {
+    // 求值覆盖需要新副本：dataPath 一并附加
+    if (dataPath !== undefined && copy.dataPath !== dataPath) {
+      copy.dataPath = dataPath;
+    }
+    return copy as SchemaNode;
+  }
+
+  // 无求值覆盖：仅需附加 dataPath 时走缓存，保持 schema 引用稳定
+  if (dataPath !== undefined && raw.dataPath !== dataPath) {
+    let byPath = schemaDataPathCache.get(schema);
+    if (!byPath) {
+      byPath = new Map<string, SchemaNode>();
+      schemaDataPathCache.set(schema, byPath);
+    }
+    const cached = byPath.get(dataPath);
+    if (cached) {
+      return cached;
+    }
+    const merged = { ...raw, dataPath } as SchemaNode;
+    byPath.set(dataPath, merged);
+    return merged;
+  }
+
+  return schema;
 }
 
 /**
@@ -180,12 +212,16 @@ export function buildWidgetProps(
   };
 
   return {
-    schema: resolveEvaluatedSchema(opts.schema, {
-      hidden: opts.hidden,
-      required: opts.required,
-      disabled: opts.disabled,
-      readOnly: opts.readOnly,
-    }),
+    schema: resolveEvaluatedSchema(
+      opts.schema,
+      {
+        hidden: opts.hidden,
+        required: opts.required,
+        disabled: opts.disabled,
+        readOnly: opts.readOnly,
+      },
+      addonsDataPath,
+    ),
     disabled: opts.disabled,
     readOnly: opts.readOnly,
     required: opts.required,
@@ -196,7 +232,12 @@ export function buildWidgetProps(
     dependValues: opts.dependValues,
     items: opts.items,
     remoteVersion: opts.remoteVersion,
-    ...base,
+    // dataPath 不直接透传给 widget：组件通过 props.schema.dataPath 读取
+    // （数据路径已合并入 schema；addons.dataPath 仍保留供表单 API 使用）
+    path: addonsPath,
+    value: base.value,
+    onChange: base.onChange,
+    form,
     addons,
   };
 }

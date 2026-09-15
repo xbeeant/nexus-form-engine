@@ -26,9 +26,9 @@ import { SideEffectsEditor } from './side-effects-editor';
 dayjs.extend(customParseFormat);
 
 export interface WidgetProps<T = Record<string, any>> {
-  /** 原始 Schema 节点（供 widget 组件读取完整声明） */
+  /** 原始 Schema 节点（供 widget 组件读取完整声明；已附加 dataPath 字段数据路径） */
   schema: SchemaNode;
-  /** 字段数据路径（供 widget 组件内注册校验规则 / 读取自身状态） */
+  /** 字段数据路径 —— 由 schema 提供（props.schema.dataPath），不再作为独立 prop 传入 */
   dataPath?: string;
   /** 字段数据路径（dataPath 别名，x-render 风格） */
   path?: string;

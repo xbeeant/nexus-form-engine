@@ -4,7 +4,11 @@
 // items 为 DataObjectSchema，每项是一个对象
 // ============================================================================
 
-import type { DataFieldSchema, DataObjectSchema } from '@xbeeant/form-engine';
+import type {
+  DataFieldSchema,
+  DataObjectSchema,
+  SchemaNode,
+} from '@xbeeant/form-engine';
 import { Button, Popconfirm, Space, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -43,7 +47,7 @@ export const tableListWidget = ({
   column: _col,
   form: _form,
   dependValues: _dv,
-  dataPath,
+  schema,
   path: _p,
   addText: _addText,
   hideAdd: _hideAdd,
@@ -55,6 +59,8 @@ export const tableListWidget = ({
   remoteVersion: _rv,
   ...rest
 }: WidgetProps) => {
+  // dataPath 从 schema 获取（不再作为独立 prop 透传）
+  const dataPath = (schema as SchemaNode & { dataPath?: string })?.dataPath;
   const addText = _addText as string | undefined;
   const hideAdd = _hideAdd as boolean | undefined;
   const hideDelete = _hideDelete as boolean | undefined;

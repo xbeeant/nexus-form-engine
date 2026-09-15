@@ -45,10 +45,10 @@ import { useFieldValidator } from '@xbeeant/form-engine-react';
 
 // widget 为裸组件：Form.Item 包裹由 NexusForm 渲染层默认完成（label=false 时跳过）
 export const confirmPasswordWidget = (props: WidgetProps) => {
-  const { dataPath, form, value, dependValues: _dv, path: _p, ...rest } = props;
+  const { schema, form, value, dependValues: _dv, path: _p, ...rest } = props;
 
   // 组件内注册校验器：闭包可读取组件 state，实现与组件状态联动
-  useFieldValidator(form, dataPath, (val, formData) => {
+  useFieldValidator(form, (schema as { dataPath?: string })?.dataPath, (val, formData) => {
     if (val && formData.password && val !== formData.password) {
       return ['两次输入的密码不一致'];
     }
