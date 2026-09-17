@@ -1056,7 +1056,10 @@ function mergeFieldProps(
   ) {
     merged.format = nodeFormat;
   }
-  return merged;
+  // 过滤没有赋值的key, filter value = undefined 的key
+  return Object.fromEntries(
+    Object.entries(merged).filter(([_, value]) => value !== undefined),
+  );
 }
 
 /**

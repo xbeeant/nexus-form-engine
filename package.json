@@ -14,7 +14,7 @@
     "lint:fix:unsafe": "biome check --write --unsafe .",
     "prettier": "biome check --write .",
     "test": "lerna run test",
-    "test:all": "bun scripts/test-and-report.js"
+    "test:all": "npm run scripts/test-and-report.js"
   },
   "devDependencies": {
     "@ant-design/pro-components": "^2.8.10",

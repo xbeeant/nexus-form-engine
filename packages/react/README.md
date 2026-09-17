@@ -79,7 +79,7 @@ const [form] = useForm(); // 返回 [FormController]，可选 useForm(engine) �
 | :--- | :--- |
 | `useFormData()` | 订阅完整 formData（全局快照） |
 | `useFieldValue(path)` | 订阅单字段值（精准版本订阅，仅该字段重渲染） |
-| `useFieldState(path)` | 订阅单字段完整状态（value / errors / hidden / required ...） |
+| `useFieldState(path)` | 订阅单字段完整状态（value / errors / visible / required ...） |
 | `useWatch(path)` | 监听字段值变化（`(value, oldValue) => void`） |
 | `useWatchState(path)` | 监听字段状态变化 |
 | `useWatchMultiple(paths)` | 同时监听多个字段 |

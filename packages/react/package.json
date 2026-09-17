@@ -20,8 +20,14 @@
     "./index.css": "./dist/es/styles.css",
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md", "!**/*.map"],
-  "sideEffects": ["**/*.css"],
+  "files": [
+    "dist",
+    "README.md",
+    "!**/*.map"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "scripts": {
     "build": "npm run build:es && npm run build:cjs && npm run build:umd",
     "prepublishOnly": "npm run build",
@@ -30,7 +36,7 @@
     "build:umd": "vite build -f umd",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "test": "vitest run"
+    "test": "vitest run --coverage"
   },
   "peerDependencies": {
     "react": ">=18.0.0",
@@ -45,7 +51,12 @@
     }
   },
   "dependencies": {
-    "@xbeeant/form-engine": "^0.0.5",
+    "@xbeeant/form-engine": "^0.0.30",
     "dompurify": "^3.4.15"
+  },
+  "gitHead": "2f4208b0324f2bb2e91df524ab36a5ce7c89d0e3",
+  "devDependencies": {
+    "@vitest/ui": "^5.0.0",
+    "vitest": "^5.0.0"
   }
 }

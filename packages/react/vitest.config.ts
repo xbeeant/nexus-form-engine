@@ -13,6 +13,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['tests/**/*.test.{ts,tsx}'],
-    setupFiles: ['tests/setup.ts'],
+      coverage: {
+        provider: 'v8',
+        reporter: ['json-summary', 'json', 'html'],
+        include: ['src/**/*.ts', 'src/**/*.tsx'],
+        exclude: ['src/vite-env.d.ts', 'src/index.ts'],
+      },
   },
 });

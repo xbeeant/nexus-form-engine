@@ -16,7 +16,12 @@ export default defineConfig({
     include: ['tests/**/*.test.{ts,tsx}'],
     setupFiles: ['tests/setup.ts'],
     css: false,
-    // 启用全局 afterEach，@testing-library/react 自动清理 DOM
     globals: true,
+      coverage: {
+        provider: 'v8',
+        reporter: ['json-summary', 'json', 'html'],
+        include: ['src/**/*.ts', 'src/**/*.tsx'],
+        exclude: ['src/index.ts'],
+      },
   },
 });

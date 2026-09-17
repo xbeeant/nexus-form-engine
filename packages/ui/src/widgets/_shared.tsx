@@ -26,9 +26,9 @@ import { SideEffectsEditor } from './side-effects-editor';
 dayjs.extend(customParseFormat);
 
 export interface WidgetProps<T = Record<string, any>> {
-  /** 原始 Schema 节点（供 widget 组件读取完整声明；已附加 dataPath 字段数据路径） */
+  /** 原始 Schema 节点（供 widget 组件读取完整声明） */
   schema: SchemaNode;
-  /** 字段数据路径 —— 由 schema 提供（props.schema.dataPath），不再作为独立 prop 传入 */
+  /** 字段数据路径（供 widget 组件内注册校验规则 / 读取自身状态） */
   dataPath?: string;
   /** 字段数据路径（dataPath 别名，x-render 风格） */
   path?: string;
@@ -62,7 +62,7 @@ export interface WidgetProps<T = Record<string, any>> {
   form?: NexusFormInstance;
   /** x-render addons — 表单取值、校验、Schema 操作入口 */
   addons?: NexusAddons;
-  /** 依赖字段的值数组（按 reactions.dependencies 顺序取值），x-render dependValues 对齐 */
+  /** 依赖字段的值映射（key 为字段路径，value 为字段值） */
   dependValues?: unknown[];
   /** 远程选项数据版本：engine.reloadRemoteData() 后递增，widget 据此跳过缓存重新请求 */
   remoteVersion?: number;

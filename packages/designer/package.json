@@ -29,7 +29,7 @@
     "prepublishOnly": "npm run build",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "test": "vitest run"
+    "test": "vitest run --coverage"
   },
   "peerDependencies": {
     "antd": ">=5.0.0",
@@ -52,10 +52,8 @@
     }
   },
   "dependencies": {
-    "@xbeeant/form-engine": "^0.0.5",
-    "@xbeeant/form-engine-ui": "^0.0.5"
+    "@xbeeant/form-engine": "^0.0.30",
+    "@xbeeant/form-engine-ui": "^0.0.30"
   },
-  "devDependencies": {
-    "vitest": "^4.1.10"
-  }
+  "gitHead": "2f4208b0324f2bb2e91df524ab36a5ce7c89d0e3"
 }

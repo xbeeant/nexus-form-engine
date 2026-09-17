@@ -20,7 +20,7 @@ for (const pkg of packages) {
   const pkgDir = join(ROOT, pkg.dir);
   try {
     console.log(`\n📦 ${pkg.name}`);
-    const output = execSync(`bunx vitest run --coverage`, {
+    const output = execSync(`npx vitest run --coverage`, {
       cwd: pkgDir,
       encoding: 'utf-8',
       stdio: 'pipe',

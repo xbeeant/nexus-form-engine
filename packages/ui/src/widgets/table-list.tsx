@@ -78,6 +78,7 @@ export const tableListWidget = ({
     : [{}];
 
   const itemSchema = items as DataObjectSchema | undefined;
+
   const itemProperties = itemSchema?.properties ?? {};
 
   const handleAdd = () => {
