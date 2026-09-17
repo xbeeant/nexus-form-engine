@@ -369,6 +369,7 @@ function resolveItemColSpan(
 interface CanvasActions {
   onSelect: (path: string[]) => void;
   onDelete: (path: string[]) => void;
+  onPreviewSchema: (path: string[]) => void;
   onReorder: (path: string[], direction: 'up' | 'down') => void;
   onDragStart: (e: React.DragEvent, path: string[]) => void;
   onDragOver: (e: React.DragEvent, path: string[]) => void;
@@ -387,7 +388,8 @@ interface CanvasNodeProps {
   /** 父级计算好的派生值：仅本节点相关（boolean/string，参与 memo 比较） */
   isSelected: boolean;
   dropTargetType: 'before' | 'after' | null;
-  /** 原始状态透传（供本节点计算其子节点的派生值；不参与 memo 比较） */
+  /** 原始状态透传（供本节点计算其子节点的派生值；参与 memo 比较，
+      选中路径变化必须穿透 memo 使子树重算选中态） */
   selectedPathKey: string | null;
   dropTarget: DropTarget;
   actions: CanvasActions;
@@ -395,9 +397,13 @@ interface CanvasNodeProps {
 
 // ────────────────────────────────────────────────────────────────────────────
 // CanvasNode — 单个节点的递归渲染（memo 化，自定义比较器）
-// 比较器只对比派生值（isSelected / dropTargetType）与稳定引用（node / pathKey /
-// depth / parentDataPath / actions）：拖拽过程中只有 drop 目标节点与选中节点
-// 的派生值变化 → 其余子树整体跳过重渲染，热路径从 O(N) 降为 O(1)
+// 比较器只对比派生值（isSelected / dropTargetType / selectedPathKey）与稳定引用
+// （node / pathKey / depth / parentDataPath / actions）：拖拽过程中只有 drop
+// 目标节点与选中节点相关派生值变化 → 其余子树整体跳过重渲染，热路径从 O(N)
+// 降为 O(1)。
+// 注意：selectedPathKey 必须参与比较——选中路径在父容器内切换时，父容器自身
+// 的 isSelected 不变，若只比较 isSelected 会导致父容器被 memo 跳过、子节点
+// 收不到新的选中状态（组件拖入/切换后无法显示选中操作按钮）。
 // ────────────────────────────────────────────────────────────────────────────
 
 const CanvasNode = memo(
@@ -471,13 +477,21 @@ const CanvasNode = memo(
           <div className='drop-indicator-line relative h-1 pointer-events-none z-10 -mt-0.5' />
         )}
 
-        {/* 统一包裹容器：header + 预览/子节点 */}
+        {/* 统一包裹容器：header + 预览/子节点
+            整卡可点击选中：字段内容区（NexusField 控件）与 header 一样触发
+            onSelect；stopPropagation 防止冒泡到画布容器触发 selectNode(null)
+            取消选中（组件多时内容区占位大，点内容区选不中是高频误触）。
+            容器子节点拖放区（childDiv）自带 stopPropagation，点空白不选容器。 */}
         <div
           className={`relative rounded border bg-white transition-all ${
             isSelected
               ? 'border-[#1677ff] bg-[#e6f4ff] shadow-[0_0_0_2px_rgba(22,119,255,0.1)]'
               : 'border-[#e8e8e8] hover:border-[#1677ff]'
           }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            actions.onSelect(path);
+          }}
         >
           {/* header 行：拖拽 + 信息 + 操作 */}
           <div
@@ -508,6 +522,29 @@ const CanvasNode = memo(
             </Typography.Text>
             {isSelected && (
               <span className='inline-flex gap-1'>
+                <Button
+                  size='small'
+                  title='预览当前组件 Schema'
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    actions.onPreviewSchema(path);
+                  }}
+                >
+                  <svg
+                    width='12'
+                    height='12'
+                    viewBox='0 0 24 24'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='2.5'
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    aria-hidden='true'
+                  >
+                    <polyline points='8 6 2 12 8 18' />
+                    <polyline points='16 6 22 12 16 18' />
+                  </svg>
+                </Button>
                 <Button
                   size='small'
                   onClick={(e) => {
@@ -668,6 +705,7 @@ const CanvasNode = memo(
     prev.depth === next.depth &&
     prev.parentDataPath === next.parentDataPath &&
     prev.isSelected === next.isSelected &&
+    prev.selectedPathKey === next.selectedPathKey &&
     prev.dropTargetType === next.dropTargetType &&
     prev.actions === next.actions,
 );
@@ -678,6 +716,72 @@ function dropTargetPathKey(target: DropTarget): string | null {
     return null;
   }
   return toPathKey(target.path);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// SchemaPreviewModal — 选中组件 Schema 预览弹窗
+// 展示节点在 schema 中的路径与 JSON（快照自点击时刻，编辑不会影响已打开内容）
+// ────────────────────────────────────────────────────────────────────────────
+
+interface SchemaPreviewModalProps {
+  preview: { path: string[]; json: string } | null;
+  onClose: () => void;
+}
+
+function SchemaPreviewModal({ preview, onClose }: SchemaPreviewModalProps) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <Modal
+      title='组件 Schema 预览'
+      open={preview !== null}
+      onCancel={onClose}
+      width={640}
+      footer={[
+        <Button
+          key='copy'
+          onClick={async () => {
+            if (!preview) {
+              return;
+            }
+            try {
+              await navigator.clipboard.writeText(preview.json);
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 1500);
+            } catch {
+              // 剪贴板不可用时静默失败，不影响预览
+            }
+          }}
+        >
+          {copied ? '已复制' : '复制'}
+        </Button>,
+        <Button key='close' onClick={onClose}>
+          关闭
+        </Button>,
+      ]}
+    >
+      {preview && (
+        <>
+          <div className='mb-2 font-mono text-[11px] text-[#999]'>
+            路径：{preview.path.join(' / ')}
+          </div>
+          <pre
+            style={{
+              maxHeight: 400,
+              overflow: 'auto',
+              background: '#f5f5f5',
+              padding: 12,
+              borderRadius: 6,
+              fontSize: 13,
+              margin: 0,
+            }}
+          >
+            {preview.json}
+          </pre>
+        </>
+      )}
+    </Modal>
+  );
 }
 
 export function Canvas() {
@@ -705,6 +809,11 @@ export function Canvas() {
     string,
     unknown
   > | null>(null);
+  // 选中组件的 Schema 预览：点击预览按钮时快照节点 JSON，路径用于弹窗定位
+  const [previewNode, setPreviewNode] = useState<{
+    path: string[];
+    json: string;
+  } | null>(null);
 
   // 与 context 的 schema state 同步：所有回调从 ref 读取「最新」schema，
   // 无需把 schema 放入依赖数组 → handleDrop/handleReorder 等保持引用稳定，
@@ -1064,6 +1173,16 @@ export function Canvas() {
     [selectNode],
   );
 
+  // 预览选中节点 Schema：点击时从 ref 读取最新 schema 并快照节点 JSON，
+  // 引用稳定（不依赖 schema），不破坏 actions memo / CanvasNode 重渲染优化
+  const handlePreviewSchema = useCallback((path: string[]) => {
+    const node = getNodeAtProperties(schemaRef.current.properties, path);
+    if (!node) {
+      return;
+    }
+    setPreviewNode({ path, json: JSON.stringify(node, null, 2) });
+  }, []);
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: handleReorder 经 ref 读取最新 schema，保持引用稳定使 actions memo 生效
   const handleReorder = useCallback(
     (path: string[], direction: 'up' | 'down') => {
@@ -1120,6 +1239,7 @@ export function Canvas() {
     () => ({
       onSelect: handleSelect,
       onDelete: handleDelete,
+      onPreviewSchema: handlePreviewSchema,
       onReorder: handleReorder,
       onDragStart: handleNodeDragStart,
       onDragOver: handleNodeDragOver,
@@ -1130,6 +1250,7 @@ export function Canvas() {
     [
       handleSelect,
       handleDelete,
+      handlePreviewSchema,
       handleReorder,
       handleNodeDragStart,
       handleNodeDragOver,
@@ -1230,44 +1351,50 @@ export function Canvas() {
   ));
 
   return (
-    <NexusFormProvider
-      form={designForm}
-      engine={designEngine}
-      config={formConfig}
-    >
-      {/* 设计态：width/colSpan 由节点卡片承接（卡片是布局容器的直接子项），
-          NexusField 内层包装不再重复应用布局项样式 */}
-      <LayoutConfigContext.Provider value={DESIGN_LAYOUT_CONFIG}>
-        <div
-          className='flex-1 overflow-y-auto p-4 bg-[#f5f5f5] min-h-full border border-transparent box-border'
-          onClick={() => selectNode(null)}
-          onDragOver={handleContainerDragOver}
-          onDrop={(e) => handleContainerDrop(e, [])}
-        >
+    <>
+      <NexusFormProvider
+        form={designForm}
+        engine={designEngine}
+        config={formConfig}
+      >
+        {/* 设计态：width/colSpan 由节点卡片承接（卡片是布局容器的直接子项），
+            NexusField 内层包装不再重复应用布局项样式 */}
+        <LayoutConfigContext.Provider value={DESIGN_LAYOUT_CONFIG}>
           <div
-            className='nexus-canvas-flow'
-            style={
-              Object.keys(rootContainerStyle).length > 0
-                ? rootContainerStyle
-                : undefined
-            }
+            className='flex-1 overflow-y-auto p-4 bg-[#f5f5f5] min-h-full border border-transparent box-border'
+            onClick={() => selectNode(null)}
+            onDragOver={handleContainerDragOver}
+            onDrop={(e) => handleContainerDrop(e, [])}
           >
-            {rootIsGrid ? (
-              <GridContext.Provider value={{ column: rootColumn }}>
-                {rootNodes}
-              </GridContext.Provider>
-            ) : (
-              rootNodes
-            )}
-            {rootEntries.length === 0 && (
-              <Empty
-                description='拖拽组件到此处开始设计'
-                style={rootIsGrid ? { gridColumn: 'span 24' } : undefined}
-              />
-            )}
+            <div
+              className='nexus-canvas-flow'
+              style={
+                Object.keys(rootContainerStyle).length > 0
+                  ? rootContainerStyle
+                  : undefined
+              }
+            >
+              {rootIsGrid ? (
+                <GridContext.Provider value={{ column: rootColumn }}>
+                  {rootNodes}
+                </GridContext.Provider>
+              ) : (
+                rootNodes
+              )}
+              {rootEntries.length === 0 && (
+                <Empty
+                  description='拖拽组件到此处开始设计'
+                  style={rootIsGrid ? { gridColumn: 'span 24' } : undefined}
+                />
+              )}
+            </div>
           </div>
-        </div>
-      </LayoutConfigContext.Provider>
-    </NexusFormProvider>
+        </LayoutConfigContext.Provider>
+      </NexusFormProvider>
+      <SchemaPreviewModal
+        preview={previewNode}
+        onClose={() => setPreviewNode(null)}
+      />
+    </>
   );
 }

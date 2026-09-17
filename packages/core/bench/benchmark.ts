@@ -5,15 +5,15 @@
  * 导入构建产物（dist），反映真实使用场景。
  */
 
-import type { NexusSchema, RenderTreeNode } from '@nexus/form-engine';
+import type { NexusSchema, RenderTreeNode } from '@xbeeant/form-engine';
 import {
   ArrayOperationsPlugin,
   createExpressionSandbox,
-  getNestedValue,
+  getPathValue,
   NexusEngine,
   parse,
-  setNestedValue,
-} from '@nexus/form-engine';
+  setPathValue,
+} from '@xbeeant/form-engine';
 
 // ────────────────────────────────────────────────────────────────────────────
 // 基准工具
@@ -388,11 +388,11 @@ await measure('getRenderTree() 快照 (200 fields)', 10, 1000, () => {
     user: { profile: { tags: ['a', 'b'] } },
   };
   await measure('getNestedValue(user.profile.tags)', 10, 2000, () => {
-    getNestedValue(data, 'user.profile.tags');
+    getPathValue(data, 'user.profile.tags');
   });
   const mutable: Record<string, unknown> = {};
   await measure('setNestedValue(user.profile.name)', 10, 2000, () => {
-    setNestedValue(mutable, 'user.profile.name', 'x');
+    setPathValue(mutable, 'user.profile.name', 'x');
   });
 }
 

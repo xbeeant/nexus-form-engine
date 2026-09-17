@@ -356,9 +356,13 @@ export class NexusEngine implements IFormEngine {
     this._inst().dependencyGraph = result.dependencyGraph;
     this._inst().validateExprFields = result.validateExprFields;
 
-    // 为所有字段递增字段级版本（init / reset 后触发按路径订阅的组件重渲染）
+    // 为所有字段递增字段级版本并通知已注册的字段监听器：
+    // init（结构变化）会重建 fieldStates，已挂载的字段组件（如设计器画布中的
+    // NexusField，未消费 renderTree）必须感知到状态替换并重渲染；
+    // 仅 bump 版本不通知时，useSyncExternalStore 收不到 onStoreChange，
+    // 依赖「先挂载订阅、后 init」时序的消费方会停留在旧状态（字段不显示）。
     for (const path of this._inst().fieldStates.keys()) {
-      this.bumpFieldVersion(path);
+      this.notifyField(path);
     }
 
     // 执行初始 reactions（应用联动规则的初始状态）

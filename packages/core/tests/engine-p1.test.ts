@@ -390,6 +390,29 @@ describe('NexusEngine P1', () => {
       expect(engine.getFieldVersion('a')).toBeGreaterThan(0);
       expect(engine.getFieldVersion('unknown')).toBe(0);
     });
+
+    it('init 重建字段状态后通知已注册的字段监听器', () => {
+      const engine = new NexusEngine();
+      engine.init({
+        type: 'object',
+        properties: {
+          a: { type: 'string', widget: 'input' },
+        },
+      });
+      let calls = 0;
+      engine.subscribeField('a', () => calls++);
+      // 模拟「先挂载订阅、后 init」的消费方（如设计器画布中的 NexusField）：
+      // init 重建 fieldStates 后必须通知字段监听器，否则 useSyncExternalStore
+      // 收不到 onStoreChange，消费方停留在旧状态（字段不渲染）
+      engine.init({
+        type: 'object',
+        properties: {
+          a: { type: 'string', widget: 'input', required: true },
+        },
+      });
+      expect(calls).toBe(1);
+      expect(engine.getFieldState('a')).toMatchObject({ required: true });
+    });
   });
 
   describe('reset() 依据 Schema 重建初始状态', () => {
