@@ -5,6 +5,8 @@
 // 表示 schema.properties.card1.properties.username
 
 import {
+  type DataFieldSchema,
+  type DataObjectSchema,
   isDataArray,
   isDataField,
   isDataObject,
@@ -588,16 +590,20 @@ function updatePropsBranch(
     return props;
   }
   // 重建沿线容器节点（object / 布局 / array items.properties）
+  // 'properties' in child 取反后，DataArraySchema（有 items 无 properties）仍留在
+  // union 中，需再用 'items' in child 收窄，否则 child.items 触发 TS2339
   const nextChild: SchemaNode =
     'properties' in child
       ? { ...child, properties: updated }
-      : ({
-          ...child,
-          items: {
-            ...(child.items as object),
-            properties: updated,
-          },
-        } as unknown as SchemaNode);
+      : 'items' in child
+        ? ({
+            ...child,
+            items: {
+              ...(child.items as DataFieldSchema | DataObjectSchema),
+              properties: updated,
+            },
+          } as unknown as SchemaNode)
+        : child;
   return { ...props, [head]: nextChild };
 }
 
