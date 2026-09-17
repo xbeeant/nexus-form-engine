@@ -177,6 +177,10 @@ function PatchValueInput({
 // ────────────────────────────────────────────────────────────────────────────
 
 export function ReactionsEditor({ value, onChange }: WidgetProps) {
+  // 上提 Schema 树遍历一次（整个编辑器只做一次 collectDataFieldOptions），
+  // 不再让每个 ReactionCard 各自遍历，避免 N 条规则 × 2 次全量遍历每帧重复执行
+  const fields = useFormDataFields();
+  const fieldOptions = useFormDataFieldOptions();
   const [cards, setCards] = useState<Card[]>(() =>
     toManualReactions(value).map(reactionToCard),
   );
@@ -261,6 +265,8 @@ export function ReactionsEditor({ value, onChange }: WidgetProps) {
           key={card.id}
           card={card}
           index={cardIndex}
+          fields={fields}
+          fieldOptions={fieldOptions}
           onChange={updateCard}
           onRemove={removeCard}
         />
@@ -285,16 +291,18 @@ export function ReactionsEditor({ value, onChange }: WidgetProps) {
 function ReactionCard({
   card,
   index,
+  fields,
+  fieldOptions,
   onChange,
   onRemove,
 }: {
   card: Card;
   index: number;
+  fields: string[];
+  fieldOptions: Array<{ value: string; label: string }>;
   onChange: (index: number, patch: Partial<Card>) => void;
   onRemove: (index: number) => void;
 }) {
-  const fields = useFormDataFields();
-  const fieldOptions = useFormDataFieldOptions();
   const depsCount = depsCountOf(card.deps);
   const depsTags = card.deps
     .split(',')

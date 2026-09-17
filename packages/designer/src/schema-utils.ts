@@ -549,12 +549,66 @@ export function updateNodeWithNesting(
   if (path.length === 0) {
     return schema;
   }
-  const next = clone(schema);
-  const node = getNodeAtProperties(next.properties, path);
-  if (!node) {
-    return next;
+  // Copy-on-Write：仅复制根→目标路径，避免整棵 Schema 深拷贝（属性面板按键热路径）
+  const nextProps = updatePropsBranch(schema.properties, path, (node) =>
+    applyPatchToNode(node, flatPatch),
+  );
+  if (nextProps === schema.properties) {
+    return schema;
   }
-  const nodeRec = node as unknown as Record<string, unknown>;
+  return { ...schema, properties: nextProps };
+}
+
+/**
+ * 沿路径深修 properties 分支（Copy-on-Write）：
+ * 仅复制从根到目标节点的路径引用，其余子树原地共享，
+ * 避免属性面板每次按键对整棵 Schema 做 structuredClone 深拷贝（O(n)→O(depth)）。
+ * 返回新的 properties 记录；路径终点缺失或无需变更时浅引用原地复用。
+ */
+function updatePropsBranch(
+  props: Record<string, SchemaNode>,
+  path: string[],
+  updater: (node: SchemaNode) => SchemaNode,
+): Record<string, SchemaNode> {
+  const [head, ...rest] = path;
+  const child = props[head];
+  if (rest.length === 0) {
+    const next = updater(child);
+    return next === child ? props : { ...props, [head]: next };
+  }
+  if (child == null) {
+    return props;
+  }
+  const childProps = getPropertiesOf(child);
+  if (!childProps) {
+    return props;
+  }
+  const updated = updatePropsBranch(childProps, rest, updater);
+  if (updated === childProps) {
+    return props;
+  }
+  // 重建沿线容器节点（object / 布局 / array items.properties）
+  const nextChild: SchemaNode =
+    'properties' in child
+      ? { ...child, properties: updated }
+      : ({
+          ...child,
+          items: {
+            ...(child.items as object),
+            properties: updated,
+          },
+        } as unknown as SchemaNode);
+  return { ...props, [head]: nextChild };
+}
+
+/**
+ * 将 flatPatch 应用到单个节点（不含 schema 深拷贝，配合 updatePropsBranch 使用）。
+ */
+function applyPatchToNode(
+  node: SchemaNode,
+  flatPatch: Record<string, unknown>,
+): SchemaNode {
+  const nodeRec = { ...node } as unknown as Record<string, unknown>;
 
   // value/label 选项编辑器：同步写出 canonical 的 enum + enumNames，
   // 使选项同时作用于控件展示、校验（enum 规则）与只读回显
@@ -578,17 +632,18 @@ export function updateNodeWithNesting(
   }
 
   // schema 级属性直接覆盖（undefined 视为清空，删除该 key）
+  const nextRec: Record<string, unknown> = { ...nodeRec };
   for (const [key, value] of Object.entries(flatPatch)) {
     if (SCHEMA_LEVEL_KEYS.has(key)) {
       if (value === undefined) {
-        delete (nodeRec as Record<string, unknown>)[key];
+        delete (nextRec as Record<string, unknown>)[key];
       } else {
-        (nodeRec as Record<string, unknown>)[key] = value;
+        nextRec[key] = value;
       }
     }
   }
 
-  // UI 组件属性：只合并进 props（统一入口）；
+  // UI 组件属性：只合并进 props（统一入口），不整体覆盖，避免丢失其它属性
   const uiProps: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(flatPatch)) {
     if (!SCHEMA_LEVEL_KEYS.has(key)) {
@@ -607,9 +662,9 @@ export function updateNodeWithNesting(
         delete mergedProps[key];
       }
     }
-    nodeRec.props = mergedProps;
+    nextRec.props = mergedProps;
   }
-  return next;
+  return nextRec as unknown as SchemaNode;
 }
 
 /**

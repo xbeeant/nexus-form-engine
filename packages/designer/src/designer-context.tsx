@@ -91,39 +91,47 @@ export function DesignerProvider({
   const [selectedPath, setSelectedPath] = useState<string[] | null>(null);
   const [mode, setMode] = useState<DesignerMode>('design');
   const historyRef = useRef(new SchemaHistory());
+  // 与 schema state 同步的引用：让 emit/undo/redo 读取「最新」schema，
+  // 又无需把 schema 放入依赖数组 → 所有操作回调保持引用稳定，
+  // 避免每次属性编辑都重建 Context value、级联重渲染整棵设计器树
+  const schemaRef = useRef(schema);
   // 历史栈版本：驱动 canUndo/canRedo 的消费方重渲染
   const [_historyVersion, setHistoryVersion] = useState(0);
 
   // 写入 schema 并同步通知外部；历史记录由 SchemaHistory 统一管理
+  // 不依赖 schema（从 schemaRef 读取最新值），引用稳定
   const emit = useCallback(
     (
       next: NexusSchema,
       kind: 'edit' | 'replace' = 'replace',
       path: string | null = null,
     ) => {
-      historyRef.current.push(schema, kind, path);
+      historyRef.current.push(schemaRef.current, kind, path);
+      schemaRef.current = next;
       setHistoryVersion((v) => v + 1);
       setSchemaState(next);
       onSchemaChange?.(next);
     },
-    [schema, onSchemaChange],
+    [onSchemaChange],
   );
 
   const undo = useCallback(() => {
-    const restored = historyRef.current.undo(schema);
+    const restored = historyRef.current.undo(schemaRef.current);
     if (restored === null) {
       return;
     }
+    schemaRef.current = restored;
     setHistoryVersion((v) => v + 1);
     setSchemaState(restored);
     onSchemaChange?.(restored);
-  }, [schema, onSchemaChange]);
+  }, [onSchemaChange]);
 
   const redo = useCallback(() => {
     const restored = historyRef.current.redo();
     if (restored === null) {
       return;
     }
+    schemaRef.current = restored;
     setHistoryVersion((v) => v + 1);
     setSchemaState(restored);
     onSchemaChange?.(restored);
@@ -139,41 +147,46 @@ export function DesignerProvider({
 
   const addNode = useCallback(
     (parentPath: string[], key: string, node: SchemaNode) => {
-      emit(addChildToSchema(schema, parentPath, key, node), 'edit');
+      emit(addChildToSchema(schemaRef.current, parentPath, key, node), 'edit');
     },
-    [schema, emit],
+    [emit],
   );
 
   const removeNode = useCallback(
     (path: string[]) => {
-      emit(removeNodeFromSchema(schema, path), 'edit');
+      emit(removeNodeFromSchema(schemaRef.current, path), 'edit');
       setSelectedPath(null);
     },
-    [schema, emit],
+    [emit],
   );
 
   const updateNode = useCallback(
     (path: string[], patch: Record<string, unknown>) => {
       // 同路径的连续属性编辑由 SchemaHistory 合并（COALESCE_MS 窗口）
-      emit(updateNodeWithNesting(schema, path, patch), 'edit', path.join('.'));
+      // updateNodeWithNesting 为 Copy-on-Write 路径更新，不再整棵深拷贝
+      emit(
+        updateNodeWithNesting(schemaRef.current, path, patch),
+        'edit',
+        path.join('.'),
+      );
     },
-    [schema, emit],
+    [emit],
   );
 
   const moveNode = useCallback(
     (fromPath: string[], toParentPath: string[]) => {
-      emit(moveNodeInSchema(schema, fromPath, toParentPath), 'edit');
+      emit(moveNodeInSchema(schemaRef.current, fromPath, toParentPath), 'edit');
     },
-    [schema, emit],
+    [emit],
   );
 
   const renameNode = useCallback(
     (path: string[], newKey: string) => {
-      const result = renameNodeInSchema(schema, path, newKey);
+      const result = renameNodeInSchema(schemaRef.current, path, newKey);
       emit(result.schema, 'edit');
       setSelectedPath(result.newPath);
     },
-    [schema, emit],
+    [emit],
   );
 
   const value = useMemo<DesignerContextValue>(

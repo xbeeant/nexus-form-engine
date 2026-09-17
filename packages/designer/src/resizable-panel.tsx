@@ -68,18 +68,28 @@ export function ResizablePanel({
       return;
     }
 
+    // requestAnimationFrame 节流：mousemove 事件频率（可达 60+次/秒）远高于
+    // 屏幕刷新率，逐事件 setWidth 会触发无谓的重渲染与布局
+    let rafId = 0;
+
     const handleMouseMove = (e: MouseEvent) => {
-      const rect = panelRef.current?.getBoundingClientRect();
-      if (!rect) {
+      if (rafId) {
         return;
       }
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        const rect = panelRef.current?.getBoundingClientRect();
+        if (!rect) {
+          return;
+        }
 
-      const next =
-        side === 'left'
-          ? e.clientX - rect.left // 左面板：拖右边缘 = 距左边界距离
-          : rect.right - e.clientX; // 右面板：拖左边缘 = 距右边界距离
+        const next =
+          side === 'left'
+            ? e.clientX - rect.left // 左面板：拖右边缘 = 距左边界距离
+            : rect.right - e.clientX; // 右面板：拖左边缘 = 距右边界距离
 
-      setWidth(Math.max(minWidth, Math.min(maxWidth, Math.round(next))));
+        setWidth(Math.max(minWidth, Math.min(maxWidth, Math.round(next))));
+      });
     };
 
     const handleMouseUp = () => setDragging(false);
@@ -92,6 +102,10 @@ export function ResizablePanel({
     document.body.style.cursor = 'col-resize';
 
     return () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.userSelect = '';

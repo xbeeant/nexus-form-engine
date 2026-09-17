@@ -55,7 +55,10 @@ function PropertyForm({
   const engine = form._getEngine();
 
   // 注册 antd 基础 widget（select/input/switch/number/textarea/collapse/collapsePanel）
-  registerAntdUI(engine);
+  // 移入 effect：引擎注册是副作用，不应在渲染体中重复执行
+  useEffect(() => {
+    registerAntdUI(engine);
+  }, [engine]);
   // 记录本表单实例中用户实际改动过的字段（组件随 formKey 重建，节点切换时自动重置）。
   // 用于区分「未触碰的字符串默认值 ''」与「用户主动清空」——
   // 后者需要回写 schema（删除属性），前者写回会污染 schema（如 bind:'' 导致数据 key 丢失）。
@@ -75,13 +78,20 @@ function PropertyForm({
     [onValuesChange],
   );
 
+  // watch 对象 memo 化：保持引用稳定，避免 NexusForm 每次渲染
+  // 触发 _syncConfig → watcher 清空/重新注册（该过程每次按键都会执行）
+  const watchConfig = useMemo<{ [key: string]: unknown }>(
+    () => ({ '#': handleWatch }),
+    [handleWatch],
+  );
+
   return (
     <NexusForm
       footer={false}
       form={form}
       schema={schema}
       initialValues={initialValues}
-      watch={{ '#': handleWatch }}
+      watch={watchConfig}
       widgets={propertyWidgets}
     />
   );

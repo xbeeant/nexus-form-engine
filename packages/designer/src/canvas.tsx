@@ -24,6 +24,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { useDesigner } from './designer-context';
@@ -705,6 +706,27 @@ export function Canvas() {
     unknown
   > | null>(null);
 
+  // 与 context 的 schema state 同步：所有回调从 ref 读取「最新」schema，
+  // 无需把 schema 放入依赖数组 → handleDrop/handleReorder 等保持引用稳定，
+  // actions memo 在属性编辑（schema 变化）期间不再失效，
+  // CanvasNode 自定义比较器（prev.node === next.node）得以生效：
+  // 配合 schema-utils 的 Copy-on-Write 路径更新，仅受编辑影响的路径节点重渲染。
+  const schemaRef = useRef(schema);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: schemaRef 是稳定 ref，用于在回调中读取最新 schema 而不触发重建
+  useEffect(() => {
+    schemaRef.current = schema;
+  }, [schema]);
+  const widgetCatalogRef = useRef(widgetCatalog);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: widgetCatalogRef 是稳定 ref，避免外部 catalogs 引用变化重建回调
+  useEffect(() => {
+    widgetCatalogRef.current = widgetCatalog;
+  }, [widgetCatalog]);
+  const layoutCatalogRef = useRef(layoutCatalog);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: layoutCatalogRef 是稳定 ref，避免外部 catalogs 引用变化重建回调
+  useEffect(() => {
+    layoutCatalogRef.current = layoutCatalog;
+  }, [layoutCatalog]);
+
   // 注册 widgets/layouts：仅供引擎消费一次，避免每次渲染重复注册
   // registerUI 由使用方传入（如 registerAntdUI），解耦对具体 UI 库的依赖
   useEffect(() => {
@@ -714,15 +736,21 @@ export function Canvas() {
 
   // 编辑模式下初始化引擎，使 NexusField 能读取 fieldState 并触发 reactions（联动）
   // 预览模式由 <NexusForm> 内部负责 engine.init
+  // schema 每次变更都会重建引擎（parse + 依赖图 + 渲染树），这里做微量防抖：
+  // 属性面板连续按键时（每次按键触发一次 schema 变更）只重建一次，避免卡顿；
+  // <50ms 的延迟不会造成可感知的结构预览滞后。
   useEffect(() => {
     if (mode === 'preview') {
       return;
     }
     const currentData = designEngine.getFormData();
-    designEngine.init(
-      schema,
-      Object.keys(currentData).length > 0 ? currentData : undefined,
-    );
+    const timer = setTimeout(() => {
+      designEngine.init(
+        schema,
+        Object.keys(currentData).length > 0 ? currentData : undefined,
+      );
+    }, 30);
+    return () => clearTimeout(timer);
   }, [designEngine, schema, mode]);
 
   const formConfig = useMemo<NexusFormConfig>(
@@ -743,18 +771,20 @@ export function Canvas() {
     return () => window.removeEventListener('dragend', handleDragEnd);
   }, []);
 
-  const getParentProps = useCallback(
-    (parentPath: string[]) => {
-      if (parentPath.length === 0) {
-        return schema.properties;
-      }
-      const parent = getNodeAtProperties(schema.properties, parentPath);
-      return parent ? getPropertiesOf(parent) : undefined;
-    },
-    [schema],
-  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: getParentProps 经 ref 读取最新 schema，保持引用稳定使 actions memo 生效
+  const getParentProps = useCallback((parentPath: string[]) => {
+    const current = schemaRef.current;
+    if (parentPath.length === 0) {
+      return current.properties;
+    }
+    const parent = getNodeAtProperties(current.properties, parentPath);
+    return parent ? getPropertiesOf(parent) : undefined;
+  }, []);
 
-  // 统一处理 drop（依赖 schema，schema 变化时重建；拖拽过程中保持稳定）
+  // 统一处理 drop：从 ref 读取最新 schema/catalog，引用稳定。
+  // 依赖全部是稳定引用（addNode/getParentProps/setSchema/selectNode 均不随
+  // schema 变化重建），因此 actions memo 在拖拽与属性编辑期间都不失效。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: handleDrop 经 refs 读取 schema/widgetCatalog/layoutCatalog，刻意不加入依赖以保持引用稳定
   const handleDrop = useCallback(
     (e: React.DragEvent, target: DropTarget) => {
       e.preventDefault();
@@ -774,6 +804,7 @@ export function Canvas() {
       } catch {
         return;
       }
+      const currentSchema = schemaRef.current;
 
       // ── 情况一：从画布拖动已有节点 ──
       if (payload.source === 'canvas') {
@@ -785,14 +816,18 @@ export function Canvas() {
             return;
           }
           // 面板节点仅入对应容器；普通节点进 tabs/collapse/steps 时自动包裹
-          const resolved = resolveMoveNode(schema, fromPath, target.path);
+          const resolved = resolveMoveNode(
+            currentSchema,
+            fromPath,
+            target.path,
+          );
           if (!resolved) {
             return;
           }
           if (!resolved.wrapped) {
-            setSchema(moveNodeInSchema(schema, fromPath, target.path));
+            setSchema(moveNodeInSchema(currentSchema, fromPath, target.path));
           } else {
-            let next = structuredClone(schema) as NexusSchema;
+            let next = structuredClone(currentSchema) as NexusSchema;
             const toProps = getPropsAtPath(next, target.path);
             if (!toProps) {
               return;
@@ -810,7 +845,7 @@ export function Canvas() {
         if (!canDrop(fromPath, target.path)) {
           return;
         }
-        const result = computeInsertIndex(target, schema.properties);
+        const result = computeInsertIndex(target, currentSchema.properties);
         if (!result) {
           return;
         }
@@ -823,27 +858,34 @@ export function Canvas() {
 
         let insertIndex = result.insertIndex;
         if (sameParent) {
-          const fromIndex = getIndexInParent(schema.properties, fromPath);
+          const fromIndex = getIndexInParent(
+            currentSchema.properties,
+            fromPath,
+          );
           if (fromIndex !== -1 && fromIndex < insertIndex) {
             insertIndex -= 1;
           }
         }
 
-        const resolved = resolveMoveNode(schema, fromPath, result.toParentPath);
+        const resolved = resolveMoveNode(
+          currentSchema,
+          fromPath,
+          result.toParentPath,
+        );
         if (!resolved) {
           return;
         }
         if (!resolved.wrapped) {
           setSchema(
             moveNodeInSchema(
-              schema,
+              currentSchema,
               fromPath,
               result.toParentPath,
               insertIndex,
             ),
           );
         } else {
-          let next = structuredClone(schema) as NexusSchema;
+          let next = structuredClone(currentSchema) as NexusSchema;
           const toProps = getPropsAtPath(next, result.toParentPath);
           if (!toProps) {
             return;
@@ -888,8 +930,8 @@ export function Canvas() {
         // palette 组件目录
         const found = resolveCatalogItem(
           payload.catalogItem,
-          widgetCatalog,
-          layoutCatalog,
+          widgetCatalogRef.current,
+          layoutCatalogRef.current,
         );
         if (!found) {
           return;
@@ -905,7 +947,7 @@ export function Canvas() {
         }
         // 面板类型校验 / 普通节点进面板容器时自动包裹
         const factory = resolveInsertFactory(
-          schema,
+          currentSchema,
           target.path,
           createNode,
           base,
@@ -924,13 +966,13 @@ export function Canvas() {
       }
 
       // before / after
-      const result = computeInsertIndex(target, schema.properties);
+      const result = computeInsertIndex(target, currentSchema.properties);
       if (!result) {
         return;
       }
       // 面板类型校验 / 普通节点进面板容器时自动包裹
       const factory = resolveInsertFactory(
-        schema,
+        currentSchema,
         result.toParentPath,
         createNode,
         base,
@@ -941,7 +983,7 @@ export function Canvas() {
       }
 
       // 在副本上操作：先 add 再 move
-      const next = structuredClone(schema) as NexusSchema;
+      const next = structuredClone(currentSchema) as NexusSchema;
       const nextParentProps = getPropsAtPath(next, result.toParentPath);
       if (!nextParentProps) {
         return;
@@ -963,15 +1005,7 @@ export function Canvas() {
         ),
       );
     },
-    [
-      schema,
-      widgetCatalog,
-      layoutCatalog,
-      addNode,
-      getParentProps,
-      setSchema,
-      selectNode,
-    ],
+    [addNode, getParentProps, setSchema, selectNode],
   );
 
   // 节点 header 拖拽源 + drop 目标（仅依赖 setDropTarget，拖拽过程中引用稳定）
@@ -1030,6 +1064,7 @@ export function Canvas() {
     [selectNode],
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: handleReorder 经 ref 读取最新 schema，保持引用稳定使 actions memo 生效
   const handleReorder = useCallback(
     (path: string[], direction: 'up' | 'down') => {
       const parentPath = path.slice(0, -1);
@@ -1050,10 +1085,12 @@ export function Canvas() {
         return;
       }
       const insertIndex = direction === 'up' ? idx - 1 : idx + 1;
-      setSchema(moveNodeInSchema(schema, path, parentPath, insertIndex));
+      setSchema(
+        moveNodeInSchema(schemaRef.current, path, parentPath, insertIndex),
+      );
       selectNode(path);
     },
-    [getParentProps, schema, setSchema, selectNode],
+    [getParentProps, setSchema, selectNode],
   );
 
   // 容器空白区 dragOver：清除节点上的 drop target 指示
