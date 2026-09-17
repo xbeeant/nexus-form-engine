@@ -20,6 +20,7 @@ interface WidgetAddons {
   parentValues?: unknown;
   dependValues?: unknown[];
   getValue(path: string): unknown;
+  getValueByPath(path: string): unknown;
   getFieldsValue(
     paths?: string[],
     options?: { omitNil?: boolean },
@@ -182,6 +183,7 @@ export function buildWidgetProps(
       : undefined,
     dependValues: opts.dependValues,
     getValue: (p: string) => form.getValueByPath(p),
+    getValueByPath: (p: string) => form.getValueByPath(p),
     setValue: (p: string, v: unknown) => form.setValueByPath(p, v),
     onItemChange: (p: string, v: unknown) => form.setValueByPath(p, v),
     validate: async (p?: string) => {
@@ -211,7 +213,7 @@ export function buildWidgetProps(
     getSchema: () => form.getSchema(),
   };
 
-  return {
+  const raw: Record<string, unknown> = {
     schema: resolveEvaluatedSchema(
       opts.schema,
       {
@@ -233,11 +235,18 @@ export function buildWidgetProps(
     items: opts.items,
     remoteVersion: opts.remoteVersion,
     // dataPath 不直接透传给 widget：组件通过 props.schema.dataPath 读取
-    // （数据路径已合并入 schema；addons.dataPath 仍保留供表单 API 使用）
     path: addonsPath,
     value: base.value,
     onChange: base.onChange,
     form,
     addons,
   };
+
+  // 过滤值为 undefined 的属性，避免 undefined 透传到 UI widget 组件
+  for (const key of Object.keys(raw)) {
+    if (raw[key] === undefined) {
+      delete raw[key];
+    }
+  }
+  return raw;
 }

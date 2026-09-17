@@ -282,28 +282,37 @@ export function RenderItemControl({
   if (Widget) {
     // required/errors 等元数据属于列表容器（列头/行级校验由列表自行展示），
     // 不透传给裸 item widget，避免透传到底层 antd 控件产生 DOM 警告
-    const widgetProps = buildWidgetProps(
-      {
-        schema: fieldSchema,
-        disabled: finalDisabled,
-        readOnly: finalReadOnly,
-        required: fieldState?.required,
-        loading: fieldState?.loading,
-        placeholder: finalPlaceholder,
-        options: finalOptions,
-        addonsValue: value,
-        addonsIndex: index,
-        addonsItemOf: arrayPath,
-      },
-      {
-        dataPath: path,
-        path,
-        value,
-        onChange,
-        form,
-      },
-    );
-    return <Widget {...widgetProps} {...finalProps} />;
+    const _rawWidgetProps: Record<string, unknown> = {
+      ...buildWidgetProps(
+        {
+          schema: fieldSchema,
+          disabled: finalDisabled,
+          readOnly: finalReadOnly,
+          required: fieldState?.required,
+          loading: fieldState?.loading,
+          placeholder: finalPlaceholder,
+          options: finalOptions,
+          addonsValue: value,
+          addonsIndex: index,
+          addonsItemOf: arrayPath,
+        },
+        {
+          dataPath: path,
+          path,
+          value,
+          onChange,
+          form,
+        },
+      ),
+      ...finalProps,
+    };
+    const widgetProps: Record<string, unknown> = {};
+    for (const key of Object.keys(_rawWidgetProps)) {
+      if (_rawWidgetProps[key] !== undefined) {
+        widgetProps[key] = _rawWidgetProps[key];
+      }
+    }
+    return <Widget {...widgetProps} />;
   }
 
   // 未注册 widget：回退为轻量内联基础控件

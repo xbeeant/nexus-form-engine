@@ -361,7 +361,7 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
     );
   }
   // widget 仅接收控件相关 props（value/onChange/状态/选项/表单引用/自有 props）
-  const widgetProps = {
+  const _rawWidgetProps: Record<string, unknown> = {
     // ...state.props 在构建后展开，避免 props 中的键覆盖 meta 值
     ...buildWidgetProps(
       {
@@ -391,16 +391,18 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
     ...state.props,
     dependencies,
   };
+  // 过滤值为 undefined 的属性，避免 undefined 透传到 UI widget 组件
+  const widgetProps: Record<string, unknown> = {};
+  for (const key of Object.keys(_rawWidgetProps)) {
+    if (_rawWidgetProps[key] !== undefined) {
+      widgetProps[key] = _rawWidgetProps[key];
+    }
+  }
 
-  // @ts-expect-error
   if (widgetProps.schema) {
-    // @ts-expect-error
-    widgetProps.schema.dependencies = dependencies;
+    (widgetProps.schema as Record<string, unknown>).dependencies = dependencies;
   } else {
-    // @ts-expect-error
-    widgetProps.schema = {};
-    // @ts-expect-error
-    widgetProps.schema.dependencies = dependencies;
+    widgetProps.schema = { dependencies };
   }
 
   let control: ReactElement;
