@@ -3,7 +3,13 @@ import type {
   NexusNodeProps,
   RenderFieldNode,
 } from '@xbeeant/form-engine';
-import type { CSSProperties, FocusEvent, ReactElement, ReactNode } from 'react';
+import type {
+  BaseSyntheticEvent,
+  CSSProperties,
+  FocusEvent,
+  ReactElement,
+  ReactNode,
+} from 'react';
 import { useCallback, useContext, useMemo, useSyncExternalStore } from 'react';
 import { FieldInheritContext } from '../contexts/field-inherit-context';
 import { GridContext } from '../contexts/grid-context';
@@ -143,11 +149,17 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
   );
 
   const handleChange = useCallback(
-    (value: unknown) => {
+    (value: Event | unknown) => {
       // 变更前旧值（钩子接收；setFieldValue 会覆盖 state.value）
       const oldValue = engine.getFieldValue(dataPath);
-      engine.setFieldValue(dataPath, value);
-      runFieldHook('onChange', value, oldValue);
+      // 判断value是不是event事件，如果是event事件，需要进行取值
+      let fieldValue = value;
+      if (value && value.constructor.name === 'SyntheticBaseEvent') {
+        fieldValue = (value as unknown as BaseSyntheticEvent).target.value;
+      }
+      engine.setFieldValue(dataPath, fieldValue);
+      //
+      runFieldHook('onChange', fieldValue, oldValue);
     },
     [engine, dataPath, runFieldHook],
   );

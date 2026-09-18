@@ -655,18 +655,6 @@ export class NexusEngine implements IFormEngine {
         this.applyBindToData(data, path, state);
       }
 
-      // 合并 extraValues（仅当请求路径包含 extra key 时返回）
-      const inst = this._inst();
-      if (pathSet) {
-        for (const [key, value] of Object.entries(inst.extraValues)) {
-          if (pathSet.has(key)) {
-            data[key] = value;
-          }
-        }
-      } else {
-        Object.assign(data, inst.extraValues);
-      }
-
       return data;
     }
     // 无路径：使用缓存
@@ -688,9 +676,6 @@ export class NexusEngine implements IFormEngine {
       }
       this.applyBindToData(data, path, state);
     }
-
-    // 合并 extraValues
-    Object.assign(data, this._inst().extraValues);
 
     this._inst().formDataCache = data;
     this._inst().formDataDirty = false;
@@ -1484,6 +1469,8 @@ export class NexusEngine implements IFormEngine {
         this.applyBindToData(data, path, state);
       }
     }
+    // 合并 extraValues
+    Object.assign(data, this._inst().extraValues);
     return data;
   }
 

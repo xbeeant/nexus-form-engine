@@ -80,10 +80,7 @@ function PropertyForm({
 
   // watch 对象 memo 化：保持引用稳定，避免 NexusForm 每次渲染
   // 触发 _syncConfig → watcher 清空/重新注册（该过程每次按键都会执行）
-  const watchConfig = useMemo<{ [key: string]: unknown }>(
-    () => ({ '#': handleWatch }),
-    [handleWatch],
-  );
+  const watchConfig = useMemo(() => ({ '#': handleWatch }), [handleWatch]);
 
   return (
     <NexusForm
