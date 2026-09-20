@@ -64,7 +64,7 @@ export function NexusObject({ node }: NexusNodeProps<RenderObjectNode>) {
         ? true
         : undefined,
   };
-  const hidden = inherit.hidden === true;
+  const hidden = engine.isHidden(node.dataPath, state);
 
   const toggleCollapsed = () => setCollapsed((prev) => !prev);
 

@@ -446,8 +446,10 @@ export class NexusEngine implements IFormEngine {
   /**
    * 批量设置字段值（根据 bind 配置反向解析到各字段）
    *
-   * 与 setFieldValue 行为一致：逐字段执行插件钩子、实时校验与联动，
-   * 仅在收尾时统一 bump + 通知，避免多次全局通知。
+   * 两阶段执行：
+   * 阶段 1：批量写入所有字段状态（value / touched / dirty + 实时校验），
+   *         不触发 reaction（保证后续字段取值时 formData 已完整更新）
+   * 阶段 2：一次性失效缓存 + 沿依赖图批量传播 reaction
    *
    * @param values - 转换后的数据对象，键为数据路径
    */
@@ -494,7 +496,9 @@ export class NexusEngine implements IFormEngine {
       }
 
       if (newValue !== undefined) {
-        this.applyFieldValue(path, state, newValue);
+        // deferEffects=true：延后校验与 reaction，待全部值写入后由下方批处理
+        // 统一执行，保证表达式（hidden/required/reactions）读取完整 formData 快照
+        this.applyFieldValue(path, state, newValue, true);
         changedPaths.push(path);
       }
     }
@@ -510,12 +514,23 @@ export class NexusEngine implements IFormEngine {
         }
       }
     }
-    if (extraDirty) {
-      this.markFormDataDirty();
-    }
 
     if (changedPaths.length === 0 && !extraDirty) {
       return;
+    }
+
+    // ──  失效缓存 + 批量校验 + 沿依赖图传播 reaction ─────────
+    this.markFormDataDirty();
+    // 批量校验：此时所有字段值已写入，校验表达式可读取最新 formData
+    for (const path of changedPaths) {
+      const state = inst.fieldStates.get(path);
+      if (state) {
+        this.validateFieldRealtime(path, state);
+      }
+    }
+    // 批量触发 reaction
+    for (const path of changedPaths) {
+      this.runReactionsForSource(path);
     }
 
     // 批量通知订阅者
@@ -537,16 +552,21 @@ export class NexusEngine implements IFormEngine {
    * 5. 插件通知：onFieldValueChange
    * 6. 外部 watch 回调
    *
+   * deferEffects=true（setFieldValues 批量写入）：跳过步骤 3/4，由调用方在
+   * 全部值写入后统一执行，避免中途求值读到部分字段旧值。
+   *
    * 注意：本方法不负责 bump / notify（由调用方统一收尾）
    *
    * @param path - 字段路径
    * @param state - 字段状态对象
    * @param value - 新值
+   * @param deferEffects - 是否延后校验与 reaction（批量写入时置 true）
    */
   private applyFieldValue(
     path: string,
     state: FieldState,
     value: unknown,
+    deferEffects = false,
   ): void {
     // 数据对象容器仅承载 UI 状态，不能写入值（子字段各自独立写入）
     if (state.meta.containerOnly) {
@@ -584,11 +604,15 @@ export class NexusEngine implements IFormEngine {
     // 数组字段：同步数组项子字段状态（list[0].name 等）
     this.syncArrayItemStates(path);
 
-    // 实时校验：同步校验（schema rules + 同步外部校验器）
-    this.validateFieldRealtime(path, state);
+    // 批量写入（setFieldValues）：实时校验与 reaction 延后到全部值写入后统一执行，
+    // 确保表达式求值读取的是完整 formData 快照（对应 setFieldValues 的两阶段契约）
+    if (!deferEffects) {
+      // 实时校验：同步校验（schema rules + 同步外部校验器）
+      this.validateFieldRealtime(path, state);
 
-    // 触发依赖该字段的 reactions（可能修改其他字段状态）
-    this.runReactionsForSource(path);
+      // 触发依赖该字段的 reactions（可能修改其他字段状态）
+      this.runReactionsForSource(path);
+    }
 
     // 插件通知：值已变更
     for (const plugin of this.plugins) {
@@ -644,10 +668,11 @@ export class NexusEngine implements IFormEngine {
         if (state.hidden) {
           continue;
         }
-        // 祖先对象容器隐藏 → 整个子树视为隐藏
-        if (this.isContainerHidden(path)) {
+        // 祖先隐藏 → 整个子树视为隐藏
+        if (this.isAncestorHidden(path)) {
           continue;
         }
+
         // 指定路径时只收集匹配的字段
         if (pathSet && !pathSet.has(path)) {
           continue;
@@ -671,7 +696,7 @@ export class NexusEngine implements IFormEngine {
       if (state.hidden) {
         continue;
       }
-      if (this.isContainerHidden(path)) {
+      if (this.isAncestorHidden(path)) {
         continue;
       }
       this.applyBindToData(data, path, state);
@@ -690,6 +715,27 @@ export class NexusEngine implements IFormEngine {
       this.getFormData(); // 构建并设置缓存
     }
     return this._inst().formDataCache!;
+  }
+
+  /**
+   * 内部使用：构建完整 formData 快照（含隐藏字段）
+   *
+   * 用于 reaction 表达式求值：reaction 可能引用 formData 中的隐藏字段，
+   * 而 getFormData/getFormDataInternal 会跳过 hidden 字段导致取值失败。
+   */
+  private _getFormDataRaw(): Record<string, unknown> {
+    const data: Record<string, unknown> = {};
+    for (const [path, state] of this._inst().fieldStates) {
+      if (state.meta.itemOf || state.meta.containerOnly) {
+        continue;
+      }
+      // 注意：不包含 hidden 跳过逻辑，确保 reaction 能读取所有字段值
+      if (this.isAncestorHidden(path)) {
+        continue;
+      }
+      this.applyBindToData(data, path, state);
+    }
+    return data;
   }
 
   /**
@@ -737,20 +783,21 @@ export class NexusEngine implements IFormEngine {
   }
 
   /**
-   * 判断字段是否存在隐藏的对象容器祖先
+   * 判断字段是否存在隐藏的祖先路径
    *
-   * 数据对象容器隐藏（hidden: true）时，其整棵子树视为隐藏，
-   * 子字段不参与 getFormData 收集、并入 getHiddenValues。
+   * 父节点 hidden=true 时，整棵子树视为隐藏
+   *（a.b.hidden=true → a.b.c.hidden=true）。
+   * 遍历字段路径的各段祖先，检查 fieldStates 中是否存在 hidden=true 的节点。
    *
    * @param path - 字段路径（如 "user.name"）
-   * @returns 存在隐藏的祖先对象容器返回 true
+   * @returns 存在隐藏的祖先返回 true
    */
-  private isContainerHidden(path: string): boolean {
+  private isAncestorHidden(path: string): boolean {
     const segments = path.split('.');
     for (let i = segments.length - 1; i >= 1; i--) {
       const ancestor = segments.slice(0, i).join('.');
       const state = this._inst().fieldStates.get(ancestor);
-      if (state?.meta.containerOnly && state.hidden) {
+      if (state?.hidden) {
         return true;
       }
     }
@@ -769,6 +816,27 @@ export class NexusEngine implements IFormEngine {
    */
   getFieldState(path: string): FieldState | undefined {
     return this._inst().fieldStates.get(path);
+  }
+
+  /**
+   * 判断字段是否隐藏（含祖先隐藏继承）
+   *
+   * 字段自身 hidden=true 或存在隐藏的祖先路径时返回 true。
+   * 布局容器的 key 不进数据路径，通过 isParentContainerHidden 检查。
+   *
+   * @param path - 字段路径
+   * @param state - 可选，字段状态（避免重复获取）
+   * @returns 字段是否隐藏
+   */
+  isHidden(path: string, state?: FieldState): boolean {
+    const s = state ?? this._inst().fieldStates.get(path);
+    if (!s) {
+      return false;
+    }
+    if (s.hidden) {
+      return true;
+    }
+    return this.isAncestorHidden(path);
   }
 
   /**
@@ -903,6 +971,9 @@ export class NexusEngine implements IFormEngine {
     trigger: ValidationTrigger = 'change',
   ): void {
     if (state.hidden) {
+      return;
+    }
+    if (this.isAncestorHidden(state.path)) {
       return;
     }
 
@@ -1258,6 +1329,10 @@ export class NexusEngine implements IFormEngine {
         continue;
       }
 
+      if (this.isAncestorHidden(path)) {
+        continue;
+      }
+
       // 只读字段不参与校验（值不可由用户修改，可能因联动/初始值而不满足约束）
       if (state.readOnly) {
         continue;
@@ -1464,8 +1539,8 @@ export class NexusEngine implements IFormEngine {
       if (state.meta.containerOnly) {
         continue;
       }
-      // 自身隐藏或祖先对象容器隐藏 → 均视为隐藏字段
-      if (state.hidden || this.isContainerHidden(path)) {
+      // 自身隐藏或祖先隐藏 → 均视为隐藏字段
+      if (state.hidden || this.isAncestorHidden(path)) {
         this.applyBindToData(data, path, state);
       }
     }
@@ -2257,7 +2332,8 @@ export class NexusEngine implements IFormEngine {
       }
 
       // 单次批量执行复用同一份 formData 快照，避免对每个 dependent 重复构建
-      const formData = this.getFormDataInternal();
+      // 使用 _getFormDataRaw（含隐藏字段）：reaction 可能引用 formData 中的隐藏字段
+      const formData = this._getFormDataRaw();
 
       for (const targetPath of dependents) {
         const state = this._inst().fieldStates.get(targetPath);

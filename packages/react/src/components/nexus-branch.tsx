@@ -39,19 +39,15 @@ export function NexusBranch({ node }: NexusNodeProps<RenderBranchNode>) {
   const state = engine.getFieldState(node.dataPath);
   const activeIndex = state?.meta.oneOf?.activeIndex ?? 0;
   const activeChildren = node.branches[activeIndex] ?? [];
+  const hidden = engine.isHidden(node.dataPath, state);
 
-  // 合并继承属性：父级已激活的状态不可被当前容器覆盖（对齐 NexusObject）
+  // inherit: disabled/readOnly 仅携带 true，hidden 沿 parentInherit 透传
   const inherit = {
     disabled:
       parentInherit.disabled ?? (state?.disabled === true ? true : undefined),
     readOnly:
       parentInherit.readOnly ?? (state?.readOnly === true ? true : undefined),
-    hidden:
-      parentInherit.hidden === true || state?.hidden === true
-        ? true
-        : undefined,
   };
-  const hidden = inherit.hidden === true;
 
   const gridCtx = useContext(GridContext);
   // width（占比：百分比/0~1 数值）在栅格内换算为 gridColumn span，

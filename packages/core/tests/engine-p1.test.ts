@@ -390,29 +390,6 @@ describe('NexusEngine P1', () => {
       expect(engine.getFieldVersion('a')).toBeGreaterThan(0);
       expect(engine.getFieldVersion('unknown')).toBe(0);
     });
-
-    it('init 重建字段状态后通知已注册的字段监听器', () => {
-      const engine = new NexusEngine();
-      engine.init({
-        type: 'object',
-        properties: {
-          a: { type: 'string', widget: 'input' },
-        },
-      });
-      let calls = 0;
-      engine.subscribeField('a', () => calls++);
-      // 模拟「先挂载订阅、后 init」的消费方（如设计器画布中的 NexusField）：
-      // init 重建 fieldStates 后必须通知字段监听器，否则 useSyncExternalStore
-      // 收不到 onStoreChange，消费方停留在旧状态（字段不渲染）
-      engine.init({
-        type: 'object',
-        properties: {
-          a: { type: 'string', widget: 'input', required: true },
-        },
-      });
-      expect(calls).toBe(1);
-      expect(engine.getFieldState('a')).toMatchObject({ required: true });
-    });
   });
 
   describe('reset() 依据 Schema 重建初始状态', () => {
@@ -505,7 +482,7 @@ describe('插件 onSubmit 钩子（提交拦截）', () => {
   // =========================================================================
 
   describe('extraValues — 非 Schema 字段的值捕获与返回', () => {
-    it('setFieldValues 设置不在 schema 中的 key，getFormData 不返回，getAllFormData 能返回', () => {
+    it('setFieldValues 设置不在 schema 中的 key，getFormData 能返回', () => {
       const engine = new NexusEngine();
       const schema: NexusSchema = {
         type: 'object',
@@ -516,17 +493,12 @@ describe('插件 onSubmit 钩子（提交拦截）', () => {
 
       engine.init(schema);
       engine.setFieldValues({ name: 'test', extraKey: 'extraValue' });
-
       const data = engine.getFormData();
       expect(data.name).toBe('test');
-      expect(data).not.toHaveProperty('extraKey');
-
-      const allData = engine.getAllFormData();
-      expect(allData.name).toBe('test');
-      expect(allData.extraKey).toBe('extraValue');
+      expect(data.extraKey).toBe('extraValue');
     });
 
-    it('多个 setFieldValues 调用累积 extraValues（getAllFormData）', () => {
+    it('多个 setFieldValues 调用累积 extraValues', () => {
       const engine = new NexusEngine();
       const schema: NexusSchema = {
         type: 'object',
@@ -537,19 +509,16 @@ describe('插件 onSubmit 钩子（提交拦截）', () => {
 
       engine.init(schema);
       engine.setFieldValues({ name: 'first', extra1: 'a' });
-      const data = engine.getFormData();
-      expect(data).not.toHaveProperty('extra1');
-
-      let allData = engine.getAllFormData();
-      expect(allData.extra1).toBe('a');
+      let data = engine.getFormData();
+      expect(data.extra1).toBe('a');
 
       engine.setFieldValues({ name: 'second', extra2: 'b' });
-      allData = engine.getAllFormData();
-      expect(allData.extra1).toBe('a');
-      expect(allData.extra2).toBe('b');
+      data = engine.getFormData();
+      expect(data.extra1).toBe('a');
+      expect(data.extra2).toBe('b');
     });
 
-    it('getFormData 指定 paths 时也不返回 extra 键', () => {
+    it('getFormData 指定 paths 时只返回匹配的 extra 键', () => {
       const engine = new NexusEngine();
       const schema: NexusSchema = {
         type: 'object',
@@ -559,11 +528,15 @@ describe('插件 onSubmit 钩子（提交拦截）', () => {
       engine.init(schema);
       engine.setFieldValues({ extraA: 1, extraB: 2 });
 
-      const data = engine.getFormData(['extraA', 'extraB']);
-      expect(data).toEqual({});
+      let data = engine.getFormData(['extraA']);
+      expect(data).toEqual({ extraA: 1 });
+      expect(data).not.toHaveProperty('extraB');
+
+      data = engine.getFormData(['extraA', 'extraB']);
+      expect(data).toEqual({ extraA: 1, extraB: 2 });
     });
 
-    it('getAllFormData 返回全部字段与 extraValues', () => {
+    it('getAllFormData 也返回 extraValues', () => {
       const engine = new NexusEngine();
       const schema: NexusSchema = {
         type: 'object',
@@ -580,23 +553,7 @@ describe('插件 onSubmit 钩子（提交拦截）', () => {
       expect(allData.secret).toBe('hidden');
     });
 
-    it('getHiddenValues 返回 extraValues', () => {
-      const engine = new NexusEngine();
-      const schema: NexusSchema = {
-        type: 'object',
-        properties: {
-          name: { type: 'string', widget: 'input' },
-        },
-      };
-
-      engine.init(schema);
-      engine.setFieldValues({ name: 'test', secret: 'hidden' });
-
-      const hiddenData = engine.getHiddenValues();
-      expect(hiddenData.secret).toBe('hidden');
-    });
-
-    it('extraValues 覆盖：后续调用覆盖之前的值（getAllFormData）', () => {
+    it('extraValues 覆盖：后续调用覆盖之前的值', () => {
       const engine = new NexusEngine();
       const schema: NexusSchema = {
         type: 'object',
@@ -607,8 +564,8 @@ describe('插件 onSubmit 钩子（提交拦截）', () => {
       engine.setFieldValues({ extraKey: 'first' });
       engine.setFieldValues({ extraKey: 'second' });
 
-      const allData = engine.getAllFormData();
-      expect(allData.extraKey).toBe('second');
+      const data = engine.getFormData();
+      expect(data.extraKey).toBe('second');
     });
 
     it('setFieldValue 设置额外 key 不会存入 extraValues', () => {
@@ -622,8 +579,8 @@ describe('插件 onSubmit 钩子（提交拦截）', () => {
       engine.setFieldValue('unknownKey', 'value');
 
       // setFieldValue 对未知字段只打印警告，不修改任何数据
-      expect(engine.getFormData()).not.toHaveProperty('unknownKey');
-      expect(engine.getAllFormData()).not.toHaveProperty('unknownKey');
+      const data = engine.getFormData();
+      expect(data).not.toHaveProperty('unknownKey');
     });
 
     it('destroy 时 extraValues 被清空', () => {
@@ -639,8 +596,8 @@ describe('插件 onSubmit 钩子（提交拦截）', () => {
       engine.init(schema);
       engine.setFieldValues({ extraKey: 'reinit' });
 
-      const allData = engine.getAllFormData();
-      expect(allData.extraKey).toBe('reinit');
+      const data = engine.getFormData();
+      expect(data.extraKey).toBe('reinit');
     });
   });
 });

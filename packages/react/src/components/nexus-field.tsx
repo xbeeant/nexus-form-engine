@@ -250,9 +250,9 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
     return null;
   }
 
-  // 祖先对象容器隐藏 → 子树整体不可见（与字段自身 hidden 合并判断）
+  // 祖先字段隐藏/祖先布局容器隐藏/字段自身隐藏 → 子树不可见
   // 隐藏字段：默认渲染 display:none 占位符以保持布局（防栅格塌陷）
-  if (state.hidden || inherit.hidden === true) {
+  if (engine.isHidden(dataPath, state)) {
     // 如果父布局节点配置了 removeHidden，则不渲染占位符（移除以防止栅格塌陷）
     if (layoutConfig.removeHidden === true) {
       return null;

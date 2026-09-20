@@ -664,11 +664,15 @@ export function validateToRules(
  */
 export function extractDepsFromExpression(expr: string): string[] {
   const deps = new Set<string>();
+  // 匹配 formData?. 或 formData. 开头的链式路径，支持可选链 ?.
+  // 使用 \?? 同时匹配有?和无?的情况，捕获完整路径段后剥离?得到纯净路径
   const regex =
-    /formData\.([a-zA-Z_$][a-zA-Z0-9_$]*(?:\.[a-zA-Z_$][a-zA-Z0-9_$]*)*)/g;
+    /formData\??\.([a-zA-Z_$][a-zA-Z0-9_$]*(?:\??\.([a-zA-Z_$][a-zA-Z0-9_$]*)*)*)/g;
   let match = regex.exec(expr);
   while (match !== null) {
-    deps.add(match[1]);
+    // 剥离可选链操作符：demand_definition?.experience_description → demand_definition.experience_description
+    const fullPath = match[1].replace(/\?/g, '');
+    deps.add(fullPath);
     match = regex.exec(expr);
   }
   return Array.from(deps);
