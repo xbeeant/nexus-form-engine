@@ -210,13 +210,120 @@ describe('SchemaParser', () => {
       const { fieldStates } = SchemaParser.parse(schema);
 
       // 各层级布局节点 Key 不进入数据路径 —— 各自挂 containerOnly 合成状态（hidden 订阅）。
-      // 布局 Key 在路径计算中被丢弃，因此嵌套布局的合成状态路径保持扁平（仅取布局自身 Key）。
+      // 布局容器的 containerPath 需保持唯一性，嵌套布局按路径层级拼接（例如 container.tab1）。
       expect(fieldStates.get('container')?.meta.containerOnly).toBe(true);
-      expect(fieldStates.get('tab1')?.meta.containerOnly).toBe(true);
-      expect(fieldStates.get('nested')?.meta.containerOnly).toBe(true);
+      expect(fieldStates.get('container.tab1')?.meta.containerOnly).toBe(true);
+      expect(fieldStates.get('container.tab1.nested')?.meta.containerOnly).toBe(true);
 
       // 数据字段 Key 正确进入路径（所有布局 Key 被透传丢弃）
       expect(fieldStates.has('field')).toBe(true);
+    });
+
+    it('不同容器下的同名 panel 路径唯一不冲突', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          demand_filter: {
+            type: 'collapse',
+            properties: {
+              panel1: {
+                type: 'collapsePanel',
+                title: '原始需求过滤',
+                properties: {
+                  experience_domain: {
+                    title: '体验域',
+                    type: 'string',
+                    widget: 'input',
+                  },
+                },
+              },
+            },
+          },
+          demand_definition: {
+            type: 'collapse',
+            properties: {
+              panel1: {
+                type: 'collapsePanel',
+                title: '体验定义',
+                properties: {
+                  is_related: {
+                    title: '是否关联',
+                    type: 'string',
+                    widget: 'radio',
+                  },
+                },
+              },
+            },
+          },
+        },
+      };
+
+      const { fieldStates, renderTree } = SchemaParser.parse(schema);
+
+      // 两个 panel1 的 containerPath 应唯一
+      const panel1State1 = fieldStates.get('demand_filter.panel1');
+      const panel1State2 = fieldStates.get('demand_definition.panel1');
+      expect(panel1State1).toBeDefined();
+      expect(panel1State2).toBeDefined();
+      expect(panel1State1?.path).toBe('demand_filter.panel1');
+      expect(panel1State2?.path).toBe('demand_definition.panel1');
+      expect(panel1State1?.meta.title).toBe('原始需求过滤');
+      expect(panel1State2?.meta.title).toBe('体验定义');
+
+      // 子字段数据路径不应受布局容器影响（透传父路径）
+      expect(fieldStates.has('experience_domain')).toBe(true);
+      expect(fieldStates.has('is_related')).toBe(true);
+      expect(fieldStates.get('experience_domain')?.path).toBe('experience_domain');
+      expect(fieldStates.get('is_related')?.path).toBe('is_related');
+    });
+
+    it('collapse 容器的 hidden 属性生效', () => {
+      const schema: NexusSchema = {
+        type: 'object',
+        properties: {
+          collapse1: {
+            type: 'collapse',
+            hidden: true,
+            properties: {
+              panel1: {
+                type: 'collapsePanel',
+                properties: {
+                  fieldA: { type: 'string', widget: 'input' },
+                },
+              },
+            },
+          },
+          collapse2: {
+            type: 'collapse',
+            properties: {
+              panel1: {
+                type: 'collapsePanel',
+                properties: {
+                  fieldB: { type: 'string', widget: 'input' },
+                },
+              },
+            },
+          },
+        },
+      };
+
+      const { fieldStates } = SchemaParser.parse(schema);
+
+      // collapse1 的 hidden 状态为 true
+      const collapse1State = fieldStates.get('collapse1');
+      expect(collapse1State?.hidden).toBe(true);
+      expect(collapse1State?.meta.containerOnly).toBe(true);
+
+      // collapse2 的 hidden 状态为 false
+      const collapse2State = fieldStates.get('collapse2');
+      expect(collapse2State?.hidden).toBe(false);
+      expect(collapse2State?.meta.containerOnly).toBe(true);
+
+      // 两个 panel1 状态独立
+      const panel1_1 = fieldStates.get('collapse1.panel1');
+      const panel1_2 = fieldStates.get('collapse2.panel1');
+      expect(panel1_1).toBeDefined();
+      expect(panel1_2).toBeDefined();
     });
   });
 

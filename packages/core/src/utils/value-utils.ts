@@ -45,16 +45,23 @@ export function getPathValue(
   }
   const keys = path.split('.');
   let current: unknown = obj;
+  let interrupted = false;
   for (const key of keys) {
     if (
       current === null ||
       current === undefined ||
       typeof current !== 'object'
     ) {
-      return undefined;
+      interrupted = true;
+      break;
     }
     current = (current as Record<string, unknown>)[key];
   }
+  // 嵌套路径遍历中断时回退到精确键匹配（支持扁平键名）
+  if (interrupted) {
+    return path in obj ? obj[path] : undefined;
+  }
+  // 嵌套路径遍历完成，返回结果
   return current;
 }
 

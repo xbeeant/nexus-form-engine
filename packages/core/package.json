@@ -44,7 +44,8 @@
     "build:cjs": "vite build -f cjs",
     "build:umd": "vite build -f umd",
     "lint": "biome check .",
-    "lint:fix": "biome check --write ."
+    "lint:fix": "biome check --write .",
+    "test": "vitest run --coverage"
   },
   "gitHead": "2f4208b0324f2bb2e91df524ab36a5ce7c89d0e3"
 }

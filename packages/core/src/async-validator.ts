@@ -212,7 +212,7 @@ export class AsyncValidatorPlugin implements NexusPlugin {
         return;
       }
 
-      const latestFormData = engine.getFormData();
+      const latestFormData = engine.getAllFormData();
       const asyncErrors: string[] = [];
 
       try {

@@ -13,6 +13,9 @@ export {
   FieldWrapper, // 字段包裹组件 - NexusForm 渲染层默认包裹所有 widget（label=false 时不包裹）
   mapOptions, // 将选项数据转换为 Select/Option 格式
   ReadOnlyDisplay, // 只读显示组件 - 用于展示非编辑状态的数据
+  SimpleDisplay, // 只读显示组件 - 原始值（文本/数字/日期）纯文本展示
+  EnumDisplay, // 只读显示组件 - 选项枚举值映射展示
+  ObjectDisplay, // 只读显示组件 - 结构化值（对象/对象数组）键值块展示
   useFormItem, // 公共 Hook - 默认包裹 Form.Item（label=false 时不包裹）
   useFormItemProps, // Hook - 获取 Ant Design FormItem 所需的属性
   withFormItem, // 公共包裹方法 - 仅需在 NexusForm 之外渲染时使用

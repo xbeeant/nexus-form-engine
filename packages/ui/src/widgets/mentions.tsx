@@ -1,7 +1,7 @@
 import { Mentions } from 'antd';
 import {
+  EnumDisplay,
   mapOptions,
-  ReadOnlyDisplay,
   useRemoteOptions,
   type WidgetProps,
 } from './_shared';
@@ -26,7 +26,7 @@ export const mentionsWidget = ({
   ...rest
 }: WidgetProps) => {
   if (readOnly) {
-    return <ReadOnlyDisplay value={value} options={options ?? []} />;
+    return <EnumDisplay value={value} options={options ?? []} />;
   }
 
   const items = mapOptions(options ?? []).map((o) => ({
@@ -84,7 +84,7 @@ export const remoteMentionsWidget = ({
   const finalLoading = externalLoading || loading;
 
   if (readOnly) {
-    return <ReadOnlyDisplay value={value} options={[]} />;
+    return <EnumDisplay value={value} options={[]} />;
   }
 
   // 远程数据转换为 Mentions options 格式（value 为触发词）

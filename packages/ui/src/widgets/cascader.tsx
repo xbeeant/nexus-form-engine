@@ -1,8 +1,8 @@
 import { Cascader, Spin } from 'antd';
 import type { DefaultOptionType } from 'antd/es/cascader';
 import {
+  EnumDisplay,
   mapOptions,
-  ReadOnlyDisplay,
   useRemoteOptions,
   type WidgetProps,
 } from './_shared';
@@ -108,7 +108,7 @@ export const cascaderWidget = ({
 
   if (readOnly) {
     const labels = findPathLabels(dataSource, currentValue);
-    return <ReadOnlyDisplay value={labels.length ? labels.join(' / ') : ''} />;
+    return <EnumDisplay value={labels.length ? labels.join(' / ') : ''} />;
   }
 
   const cascaderProps: Record<string, unknown> = {
@@ -214,7 +214,7 @@ export const remoteCascaderWidget = ({
 
   if (readOnly) {
     const labels = findPathLabels(dataSource, currentValue);
-    return <ReadOnlyDisplay value={labels.length ? labels.join(' / ') : ''} />;
+    return <EnumDisplay value={labels.length ? labels.join(' / ') : ''} />;
   }
 
   const cascaderProps: Record<string, unknown> = {

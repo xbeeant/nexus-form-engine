@@ -4,7 +4,7 @@ import type {
   RenderFieldNode,
 } from '@xbeeant/form-engine';
 import type {
-  BaseSyntheticEvent,
+  ChangeEvent,
   CSSProperties,
   FocusEvent,
   ReactElement,
@@ -154,9 +154,13 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
       const oldValue = engine.getFieldValue(dataPath);
       // 判断value是不是event事件，如果是event事件，需要进行取值
       let fieldValue = value;
-      if (value && value.constructor.name === 'SyntheticBaseEvent') {
-        fieldValue = (value as unknown as BaseSyntheticEvent).target.value;
+      if (typeof value === 'object' && value !== null && 'target' in value) {
+        // 此时 TypeScript 知道 arg 是 React.ChangeEvent
+        fieldValue = (
+          value as ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+        ).target.value;
       }
+
       engine.setFieldValue(dataPath, fieldValue);
       //
       runFieldHook('onChange', fieldValue, oldValue);
@@ -339,6 +343,7 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
   if (typeof extra !== 'string') {
     extra = undefined;
   }
+
   // extra 字符串可能携带 HTML 标签（如链接/加粗/着色），处理成 ReactNode
   // 传递到下层（FieldWrapper / Form.Item），否则 HTML 会以纯文本原样展示
   if (typeof extra === 'string') {

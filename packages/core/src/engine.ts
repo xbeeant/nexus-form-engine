@@ -121,7 +121,7 @@ interface EngineInstanceState {
   renderVersion: number;
   /** 渲染树订阅者（NexusForm renderTree 消费，避免字段值变化触发全表单重渲染） */
   renderListeners: Set<Listener>;
-  /** formData 缓存与脏标记 */
+  /** formData 缓存与脏标记（完整数据，含 hidden，供 reaction 内部使用） */
   formDataCache: Record<string, unknown> | null;
   formDataDirty: boolean;
   /** 远程选项数据版本（字段路径 → 版本；reloadRemoteData 递增，x-render 对齐） */
@@ -395,7 +395,7 @@ export class NexusEngine implements IFormEngine {
    * @param schema - 新的表单 Schema 定义
    */
   setSchema(schema: NexusSchema): void {
-    const currentData = this.getFormData();
+    const currentData = this.getAllFormData();
     this.init(schema, currentData);
   }
 
@@ -462,6 +462,7 @@ export class NexusEngine implements IFormEngine {
       };
       return;
     }
+
     const inst = this._inst();
     // values 是转换后的数据格式，根据 bind 反向解析到字段
     const changedPaths: string[] = [];
@@ -655,6 +656,15 @@ export class NexusEngine implements IFormEngine {
       const data: Record<string, unknown> = {};
       const pathSet = paths ? new Set(paths) : null;
 
+      // 合并匹配的 extraValues（pathSet 中的 key 若不在 schema 中则视为 extra）
+      if (pathSet) {
+        for (const key of pathSet) {
+          if (!(key in data) && key in this._inst().extraValues) {
+            data[key] = this._inst().extraValues[key];
+          }
+        }
+      }
+
       for (const [path, state] of this._inst().fieldStates) {
         // 数组项子字段不单独收集（数组整体由数组字段序列化）
         if (state.meta.itemOf) {
@@ -682,12 +692,7 @@ export class NexusEngine implements IFormEngine {
 
       return data;
     }
-    // 无路径：使用缓存
-    if (!this._inst().formDataDirty && this._inst().formDataCache) {
-      // 返回浅拷贝，防止外部修改内部缓存
-      return { ...this._inst().formDataCache };
-    }
-
+    // 无路径：每次都过滤可见字段（hidden 状态可能随时变化，不走全量缓存）
     const data: Record<string, unknown> = {};
     for (const [path, state] of this._inst().fieldStates) {
       if (state.meta.itemOf || state.meta.containerOnly) {
@@ -702,40 +707,18 @@ export class NexusEngine implements IFormEngine {
       this.applyBindToData(data, path, state);
     }
 
-    this._inst().formDataCache = data;
-    this._inst().formDataDirty = false;
-    // 返回浅拷贝
+    // 返回浅拷贝（不缓存，hidden 状态变化后缓存需重建）
     return { ...data };
   }
 
-  /** 内部使用：直接返回缓存引用（只读） */
+  /** 内部使用：直接返回缓存引用（只读，含所有字段含 hidden） */
   private getFormDataInternal(): Record<string, unknown> {
     if (this._inst().formDataDirty || !this._inst().formDataCache) {
-      // 强制刷新缓存
-      this.getFormData(); // 构建并设置缓存
+      // 强制刷新缓存（含所有字段，含 hidden，供 reaction 内部使用）
+      this._inst().formDataCache = this.getAllFormData();
+      this._inst().formDataDirty = false;
     }
     return this._inst().formDataCache!;
-  }
-
-  /**
-   * 内部使用：构建完整 formData 快照（含隐藏字段）
-   *
-   * 用于 reaction 表达式求值：reaction 可能引用 formData 中的隐藏字段，
-   * 而 getFormData/getFormDataInternal 会跳过 hidden 字段导致取值失败。
-   */
-  private _getFormDataRaw(): Record<string, unknown> {
-    const data: Record<string, unknown> = {};
-    for (const [path, state] of this._inst().fieldStates) {
-      if (state.meta.itemOf || state.meta.containerOnly) {
-        continue;
-      }
-      // 注意：不包含 hidden 跳过逻辑，确保 reaction 能读取所有字段值
-      if (this.isAncestorHidden(path)) {
-        continue;
-      }
-      this.applyBindToData(data, path, state);
-    }
-    return data;
   }
 
   /**
@@ -877,12 +860,7 @@ export class NexusEngine implements IFormEngine {
           `[NexusEngine] Cannot set value on container-only path: ${path}（请写入子字段路径）`,
         );
       } else {
-        state.value = patch.value;
-        // 触碰与脏标记与 applyFieldValue 保持一致
-        state.touched = true;
-        state.dirty = !isDeepEqual(patch.value, state.initialValue);
-        // 数组字段值变更需重建项子字段状态
-        this.syncArrayItemStates(path);
+        this.applyFieldValueChanges(path, state, patch.value);
       }
     }
     if (patch.hidden !== undefined) {
@@ -916,14 +894,11 @@ export class NexusEngine implements IFormEngine {
         (v) => typeof v === 'string' && v.startsWith('{{'),
       );
       if (hasExprProp) {
-        const context: ReactionContext = {
-          $deps: [],
-          $self: state,
-          formData: this.getFormDataInternal(),
-          rootValue: this.getFormDataInternal(),
-          $form: this,
-          $index: this.extractIndexFromPath(path),
-        };
+        const context = this.buildReactionContext(
+          path,
+          [],
+          this.getFormDataInternal(),
+        );
         const resolved: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(patchProps)) {
           resolved[key] = this.resolveValue(value, context);
@@ -1011,13 +986,8 @@ export class NexusEngine implements IFormEngine {
       // 表达式校验（validate 字段定义的表达式）
       const validateExpr = rule._validateExpr;
       if (typeof validateExpr === 'string') {
-        const exprResult = this.evaluateExpression(validateExpr, {
-          $deps: [],
-          $self: state,
-          formData,
-          rootValue: formData,
-          $form: this,
-        });
+        const context = this.buildReactionContext(path, [], formData);
+        const exprResult = this.evaluateExpression(validateExpr, context);
         if (exprResult === false) {
           errors.push(this.resolveRuleMessage(state, rule));
         }
@@ -1049,7 +1019,7 @@ export class NexusEngine implements IFormEngine {
     // 与 schema 规则的默认 'change' trigger 保持一致的触发时机
     const validators = this._inst().fieldValidators.get(path);
     if (validators && validators.length > 0) {
-      const formData = this.getFormData();
+      const formData = this.getFormDataInternal();
       for (const validator of validators) {
         try {
           const result = validator(state.value, formData);
@@ -1339,8 +1309,8 @@ export class NexusEngine implements IFormEngine {
       }
 
       const errors: string[] = [];
-      // 字段内复用同一份 formData，避免重复构建
-      const formData = this.getFormData();
+      // 字段内复用同一份 formData（使用缓存版，避免重复遍历 fieldStates）
+      const formData = this.getFormDataInternal();
 
       // 一次遍历 rules：同时处理内置规则、自定义 validator、表达式 validate
       for (const rule of state.meta.rules) {
@@ -1373,13 +1343,8 @@ export class NexusEngine implements IFormEngine {
         const validateExpr = (rule as unknown as Record<string, unknown>)
           ._validateExpr;
         if (typeof validateExpr === 'string') {
-          const exprResult = this.evaluateExpression(validateExpr, {
-            $deps: [],
-            $self: state,
-            formData,
-            rootValue: formData,
-            $form: this,
-          });
+          const context = this.buildReactionContext(path, [], formData);
+          const exprResult = this.evaluateExpression(validateExpr, context);
           if (exprResult === false) {
             errors.push(this.resolveRuleMessage(state, rule));
           }
@@ -1572,7 +1537,7 @@ export class NexusEngine implements IFormEngine {
     const updated = this.patchSchemaNode(schema.properties, segments, 0, patch);
     if (updated) {
       // 重新解析 schema 以刷新 fieldStates / renderTree
-      const currentData = this.getFormData();
+      const currentData = this.getAllFormData();
       this.init(schema, currentData);
     }
   }
@@ -1845,7 +1810,7 @@ export class NexusEngine implements IFormEngine {
   subscribeAll(
     callback: (formData: Record<string, unknown>) => void,
   ): () => void {
-    const wrappedCallback = () => callback(this.getFormData());
+    const wrappedCallback = () => callback(this.getAllFormData());
     this._inst().globalListeners.add(wrappedCallback);
 
     return () => {
@@ -2333,8 +2298,7 @@ export class NexusEngine implements IFormEngine {
 
       // 单次批量执行复用同一份 formData 快照，避免对每个 dependent 重复构建
       // 使用 _getFormDataRaw（含隐藏字段）：reaction 可能引用 formData 中的隐藏字段
-      const formData = this._getFormDataRaw();
-
+      const formData = this.getFormDataInternal();
       for (const targetPath of dependents) {
         const state = this._inst().fieldStates.get(targetPath);
         if (!state) {
@@ -2423,14 +2387,10 @@ export class NexusEngine implements IFormEngine {
 
     // 检查 when 条件
     if (reaction.when) {
-      const whenResult = this.evaluateExpression(reaction.when, {
-        $deps: dependValues,
-        $self: targetState,
-        formData: data,
-        rootValue: data,
-        $form: this,
-        $index: this.extractIndexFromPath(targetPath),
-      });
+      const whenResult = this.evaluateExpression(
+        reaction.when,
+        this.buildReactionContext(targetPath, dependValues, data),
+      );
       if (!whenResult) {
         // when 不满足，执行 otherwise
         if (reaction.otherwise?.state) {
@@ -2954,14 +2914,7 @@ export class NexusEngine implements IFormEngine {
 
     // 调用方通常已提供 formData；缺失时再补一次
     const data = formData ?? this.getFormDataInternal();
-    const context: ReactionContext = {
-      $deps: dependValues,
-      $self: state,
-      formData: data,
-      rootValue: data,
-      $form: this,
-      $index: this.extractIndexFromPath(path),
-    };
+    const context = this.buildReactionContext(path, dependValues, data);
 
     // 处理只读状态（必须在 value 之前处理，否则 reaction 同时赋值时校验会跳过 readOnly 检查）
     if (patch.readOnly !== undefined) {
@@ -2981,10 +2934,7 @@ export class NexusEngine implements IFormEngine {
     // 赋值 → 重建数组项子字段 → 实时重校验 → 沿依赖图继续传播
     if (patch.value !== undefined) {
       const resolved = this.resolveValue(patch.value, context);
-      state.value = resolved;
-      state.touched = true;
-      state.dirty = !isDeepEqual(resolved, state.initialValue);
-      this.syncArrayItemStates(path);
+      this.applyFieldValueChanges(path, state, resolved);
       this.validateFieldRealtime(path, state);
       this.runReactionsForSource(path);
       this.markFormDataDirty();
@@ -3076,14 +3026,7 @@ export class NexusEngine implements IFormEngine {
     }
 
     const data = formData ?? this.getFormDataInternal();
-    const context: ReactionContext = {
-      $deps: dependValues,
-      $self: state,
-      formData: data,
-      rootValue: data,
-      $form: this,
-      $index: this.extractIndexFromPath(path),
-    };
+    const context = this.buildReactionContext(path, dependValues, data);
 
     for (const [dotPath, valueOrExpr] of Object.entries(patch)) {
       const resolved = this.resolveValue(valueOrExpr, context);
@@ -3317,6 +3260,39 @@ export class NexusEngine implements IFormEngine {
       // 字段非必填或值不为空且错误列表中有该错误 → 移除
       state.errors = state.errors.filter((e) => e !== requiredError);
     }
+  }
+
+  /**
+   * 构建 ReactionContext（消除 applyStatePatch/applySchemaPatch/executeReaction 中重复构建）
+   */
+  private buildReactionContext(
+    path: string,
+    dependValues: unknown[],
+    formData: Record<string, unknown>,
+  ): ReactionContext {
+    const state = this._inst().fieldStates.get(path);
+    return {
+      $deps: dependValues,
+      $self: state ?? ({} as FieldState),
+      formData,
+      rootValue: formData,
+      $form: this,
+      $index: this.extractIndexFromPath(path),
+    };
+  }
+
+  /**
+   * 应用字段值变更（消除 setFieldState/applyStatePatch 中重复的 value/touched/dirty 处理）
+   */
+  private applyFieldValueChanges(
+    path: string,
+    state: FieldState,
+    value: unknown,
+  ): void {
+    state.value = value;
+    state.touched = true;
+    state.dirty = !isDeepEqual(value, state.initialValue);
+    this.syncArrayItemStates(path);
   }
 
   /**

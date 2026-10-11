@@ -1,5 +1,5 @@
 import { Slider } from 'antd';
-import { ReadOnlyDisplay, type WidgetProps } from './_shared';
+import { SimpleDisplay, type WidgetProps } from './_shared';
 
 export const sliderWidget = ({
   value,
@@ -20,7 +20,7 @@ export const sliderWidget = ({
   ...rest
 }: WidgetProps) => {
   if (readOnly) {
-    return <ReadOnlyDisplay value={value} />;
+    return <SimpleDisplay value={value} />;
   }
   // 声明式拆分：tooltip 布尔值 → antd tooltip.open；marks 为 JSON 字符串时解析为对象。
   // antd Slider 默认即悬停/拖动时显示数值提示，无需强制 open（open: true 会常显）；

@@ -154,7 +154,7 @@ describe('NexusForm 24 栅格布局', () => {
     expect(fields[1]).toMatchObject({ style: { gridColumn: 'span 24' } });
   });
 
-  it('点击对象标题折叠时内层内容 display:none（内联样式，不被 grid 覆盖）', () => {
+  it('点击对象标题折叠时内层内容隐藏但保留在 DOM（保持字段状态）', () => {
     const schema = {
       type: 'object',
       properties: {
@@ -171,17 +171,18 @@ describe('NexusForm 24 栅格布局', () => {
     const objectEl = container.querySelector(
       '[data-nexus-object]',
     ) as HTMLDivElement;
-    // 内层内容 div（唯一带 gridTemplateColumns 内联样式的子元素）
-    const content = objectEl.querySelector(
-      'div[style*="repeat(24"]',
+    // 对象内容以 antd Collapse 承载：默认展开（ant-collapse-panel-active）
+    const panel = objectEl.querySelector(
+      '.ant-collapse-panel',
     ) as HTMLDivElement;
-    expect(content.style.display).toBe('grid');
-    // 点击标题折叠（标题 div 是对象外层第一个子元素）
+    expect(panel.className).toContain('ant-collapse-panel-active');
+    expect(objectEl.querySelector('[data-nexus-field]')).toBeTruthy();
+    // 点击标题折叠（ant-collapse-header 是标题行）
     act(() => {
-      (objectEl.querySelector('div') as HTMLDivElement).click();
+      (objectEl.querySelector('.ant-collapse-header') as HTMLDivElement).click();
     });
-    expect(content.style.display).toBe('none');
-    // 内层字段仍存在（未卸载，保持状态）
+    expect(panel.className).not.toContain('ant-collapse-panel-active');
+    // 折叠后内层字段仍存在（未卸载，保持状态）
     expect(objectEl.querySelector('[data-nexus-field]')).toBeTruthy();
   });
 });

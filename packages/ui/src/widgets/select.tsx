@@ -1,10 +1,5 @@
 import { Select } from 'antd';
-import {
-  mapOptions,
-  ReadOnlyDisplay,
-  useRemoteOptions,
-  type WidgetProps,
-} from './_shared';
+import { EnumDisplay, mapOptions, useRemoteOptions, type WidgetProps } from './_shared';
 
 // 本地数据版本
 export const selectWidget = ({
@@ -22,7 +17,7 @@ export const selectWidget = ({
   ...rest
 }: WidgetProps) => {
   if (readOnly) {
-    return <ReadOnlyDisplay value={value} options={options} />;
+    return <EnumDisplay value={value} options={options} />;
   }
 
   return (
@@ -67,7 +62,7 @@ export const remoteSelectWidget = ({
 
   if (readOnly) {
     const localOptions = mapOptions(_opt);
-    return <ReadOnlyDisplay value={value} options={localOptions} />;
+    return <EnumDisplay value={value} options={localOptions} />;
   }
 
   return (

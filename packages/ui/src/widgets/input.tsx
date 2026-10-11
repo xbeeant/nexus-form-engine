@@ -1,6 +1,6 @@
 import { toBoolean } from '@xbeeant/form-engine';
 import { Input } from 'antd';
-import { ReadOnlyDisplay, type WidgetProps } from './_shared';
+import { SimpleDisplay, type WidgetProps } from './_shared';
 
 export const inputWidget = ({
   value,
@@ -18,7 +18,7 @@ export const inputWidget = ({
   ...rest
 }: WidgetProps) => {
   if (readOnly) {
-    return <ReadOnlyDisplay value={value} />;
+    return <SimpleDisplay value={value} />;
   }
 
   return (

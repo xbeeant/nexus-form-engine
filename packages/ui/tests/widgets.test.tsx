@@ -196,7 +196,9 @@ describe('校验错误展示（集成）', () => {
       },
     });
 
-    await form.form!.validateFields();
+    await act(async () => {
+      await form.form!.validateFields();
+    });
     await waitFor(() => {
       expect(
         container.querySelector('.ant-form-item-explain-error'),
@@ -220,7 +222,9 @@ describe('校验错误展示（集成）', () => {
     });
 
     // 先触发校验（提交），必填错误出现
-    await form.form!.validateFields();
+    await act(async () => {
+      await form.form!.validateFields();
+    });
     await waitFor(() => {
       expect(
         container.querySelector('.ant-form-item-explain-error'),
@@ -228,8 +232,10 @@ describe('校验错误展示（集成）', () => {
     });
 
     // 输入合法值 → 实时校验通过 → 错误消失
-    fireEvent.change(container.querySelector('input') as HTMLInputElement, {
-      target: { value: 'zhangsan' },
+    await act(async () => {
+      fireEvent.change(container.querySelector('input') as HTMLInputElement, {
+        target: { value: 'zhangsan' },
+      });
     });
     await waitFor(() => {
       expect(

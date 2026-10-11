@@ -217,6 +217,7 @@ export class ExpressionSandbox {
 
       return result;
     } catch (error) {
+      console.error(`[ExpressionSandbox] execution failed:`, error);
       this.errorCount++;
       this.recordError(error);
 

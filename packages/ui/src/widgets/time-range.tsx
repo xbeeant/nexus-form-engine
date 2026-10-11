@@ -1,6 +1,6 @@
 import { TimePicker, type TimePickerProps } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { ReadOnlyDisplay, toDayjs, type WidgetProps } from './_shared';
+import { SimpleDisplay, toDayjs, type WidgetProps } from './_shared';
 
 type PickerDisabledTime = NonNullable<TimePickerProps['disabledTime']>;
 type PickerDisabledTimes = ReturnType<PickerDisabledTime>;
@@ -128,7 +128,7 @@ export const timeRangeWidget = ({
       Array.isArray(value) && value.length === 2
         ? (value as unknown[]).filter((v) => v !== '' && v != null).join(' ~ ')
         : value;
-    return <ReadOnlyDisplay value={range} />;
+    return <SimpleDisplay value={range} />;
   }
 
   return (

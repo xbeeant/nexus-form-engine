@@ -1,9 +1,10 @@
 import type { NexusNodeProps, RenderObjectNode } from '@xbeeant/form-engine';
+import { Collapse } from 'antd';
 import type { CSSProperties } from 'react';
-import { useContext, useState, useSyncExternalStore } from 'react';
+import { useContext, useSyncExternalStore } from 'react';
 
 import { FieldInheritContext } from '../contexts/field-inherit-context';
-import { GRID_TOTAL, GridContext } from '../contexts/grid-context';
+import { GridContext } from '../contexts/grid-context';
 import { useNexusContext } from '../contexts/nexus-context';
 import { renderTreeNode } from '../utils/render-tree-node';
 import { resolveGridSpan } from '../utils/resolve-grid-span';
@@ -28,9 +29,6 @@ export function NexusObject({ node }: NexusNodeProps<RenderObjectNode>) {
     () => engine.getFieldVersion(node.dataPath),
   );
   const state = engine.getFieldState(node.dataPath);
-  const [collapsed, setCollapsed] = useState(false);
-  // 对象容器自身在父 24 栅格中的跨度：width（占比）/ colSpan 换算 gridColumn，
-  // 与 NexusField / NexusBranch 一致；非栅格（Flex/inline）场景 width 字面生效
   const gridCtx = useContext(GridContext);
   const effectiveSpan = resolveGridSpan(
     state?.meta.width || '100%',
@@ -46,11 +44,6 @@ export function NexusObject({ node }: NexusNodeProps<RenderObjectNode>) {
   // 对象内容统一置于 24 栅格：子字段按 width（占比）/ colSpan 换算跨度，
   // 未设置时按表单级 column 均分默认占位（span = round(24/column)）
   const objectColumn = Math.max(1, config.column ?? 1);
-  const gridStyle: CSSProperties = {
-    display: collapsed ? 'none' : 'grid',
-    gridTemplateColumns: `repeat(${GRID_TOTAL}, minmax(0, 1fr))`,
-    gap: '0 16px',
-  };
 
   // 合并继承属性：父级已激活的状态不可被当前容器覆盖；
   // disabled/readOnly 仅携带 true（父级关闭状态不压制子级显式启用）
@@ -66,47 +59,34 @@ export function NexusObject({ node }: NexusNodeProps<RenderObjectNode>) {
   };
   const hidden = engine.isHidden(node.dataPath, state);
 
-  const toggleCollapsed = () => setCollapsed((prev) => !prev);
+  const panelKey = node.dataPath ?? '';
+  const panelTitle = node.title || '';
+  const children = node.children.map((child, index) =>
+    renderTreeNode(child, index),
+  );
 
   return (
     <FieldInheritContext.Provider value={inherit}>
       <div
         data-nexus-object={node.dataPath}
-        className={`border mb-2 border-solid border-gray-300 ${hidden ? 'hidden' : ''}`}
+        className={`mb-2 ${hidden ? 'hidden' : ''}`}
         style={Object.keys(wrapperStyle).length > 0 ? wrapperStyle : undefined}
       >
-        {node.title && (
-          <div
-            onClick={toggleCollapsed}
-            className={`flex justify-between p-2 gap-1 ${collapsed ? '' : 'border-b border-solid border-gray-300'} cursor-pointer select-none bg-transparent font-bold`}
-          >
-            {node.title}
-            <svg
-              width='18'
-              height='18'
-              viewBox='0 0 24 24'
-              fill='none'
-              stroke='currentColor'
-              strokeWidth='2'
-              strokeLinecap='round'
-              strokeLinejoin='round'
-              className={`align-middle transition-transform duration-200 ease-in-out`}
-              aria-hidden='true'
-            >
-              {collapsed ? (
-                <polyline points='6 9 12 15 18 9' />
-              ) : (
-                <polyline points='9 18 15 12 9 6' />
-              )}
-            </svg>
-          </div>
-        )}
-        {/* 折叠时隐藏但不卸载 children，保持字段状态与校验订阅 */}
-        <GridContext.Provider value={{ column: objectColumn }}>
-          <div style={gridStyle} className='p-1'>
-            {node.children.map((child, index) => renderTreeNode(child, index))}
-          </div>
-        </GridContext.Provider>
+        <Collapse
+          defaultActiveKey={[panelKey]}
+          style={{ marginBottom: 0 }}
+          items={[
+            {
+              key: panelKey,
+              label: panelTitle,
+              children: (
+                <GridContext.Provider value={{ column: objectColumn }}>
+                  <div className='p-1'>{children}</div>
+                </GridContext.Provider>
+              ),
+            },
+          ]}
+        />
       </div>
     </FieldInheritContext.Provider>
   );

@@ -1,6 +1,6 @@
 import { DatePicker } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { ReadOnlyDisplay, toDayjs, type WidgetProps } from './_shared';
+import { SimpleDisplay, toDayjs, type WidgetProps } from './_shared';
 
 export const dateRangeWidget = ({
   value,
@@ -69,7 +69,7 @@ export const dateRangeWidget = ({
       Array.isArray(value) && value.length === 2
         ? (value as unknown[]).filter((v) => v !== '' && v != null).join(' ~ ')
         : value;
-    return <ReadOnlyDisplay value={range} />;
+    return <SimpleDisplay value={range} />;
   }
 
   return (

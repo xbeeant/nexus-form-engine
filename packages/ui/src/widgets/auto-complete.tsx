@@ -1,7 +1,7 @@
 import { Select } from 'antd';
 import {
+  EnumDisplay,
   mapOptions,
-  ReadOnlyDisplay,
   useRemoteOptions,
   type WidgetProps,
 } from './_shared';
@@ -25,7 +25,7 @@ export const autoCompleteWidget = ({
   ...rest
 }: WidgetProps) => {
   if (readOnly) {
-    return <ReadOnlyDisplay value={value} options={options} />;
+    return <EnumDisplay value={value} options={options} />;
   }
 
   // 声明式拆分：设计器以逗号分隔字符串配置 tokenSeparators，转为数组
@@ -37,10 +37,17 @@ export const autoCompleteWidget = ({
           .filter(Boolean)
       : undefined;
 
+  // 过滤 undefined/null 值，避免 Select 渲染空标签导致 key 冲突
+  const selectValue = Array.isArray(value)
+    ? value.filter((v) => v !== undefined && v !== null)
+    : value !== undefined && value !== null
+      ? [value as string]
+      : [];
+
   return (
     <Select
       mode='tags'
-      value={Array.isArray(value) ? value : [value as string]}
+      value={selectValue}
       onChange={(v) => onChange(v)}
       options={mapOptions(options)}
       placeholder={placeholder ?? '请输入...'}
@@ -101,10 +108,17 @@ export const remoteAutoCompleteWidget = ({
     // 用户也可以在 remoteData.params 中通过 formData 动态查询
   };
 
+  // 过滤 undefined/null 值，避免 Select 渲染空标签导致 key 冲突
+  const selectValue = Array.isArray(value)
+    ? value.filter((v) => v !== undefined && v !== null)
+    : value !== undefined && value !== null
+      ? [value as string]
+      : [];
+
   return (
     <Select
       mode='tags'
-      value={Array.isArray(value) ? value : [value as string]}
+      value={selectValue}
       onChange={(v) => onChange(v)}
       options={mapOptions(options)}
       placeholder={placeholder ?? '请输入...'}

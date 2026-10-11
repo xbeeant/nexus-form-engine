@@ -1,7 +1,7 @@
 import { Select } from 'antd';
 import {
+  EnumDisplay,
   mapOptions,
-  ReadOnlyDisplay,
   useRemoteOptions,
   type WidgetProps,
 } from './_shared';
@@ -23,7 +23,7 @@ export const multiSelectWidget = ({
   ...rest
 }: WidgetProps) => {
   if (readOnly) {
-    return <ReadOnlyDisplay value={value} options={options} />;
+    return <EnumDisplay value={value} options={options} />;
   }
 
   return (
@@ -70,7 +70,7 @@ export const remoteMultiSelectWidget = ({
 
   if (readOnly) {
     const localOptions = mapOptions(_opt);
-    return <ReadOnlyDisplay value={value} options={localOptions} />;
+    return <EnumDisplay value={value} options={localOptions} />;
   }
 
   // 声明式拆分：设计器以逗号分隔字符串配置 tokenSeparators，转为数组

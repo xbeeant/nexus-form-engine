@@ -493,7 +493,7 @@ describe('插件 onSubmit 钩子（提交拦截）', () => {
 
       engine.init(schema);
       engine.setFieldValues({ name: 'test', extraKey: 'extraValue' });
-      const data = engine.getFormData();
+      const data = engine.getAllFormData();
       expect(data.name).toBe('test');
       expect(data.extraKey).toBe('extraValue');
     });
@@ -509,11 +509,11 @@ describe('插件 onSubmit 钩子（提交拦截）', () => {
 
       engine.init(schema);
       engine.setFieldValues({ name: 'first', extra1: 'a' });
-      let data = engine.getFormData();
+      let data = engine.getAllFormData();
       expect(data.extra1).toBe('a');
 
       engine.setFieldValues({ name: 'second', extra2: 'b' });
-      data = engine.getFormData();
+      data = engine.getAllFormData();
       expect(data.extra1).toBe('a');
       expect(data.extra2).toBe('b');
     });
@@ -564,7 +564,7 @@ describe('插件 onSubmit 钩子（提交拦截）', () => {
       engine.setFieldValues({ extraKey: 'first' });
       engine.setFieldValues({ extraKey: 'second' });
 
-      const data = engine.getFormData();
+      const data = engine.getAllFormData();
       expect(data.extraKey).toBe('second');
     });
 
@@ -596,7 +596,7 @@ describe('插件 onSubmit 钩子（提交拦截）', () => {
       engine.init(schema);
       engine.setFieldValues({ extraKey: 'reinit' });
 
-      const data = engine.getFormData();
+      const data = engine.getAllFormData();
       expect(data.extraKey).toBe('reinit');
     });
   });

@@ -1,5 +1,5 @@
 import { TimePicker } from 'antd';
-import { ReadOnlyDisplay, toDayjs, type WidgetProps } from './_shared';
+import { SimpleDisplay, toDayjs, type WidgetProps } from './_shared';
 
 export const timePickerWidget = ({
   value,
@@ -17,7 +17,7 @@ export const timePickerWidget = ({
 }: WidgetProps) => {
   if (readOnly) {
     // antd 6 TimePicker 已不支持 readOnly，统一回退文本展示
-    return <ReadOnlyDisplay value={value} />;
+    return <SimpleDisplay value={value} />;
   }
 
   return (

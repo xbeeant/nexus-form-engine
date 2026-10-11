@@ -1,5 +1,5 @@
 import { Segmented } from 'antd';
-import { mapOptions, ReadOnlyDisplay, type WidgetProps } from './_shared';
+import { EnumDisplay, mapOptions, type WidgetProps } from './_shared';
 
 export const segmentedWidget = ({
   value,
@@ -29,7 +29,7 @@ export const segmentedWidget = ({
   ...rest
 }: WidgetProps) => {
   if (readOnly) {
-    return <ReadOnlyDisplay value={value} options={options} />;
+    return <EnumDisplay value={value} options={options} />;
   }
 
   return (

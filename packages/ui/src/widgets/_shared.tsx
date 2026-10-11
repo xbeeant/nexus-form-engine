@@ -9,6 +9,7 @@ import { toBoolean } from '@xbeeant/form-engine';
 import {
   type NexusAddons,
   NexusContext,
+  pureHtmlString,
   useFormConfig,
 } from '@xbeeant/form-engine-react';
 import { ConfigProvider, Form } from 'antd';
@@ -256,6 +257,170 @@ export function ReadOnlyDisplay({
 }) {
   const bundle = useNexusLocale();
   return <>{renderReadOnlyValue(value, mapOptions(options), bundle)}</>;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// SimpleDisplay — 只读模式下原始值（文本/数字/日期/文件等）纯文本展示
+// 适用场景：input / textarea / password / url-input / input-number / slider /
+//           rate / date-picker / time-picker / date-range / time-range / file
+// 特点：仅渲染值本身，不做 enum 映射；空值显示占位符 "-"；Date/Dayjs 走 String
+// ────────────────────────────────────────────────────────────────────────────
+
+export function SimpleDisplay({ value }: { value: unknown }) {
+  const bundle = useNexusLocale();
+  if (value === undefined || value === null || value === '') {
+    return EMPTY_PLACEHOLDER;
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return EMPTY_PLACEHOLDER;
+    }
+    return (
+      <>
+        {value
+          .map((item) =>
+            item instanceof Date || dayjs.isDayjs(item)
+              ? String(item)
+              : String(item),
+          )
+          .join('、')}
+      </>
+    );
+  }
+  if (value instanceof Date || dayjs.isDayjs(value)) {
+    return <>{String(value)}</>;
+  }
+  if (typeof value === 'boolean') {
+    return (
+      <>{value ? bundle.readonlyDisplay.yes : bundle.readonlyDisplay.no}</>
+    );
+  }
+
+  const sanitized = pureHtmlString(String(value));
+  return (
+    <div
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: 富文本内容已经过滤XSS
+      dangerouslySetInnerHTML={{ __html: sanitized }}
+    />
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// EnumDisplay — 只读模式下选项枚举值映射展示
+// 适用场景：select / multi-select / radio / checkboxes / cascader /
+//           checkbox / switch / segmented / auto-complete / mentions
+// 特点：支持 options 枚举映射；基础值数组用顿号拼接；未匹配时回退 String
+// ────────────────────────────────────────────────────────────────────────────
+
+export function EnumDisplay({
+  value,
+  options,
+}: {
+  value: unknown;
+  options?: WidgetProps['options'];
+}) {
+  const bundle = useNexusLocale();
+  const mapped = mapOptions(options);
+
+  const renderEnumItem = (v: unknown): React.ReactNode => {
+    if (v === undefined || v === null || v === '') {
+      return EMPTY_PLACEHOLDER;
+    }
+    if (v instanceof Date || dayjs.isDayjs(v)) {
+      return <>{String(v)}</>;
+    }
+    if (typeof v === 'boolean') {
+      return <>{v ? bundle.readonlyDisplay.yes : bundle.readonlyDisplay.no}</>;
+    }
+    const hit = mapped.find(
+      (o) => o.value === v || String(o.value) === String(v),
+    );
+    return <>{hit ? hit.label : String(v)}</>;
+  };
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return EMPTY_PLACEHOLDER;
+    }
+    return (
+      <>
+        {value.map((item, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && '、'}
+            {renderEnumItem(item)}
+          </React.Fragment>
+        ))}
+      </>
+    );
+  }
+
+  return <>{renderEnumItem(value)}</>;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// ObjectDisplay — 只读模式下结构化值（对象/对象数组）键值块展示
+// 适用场景：list / simpleList / tableList / object
+// 特点：对象逐项渲染为键值块；对象数组逐块排列；深度限制 3 层
+// ────────────────────────────────────────────────────────────────────────────
+
+function renderObjectDisplayValue(
+  value: unknown,
+  depth: number,
+): React.ReactNode {
+  if (value === undefined || value === null || value === '') {
+    return EMPTY_PLACEHOLDER;
+  }
+
+  // 数组值
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return EMPTY_PLACEHOLDER;
+    }
+    return (
+      <div className='flex flex-col gap-1'>
+        {value.map((item, index) => (
+          <div key={index}>{renderObjectDisplayValue(item, depth + 1)}</div>
+        ))}
+      </div>
+    );
+  }
+
+  // 普通对象
+  if (typeof value === 'object') {
+    if (value instanceof Date || dayjs.isDayjs(value)) {
+      return <>{String(value)}</>;
+    }
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) {
+      return EMPTY_PLACEHOLDER;
+    }
+    if (depth >= 3) {
+      return <>{JSON.stringify(value)}</>;
+    }
+    return (
+      <div className='overflow-hidden rounded-md border border-black/5'>
+        {entries.map(([key, entryValue]) => (
+          <div
+            key={key}
+            className='flex items-start gap-2 border-b border-black/5 px-2.5 py-1'
+          >
+            <span className='w-28 shrink-0 truncate text-[13px] text-black/45'>
+              {key}
+            </span>
+            <span className='flex-1 text-right text-[13px] text-black/85'>
+              {renderObjectDisplayValue(entryValue, depth + 1)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return <>{String(value)}</>;
+}
+
+export function ObjectDisplay({ value }: { value: unknown }) {
+  return <>{renderObjectDisplayValue(value, 0)}</>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────

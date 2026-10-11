@@ -1,6 +1,6 @@
 import { toBoolean } from '@xbeeant/form-engine';
 import { Input } from 'antd';
-import { ReadOnlyDisplay, type WidgetProps } from './_shared';
+import { SimpleDisplay, type WidgetProps } from './_shared';
 
 export const textAreaWidget = ({
   value,
@@ -32,8 +32,14 @@ export const textAreaWidget = ({
         }
       : autoSize;
 
+  // 过滤掉 rest 中的 autoSize/rows，避免与显式属性冲突（antd TextArea 同时接收 rows 和 autoSize 对象时会计算 NaN 高度）
+  const { autoSize: _a, rows: _r, ...cleanRest } = rest as Record<
+    string,
+    unknown
+  >;
+
   if (readOnly) {
-    return <ReadOnlyDisplay value={value} />;
+    return <SimpleDisplay value={value} />;
   }
 
   return (
@@ -43,11 +49,11 @@ export const textAreaWidget = ({
       placeholder={placeholder}
       readOnly={toBoolean(readOnly)}
       disabled={disabled || loading}
-      rows={(rows as number) ?? 3}
+      rows={typeof mergedAutoSize === 'object' ? undefined : (rows as number) ?? 3}
       autoSize={
         mergedAutoSize as boolean | { minRows?: number; maxRows?: number }
       }
-      {...rest}
+      {...cleanRest}
     />
   );
 };

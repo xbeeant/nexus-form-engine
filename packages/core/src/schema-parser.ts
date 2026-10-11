@@ -148,8 +148,15 @@ const REACTION_TEXT_FIELDS = [
  * @param node - Schema 节点（读取 hidden 字段）
  * @returns 解析后的隐藏状态
  */
-function resolveHidden(node: { hidden?: unknown }): boolean {
-  return node.hidden === true;
+export function resolveHidden(node: { hidden?: unknown }): boolean {
+  const val = node.hidden;
+  if (typeof val === 'boolean') {
+    return val;
+  }
+  if (typeof val === 'string') {
+    return val === '1' || val === 'true' || val === 'on';
+  }
+  return false;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -501,14 +508,10 @@ export function parse(
     widgetMetas,
   );
 
-  // 第二步：解析 reactions 依赖路径的作用域
+  // 第二步：解析 reaction 依赖作用域并构建依赖图（合并两阶段，避免双重遍历）
   // 支持嵌套字段用相对路径引用同级字段（如 address.city 依赖 "province" → "address.province"）
-  resolveReactionScopes(fieldStates);
-
-  // 第三步：从字段的 reactions 静态构建依赖图
-  // （reactions 边 + validate 表达式 formData.xxx 依赖边）
   const { dependencyGraph, validateExprFields } =
-    buildDependencyGraph(fieldStates);
+    finalizeReactionsAndBuildGraph(fieldStates);
 
   return { fieldStates, renderTree, dependencyGraph, validateExprFields };
 }
@@ -551,6 +554,7 @@ function walkProperties(
   },
   widgetMetas?: WidgetDescriptors,
   branchContext?: { branchIndex: number; isActive: boolean },
+  parentContainerPath?: string, // 父布局容器的状态路径（用于计算唯一的 containerPath）
 ): void {
   for (const [key, node] of Object.entries(properties)) {
     // ⚡ isDataArray 必须在 isDataField 之前判断：
@@ -617,6 +621,7 @@ function walkProperties(
         initialValues,
         widgetMetas,
         branchContext,
+        parentContainerPath, // 传递父容器路径
       );
     }
   }
@@ -664,15 +669,30 @@ export function validateToRules(
  */
 export function extractDepsFromExpression(expr: string): string[] {
   const deps = new Set<string>();
-  // 匹配 formData?. 或 formData. 开头的链式路径，支持可选链 ?.
-  // 使用 \?? 同时匹配有?和无?的情况，捕获完整路径段后剥离?得到纯净路径
+  // 匹配 formData?. 或 formData. 开头的属性路径
+  // 匹配到的结果可能包含方法名（如 implType.includes），需在后处理中剥离
   const regex =
-    /formData\??\.([a-zA-Z_$][a-zA-Z0-9_$]*(?:\??\.([a-zA-Z_$][a-zA-Z0-9_$]*)*)*)/g;
+    /formData\??\.([a-zA-Z_$][a-zA-Z0-9_$]*(?:\??\.[a-zA-Z_$][a-zA-Z0-9_$]*)*)/g;
   let match = regex.exec(expr);
   while (match !== null) {
-    // 剥离可选链操作符：demand_definition?.experience_description → demand_definition.experience_description
-    const fullPath = match[1].replace(/\?/g, '');
-    deps.add(fullPath);
+    // 检查表达式中该匹配结束后紧跟的是否是方法调用 '('
+    const afterIdx = regex.lastIndex;
+    const afterContent = expr.slice(afterIdx);
+    const nextNonSpace = afterContent.replace(/^\s+/, '')[0];
+
+    if (nextNonSpace === '(') {
+      // 末尾是方法调用：implType.includes(...) → implType
+      // 去掉最后一段（方法名）
+      const dotIdx = match[1].lastIndexOf('.');
+      if (dotIdx > 0) {
+        deps.add(match[1].slice(0, dotIdx));
+      } else {
+        deps.add(match[1]);
+      }
+    } else {
+      // 普通路径，直接添加
+      deps.add(match[1].replace(/\?/g, ''));
+    }
     match = regex.exec(expr);
   }
   return Array.from(deps);
@@ -735,23 +755,16 @@ export function collectExpressionReactions(node: {
     }
   };
 
-  for (const field of REACTION_EXPR_FIELDS) {
+  // 统一处理：状态字段（required/disabled/readOnly/hidden）+ 选项字段（enum/enumNames）
+  // 两者判断逻辑相同：值为 string 时即为表达式
+  for (const field of [...REACTION_EXPR_FIELDS, ...REACTION_OPTION_FIELDS]) {
     const val = node[field];
     if (typeof val === 'string') {
       applyExpression(field, val);
     }
   }
 
-  // 动态 enum：enum/enumNames 声明为表达式时同样经 reaction 动态求值
-  for (const field of REACTION_OPTION_FIELDS) {
-    const val = node[field];
-    if (typeof val === 'string') {
-      applyExpression(field, val);
-    }
-  }
-
-  // 文本/元数据字段：placeholder/title/description/extra/tooltip 为完整 {{ }} 表达式
-  // 时自动求值（普通静态文本原样保留）。这样 widget 收到的是计算后的文本。
+  // 文本/元数据字段：需 isExpressionString 精确判断
   for (const field of REACTION_TEXT_FIELDS) {
     const val = node[field];
     if (val !== undefined && isExpressionString(val)) {
@@ -760,7 +773,6 @@ export function collectExpressionReactions(node: {
   }
 
   // props.*：遍历所有 props 值，表达式字符串自动转 reaction 求值
-  // （如 `props: { options: "{{ formData.categories }}" }` → patch.props.options）
   if (node.props && typeof node.props === 'object') {
     for (const [key, val] of Object.entries(node.props)) {
       if (isExpressionString(val)) {
@@ -786,8 +798,6 @@ export function collectExpressionReactions(node: {
 
   node.reactions.push({
     dependencies: Array.from(allDeps),
-    // 有表达式时通过 state patch 应用；仅有 dependencies 时 state 为空对象
-    // （空 state patch 不会修改字段状态，但 dependValues 仍会传递给 widget）
     fulfill: { state },
     _autoExpr: true,
   });
@@ -849,16 +859,90 @@ export function constraintsToRules(node: {
 }
 
 /**
- * 检查用户 rules 是否已显式声明某个约束键（避免重复生成）
+ * 从校验规则中提取已声明的约束键集合
  *
- * @param rules - 用户声明的规则数组
- * @param key - 约束键（min/max/pattern/len/enum/whitespace）
- * @returns 已声明返回 true
+ * @param rules - 已存在的规则数组
+ * @returns 约束键 Set（required/min/max/len/pattern/enum/whitespace/format/validator/_validateExpr/type）
  */
-function hasDeclaredConstraint(rules: ValidationRule[], key: string): boolean {
-  return rules.some(
-    (rule) => (rule as Record<string, unknown>)[key] !== undefined,
-  );
+function extractDeclaredConstraintKeys(rules: ValidationRule[]): Set<string> {
+  const keys = new Set<string>();
+  for (const rule of rules) {
+    if (rule.required !== undefined) {
+      keys.add('required');
+    }
+    if (rule.min !== undefined) {
+      keys.add('min');
+    }
+    if (rule.max !== undefined) {
+      keys.add('max');
+    }
+    if (rule.len !== undefined) {
+      keys.add('len');
+    }
+    if (rule.pattern !== undefined) {
+      keys.add('pattern');
+    }
+    if (rule.whitespace === true) {
+      keys.add('whitespace');
+    }
+    if (rule.enum && rule.enum.length > 0) {
+      keys.add('enum');
+    }
+    if (rule.validator !== undefined) {
+      keys.add('validator');
+    }
+    if (rule._validateExpr !== undefined) {
+      keys.add('_validateExpr');
+    }
+    if (rule.type === 'email' || rule.type === 'url') {
+      keys.add('format');
+    }
+    if (rule.type !== undefined && keys.has('type') === false) {
+      keys.add('type');
+    }
+  }
+  return keys;
+}
+
+/**
+ * 从规则对象提取约束键
+ *
+ * @param rule - 校验规则（ValidationRule 或任意约束对象）
+ * @returns 约束键 Set
+ */
+function extractConstraintKeys(rule: ValidationRule): Set<string> {
+  const keys = new Set<string>();
+  if (rule.required !== undefined) {
+    keys.add('required');
+  }
+  if (rule.min !== undefined) {
+    keys.add('min');
+  }
+  if (rule.max !== undefined) {
+    keys.add('max');
+  }
+  if (rule.len !== undefined) {
+    keys.add('len');
+  }
+  if (rule.pattern !== undefined) {
+    keys.add('pattern');
+  }
+  if (rule.whitespace === true) {
+    keys.add('whitespace');
+  }
+  if (rule.enum && rule.enum.length > 0) {
+    keys.add('enum');
+  }
+  if (rule.validator !== undefined) {
+    keys.add('validator');
+  }
+  if (rule._validateExpr !== undefined) {
+    keys.add('_validateExpr');
+  }
+  if (rule.type === 'email' || rule.type === 'url') {
+    keys.add('format');
+  }
+  return keys;
 }
 
 /**
@@ -886,6 +970,28 @@ export function isPureRequiredRule(rule: ValidationRule): boolean {
 }
 
 /**
+ * 将规则数组追加到目标数组（按约束键去重）
+ *
+ * 已声明约束键的规则不重复追加，避免叠加双错误消息。
+ *
+ * @param target - 目标规则数组（原地追加）
+ * @param sources - 待追加的规则数组
+ */
+function mergeRulesWithDedup(
+  target: ValidationRule[],
+  sources: ValidationRule[],
+): void {
+  const existing = extractDeclaredConstraintKeys(target);
+  for (const rule of sources) {
+    const ruleKeys = extractConstraintKeys(rule);
+    const hasOverlap = Array.from(ruleKeys).some((k) => existing.has(k));
+    if (!hasOverlap) {
+      target.push(rule);
+    }
+  }
+}
+
+/**
  * 将字段节点约束转换为 rules 追加到已有规则数组（按键逐项去重）
  *
  * 用户已在 rules 中显式声明的约束键不重复生成：
@@ -900,33 +1006,7 @@ function appendConstraintRules(
   rules: ValidationRule[],
 ): void {
   const generated = constraintsToRules(node);
-  for (const rule of generated) {
-    const keys: string[] = [];
-    if (rule.min !== undefined) {
-      keys.push('min');
-    }
-    if (rule.max !== undefined) {
-      keys.push('max');
-    }
-    if (rule.pattern !== undefined) {
-      keys.push('pattern');
-    }
-    if (rule.whitespace === true) {
-      keys.push('whitespace');
-    }
-    if (rule.type === 'email' || rule.type === 'url') {
-      keys.push('format');
-    }
-    const duplicated = keys.some((k) => {
-      if (k === 'format') {
-        return rules.some((r) => r.type === (node.format as string));
-      }
-      return hasDeclaredConstraint(rules, k);
-    });
-    if (!duplicated) {
-      rules.push(rule);
-    }
-  }
+  mergeRulesWithDedup(rules, generated);
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -961,49 +1041,13 @@ function mergeWidgetRules(
   rules: ValidationRule[],
   widgetRules: ValidationRule[],
 ): void {
-  for (const rule of widgetRules) {
-    const keys: string[] = [];
-    if (rule.required !== undefined) {
-      keys.push('required');
-    }
-    if (rule.min !== undefined) {
-      keys.push('min');
-    }
-    if (rule.max !== undefined) {
-      keys.push('max');
-    }
-    if (rule.len !== undefined) {
-      keys.push('len');
-    }
-    if (rule.pattern !== undefined) {
-      keys.push('pattern');
-    }
-    if (rule.whitespace === true) {
-      keys.push('whitespace');
-    }
-    if (rule.enum && rule.enum.length > 0) {
-      keys.push('enum');
-    }
-    if (rule.validator !== undefined) {
-      keys.push('validator');
-    }
-    if (rule._validateExpr !== undefined) {
-      keys.push('_validateExpr');
-    }
-    if (rule.type === 'email' || rule.type === 'url') {
-      keys.push('format');
-    }
-    const duplicated = keys.some((k) => hasDeclaredConstraint(rules, k));
-    if (!duplicated) {
-      rules.push(rule);
-    }
-  }
+  mergeRulesWithDedup(rules, widgetRules);
 }
 
 /**
  * 合并 widget 声明级联动规则到字段 reactions
  *
- * 规则数组在后续 resolveReactionScopes / buildDependencyGraph 中统一处理：
+ * 规则数组在 finalizeReactionsAndBuildGraph 中统一处理：
  * - 相对路径依赖按目标字段作用域解析
  * - 依赖边进入依赖图，字段变化时 O(k) 触发联动与实时重校验
  *
@@ -1462,10 +1506,19 @@ function processLayoutNode(
   initialValues?: Record<string, unknown>,
   widgetMetas?: WidgetDescriptors,
   branchContext?: { branchIndex: number; isActive: boolean },
+  parentContainerPath?: string, // 父布局容器的状态路径（用于计算唯一的 containerPath）
 ): void {
   const layoutNode = node as (LayoutContainerSchema | LayoutPaneSchema) & {
     type: LayoutType;
   };
+
+  // 先计算当前布局容器的 containerPath（用于 fieldStates 存储和 renderTree dataPath），
+  // 再递归处理子节点：子节点通过 parentContainerPath 获取唯一路径，
+  // 但子节点的数据路径仍通过 parentDataPath 透传（布局透明）。
+  const containerPath = parentContainerPath
+    ? joinPath(parentContainerPath, key)
+    : key;
+
   const children: RenderTreeNode[] = [];
 
   walkProperties(
@@ -1477,11 +1530,8 @@ function processLayoutNode(
     undefined,
     widgetMetas,
     branchContext, // 布局节点透传分支上下文（嵌套在分支内的布局字段继续标记）
+    containerPath, // 传递当前容器路径供子布局节点使用
   );
-
-  // 布局容器的合成状态路径（layout key 不进入数据路径，containerOnly 跳过收集）。
-  // 布局 Key 在路径计算中被丢弃，故合成状态路径扁平仅取布局自身 Key（对齐分支容器约定）。
-  const containerPath = joinPath(parentDataPath, key);
 
   // required/disabled/readOnly/hidden 为表达式时，自动转 _autoExpr reaction
   // （作用于布局容器自身的状态，Renderer 层经 dataPath 订阅实时显隐）
@@ -1748,116 +1798,84 @@ function processBranchNode(
 // ────────────────────────────────────────────────────────────────────────
 
 /**
- * 解析字段 reactions 中依赖路径的作用域
+ * 解析字段依赖作用域并构建依赖图（一次遍历合并两阶段）
  *
- * 嵌套字段（如 "address.city"）的 reaction 依赖允许以相对路径引用同级字段，
- * 如 `dependencies: ["province"]` → 解析为 "address.province"。
- * 解析规则（从最内层作用域向上逐级尝试，首个存在的字段路径胜出）：
- * - 作用域相对路径：target 的父级/祖先级 + dep（如 "address" + "province"）
- * - 根级绝对路径：dep 本身就是已有字段路径（如 "profile.name"）
+ * 将 resolveReactionScopes 与 buildDependencyGraph 合并为单函数：
+ * 1. 解析所有 field 的 relative dep → absolute path
+ * 2. 将解析后的 dependencies 加入 DependencyGraph
+ * 3. 同时提取 validate 表达式中的 formData.xxx 依赖
  *
- * 注意：`_autoExpr` 自动生成的 reaction（来自 hidden/required/disabled 表达式）
- * 其依赖从 `formData.xxx` 提取，语义上就是根级绝对路径，不做作用域解析。
+ * 两函数原都遍历 fieldStates→reactions 并跳过 crossForm，合并后避免双重遍历。
  *
  * @param fieldStates - 解析后的字段状态 Map（原地改写各 state.reactions）
- */
-function resolveReactionScopes(fieldStates: Map<string, FieldState>): void {
-  for (const [path, state] of fieldStates) {
-    if (!state.reactions || state.reactions.length === 0) {
-      continue;
-    }
-
-    const resolved = state.reactions.map((reaction) => {
-      // 跨表单联动：dependencies 指向源表单字段，不做本表单作用域解析
-      // _oneOfBranch：分支选择字段的容器依赖，语义为根级绝对路径，不做作用域解析
-      if (
-        reaction._autoExpr === true ||
-        reaction.crossForm ||
-        reaction._oneOfBranch === true ||
-        !reaction.dependencies
-      ) {
-        return reaction;
-      }
-      return {
-        ...reaction,
-        dependencies: reaction.dependencies.map((dep) =>
-          resolveDependencyPath(dep, path, fieldStates),
-        ),
-      };
-    });
-
-    // 引用替换：避免与 Schema 共享的 reactions 数组产生别名副作用
-    state.reactions = resolved;
-  }
-}
-
-/**
- * 将单个依赖路径解析为绝对字段路径
- *
- * 从 target 的最内层作用域逐级向上尝试 `作用域前缀 + dep`，
- * 首个在 fieldStates 中存在的路径即为解析结果；全部未命中则保持原值。
- *
- * @param dep - 依赖路径（如 "province" 或 "profile.name"）
- * @param targetPath - 目标字段路径（如 "address.city"）
- * @param fieldStates - 完整字段状态 Map（用于判断路径是否存在）
- * @returns 解析后的绝对字段路径
- */
-function resolveDependencyPath(
-  dep: string,
-  targetPath: string,
-  fieldStates: Map<string, FieldState>,
-): string {
-  // 特殊上下文变量（$deps/$self/$form/$index 等）不做作用域解析
-  if (dep.startsWith('$')) {
-    return dep;
-  }
-
-  const segments = targetPath.split('.');
-  for (let i = segments.length - 1; i >= 0; i--) {
-    const base = segments.slice(0, i).join('.');
-    const candidate = base ? `${base}.${dep}` : dep;
-    if (fieldStates.has(candidate)) {
-      return candidate;
-    }
-  }
-
-  // 全部未命中：保持原值（可能是尚未注册的路径，留给运行时容错）
-  return dep;
-}
-
-/**
- * 从字段的 reactions 中静态提取依赖边，构建 DependencyGraph
- *
- * 每个依赖边：target → source（target 的 reaction 依赖 source）
- * collectExpressionReactions 已在 walkProperties 阶段把
- * required/disabled/readOnly/hidden 表达式转成 _autoExpr reaction，
- * 因此此处构建的依赖图已包含表达式自动依赖
- *
- * 同时提取 validate 表达式（_validateExpr）中 formData.xxx 的依赖边，
- * 使跨字段校验表达式依赖进入依赖图：依赖字段变化时能触发目标字段实时重校验
- *
- * @param fieldStates - 解析后的字段状态 Map
  * @returns 依赖图实例与含 validate 表达式的字段集合
  */
-function buildDependencyGraph(fieldStates: Map<string, FieldState>): {
+function finalizeReactionsAndBuildGraph(fieldStates: Map<string, FieldState>): {
   dependencyGraph: DependencyGraph;
   validateExprFields: Set<string>;
 } {
   const graph = new DependencyGraph();
   const validateExprFields = new Set<string>();
 
+  // 构建 bind 路径 → 字段路径的反向映射（dependencies 声明为 bind 路径时优先命中）
+  const bindToField = new Map<string, string>();
   for (const [path, state] of fieldStates) {
-    if (state.reactions) {
-      for (const reaction of state.reactions) {
-        // 跨表单 reaction：依赖边属于源表单引擎，不进入本表单依赖图
-        if (reaction.crossForm || !reaction.dependencies) {
-          continue;
-        }
-        graph.addDependencies(path, reaction.dependencies);
+    const bind = state.meta.bind;
+    if (typeof bind === 'string' && bind.length > 0) {
+      bindToField.set(bind, path);
+    }
+  }
+
+  // 内联 resolveDependencyPath 逻辑，避免额外函数
+  const resolve = (dep: string, targetPath: string): string => {
+    if (dep.startsWith('$')) {
+      return dep;
+    }
+    // 优先检查 bind 路径映射（如 'userName' → 'user.name'）
+    const bindTarget = bindToField.get(dep);
+    if (bindTarget) {
+      return bindTarget;
+    }
+    const segments = targetPath.split('.');
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const base = segments.slice(0, i).join('.');
+      const candidate = base ? `${base}.${dep}` : dep;
+      if (fieldStates.has(candidate)) {
+        return candidate;
       }
     }
+    return dep;
+  };
 
-    // validate 表达式依赖：规则中携带 _validateExpr 的字段，提取 formData.xxx 依赖
+  for (const [path, state] of fieldStates) {
+    if (!state.reactions || state.reactions.length === 0) {
+      continue;
+    }
+
+    const resolved = state.reactions.map((reaction) => {
+      if (reaction.crossForm) {
+        return reaction;
+      }
+      if (!reaction.dependencies) {
+        return reaction;
+      }
+      if (reaction._autoExpr === true || reaction._oneOfBranch === true) {
+        graph.addDependencies(path, reaction.dependencies);
+        return reaction;
+      }
+      const resolvedReaction = {
+        ...reaction,
+        dependencies: reaction.dependencies.map((dep) => resolve(dep, path)),
+      };
+      graph.addDependencies(path, resolvedReaction.dependencies);
+      return resolvedReaction;
+    });
+
+    state.reactions = resolved;
+  }
+
+  // 提取 validate 表达式依赖（与 reaction 遍历独立，无法合并）
+  for (const [path, state] of fieldStates) {
     for (const rule of state.meta.rules) {
       const expr = rule._validateExpr;
       if (typeof expr === 'string') {

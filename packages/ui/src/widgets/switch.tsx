@@ -1,5 +1,5 @@
 import { Switch } from 'antd';
-import { mapOptions, ReadOnlyDisplay, type WidgetProps } from './_shared';
+import { EnumDisplay, mapOptions, type WidgetProps } from './_shared';
 
 export const switchWidget = ({
   value,
@@ -16,7 +16,7 @@ export const switchWidget = ({
   ...rest
 }: WidgetProps) => {
   if (readOnly) {
-    return <ReadOnlyDisplay value={value} options={options} />;
+    return <EnumDisplay value={value} options={options} />;
   }
   const mapped = mapOptions(options);
   const checkedLabel = mapped.find(

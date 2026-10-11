@@ -1,5 +1,5 @@
 import { Radio } from 'antd';
-import { mapOptions, ReadOnlyDisplay, type WidgetProps } from './_shared';
+import { EnumDisplay, mapOptions, type WidgetProps } from './_shared';
 
 export const radioWidget = ({
   value,
@@ -16,7 +16,7 @@ export const radioWidget = ({
   ...rest
 }: WidgetProps) => {
   if (readOnly) {
-    return <ReadOnlyDisplay value={value} options={options} />;
+    return <EnumDisplay value={value} options={options} />;
   }
   return (
     <Radio.Group

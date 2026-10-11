@@ -17,8 +17,13 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md"],
-  "sideEffects": ["**/*.css"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "scripts": {
     "build": "tsc -b && vite build",
     "prepublishOnly": "npm run build",

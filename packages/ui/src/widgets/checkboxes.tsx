@@ -1,5 +1,5 @@
 import { Checkbox } from 'antd';
-import { mapOptions, ReadOnlyDisplay, type WidgetProps } from './_shared';
+import { EnumDisplay, mapOptions, type WidgetProps } from './_shared';
 
 export const checkboxesWidget = ({
   value,
@@ -26,7 +26,7 @@ export const checkboxesWidget = ({
   ...rest
 }: WidgetProps) => {
   if (readOnly) {
-    return <ReadOnlyDisplay value={value} options={options} />;
+    return <EnumDisplay value={value} options={options} />;
   }
   return (
     <Checkbox.Group

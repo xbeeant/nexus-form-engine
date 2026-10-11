@@ -1,7 +1,7 @@
 import type { UploadFile } from 'antd';
 import { Button, message, Upload } from 'antd';
 import { useEffect, useState } from 'react';
-import { ReadOnlyDisplay, type WidgetProps } from './_shared';
+import { SimpleDisplay, type WidgetProps } from './_shared';
 
 export interface FileWidgetConfig {
   /** 上传接口地址 */
@@ -79,7 +79,7 @@ export const fileWidget = ({
       }
       return name;
     });
-    return <ReadOnlyDisplay value={display} />;
+    return <SimpleDisplay value={display} />;
   }
 
   const handleChange = ({ fileList: newList }: { fileList: UploadFile[] }) => {

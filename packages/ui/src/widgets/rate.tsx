@@ -1,5 +1,5 @@
 import { Rate } from 'antd';
-import { ReadOnlyDisplay, type WidgetProps } from './_shared';
+import { SimpleDisplay, type WidgetProps } from './_shared';
 
 export const rateWidget = ({
   value,
@@ -18,7 +18,7 @@ export const rateWidget = ({
   if (readOnly) {
     const starCount = Math.round(Number(value) || 0);
     if (starCount <= 0) {
-      return <ReadOnlyDisplay value={value} />;
+      return <SimpleDisplay value={value} />;
     }
     return (
       <span style={{ fontSize: 16, color: '#fadb14', letterSpacing: 2 }}>

@@ -1,5 +1,5 @@
 import { Checkbox } from 'antd';
-import { mapOptions, ReadOnlyDisplay, type WidgetProps } from './_shared';
+import { EnumDisplay, mapOptions, type WidgetProps } from './_shared';
 
 export const checkboxWidget = ({
   value,
@@ -26,7 +26,7 @@ export const checkboxWidget = ({
   ...rest
 }: WidgetProps) => {
   if (readOnly) {
-    return <ReadOnlyDisplay value={value} options={options} />;
+    return <EnumDisplay value={value} options={options} />;
   }
   // 配置了选项时，以选中（value=true）项的文案作为复选框标签
   const checkedLabel = mapOptions(options).find(

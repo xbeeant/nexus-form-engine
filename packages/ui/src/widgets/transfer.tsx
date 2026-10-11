@@ -1,7 +1,7 @@
 import { Transfer } from 'antd';
 import type { TransferItem, TransferProps } from 'antd/es/transfer';
 import type { ReactNode } from 'react';
-import { ReadOnlyDisplay, type WidgetProps } from './_shared';
+import { SimpleDisplay, type WidgetProps } from './_shared';
 
 export interface TransferDataSourceItem extends TransferItem {
   title?: string;
@@ -52,7 +52,7 @@ export const transferWidget = ({
     const selected = dataSource
       .filter((d) => targetKeys.includes(String(d.key)))
       .map((d) => d.title ?? String(d.key));
-    return <ReadOnlyDisplay value={selected} />;
+    return <SimpleDisplay value={selected} />;
   }
 
   const render = (item: TransferDataSourceItem): ReactNode =>
