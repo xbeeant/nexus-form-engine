@@ -394,6 +394,9 @@ describe('NexusEngine P1', () => {
 
   describe('reset() 依据 Schema 重建初始状态', () => {
     it('恢复 schema 级 hidden/disabled/props 默认值', () => {
+      // 注：使用 `hidden: "{{ true }}"` 表达式（而非静态 `hidden: true`），
+      //   静态 true 会被 isSkipNode 整节点跳过；表达式走运行时 FieldState.hidden，
+      //   才能验证 reset() 重建后 schema 级默认 hidden 是否被恢复。
       const engine = new NexusEngine();
       const schema: NexusSchema = {
         type: 'object',
@@ -402,7 +405,7 @@ describe('NexusEngine P1', () => {
             type: 'string',
             widget: 'input',
             default: 'hello',
-            hidden: true,
+            hidden: '{{ true }}',
             props: { placeholder: 'hi' },
           },
           b: { type: 'string', widget: 'input' },

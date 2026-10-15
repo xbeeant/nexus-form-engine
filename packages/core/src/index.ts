@@ -154,3 +154,18 @@ export {
   setPathValue,
   toBoolean,
 } from './utils/value-utils';
+/**
+ * 校验器返回值协议 + 归一化工具。
+ *
+ * 校验函数支持以下返回形式（详见 {@link ValidatorResponse}）：
+ * - `string[]`（规范）/ `string`（单条）
+ * - `{ status: boolean; message?: string | string[] }`（接口响应风格）
+ * - `null` / `undefined`（通过）
+ * - `Promise<...>`（异步，在 await 后再次调用 normalizeValidatorResponse）
+ */
+export {
+  type NormalizedValidatorResult,
+  normalizeValidatorResponse,
+  type ValidatorResponse,
+  type ValidatorStatusResponse,
+} from './utils/validator-response';

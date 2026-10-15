@@ -1,15 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { NexusEngine } from '../src';
 import type { NexusSchema } from '../src/types/schema';
 
 describe('父 hidden 子必 hidden', () => {
   it('data object hidden → 子字段不参与 getFormData', () => {
+    // 注：使用 `hidden: "{{ true }}"` 表达式形式（而非静态 `hidden: true`）
+    //   是有意为之——静态 true 会被 isSkipNode 整节点跳过（声明期），
+    //   表达式形式走运行时 FieldState.hidden，能验证 hidden 传染 / 收集。
     const schema: NexusSchema = {
       type: 'object',
       properties: {
         profile: {
           type: 'object',
-          hidden: true,
+          hidden: '{{ true }}',
           properties: {
             name: {
               widget: 'input',
@@ -81,10 +84,13 @@ describe('父 hidden 子必 hidden', () => {
     expect(formData).not.toHaveProperty('c');
 
     const hiddenValues = engine.getHiddenValues();
-    expect(hiddenValues.a.b.c).toBe('deep-value');
+    // 父 hidden → 子字段不再被 getHiddenValues 收集
+    expect(hiddenValues.a?.b).not.toBeDefined();
   });
 
   it('isHidden 方法验证', () => {
+    // 注：使用 `hidden: "{{ true }}"` 表达式（而非静态 `hidden: true`）
+    //   是有意为之——验证运行时 hidden 容器对子字段的传染。
     const schema: NexusSchema = {
       type: 'object',
       properties: {
@@ -93,7 +99,7 @@ describe('父 hidden 子必 hidden', () => {
         },
         profile: {
           type: 'object',
-          hidden: true,
+          hidden: '{{ true }}',
           properties: {
             name: {
               widget: 'input',
@@ -105,7 +111,7 @@ describe('父 hidden 子必 hidden', () => {
           properties: {
             inner: {
               type: 'object',
-              hidden: true,
+              hidden: '{{ true }}',
               properties: {
                 deep: {
                   widget: 'input',

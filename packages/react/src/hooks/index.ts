@@ -6,6 +6,7 @@ export { useEngine } from './use-engine';
 export { useFieldState } from './use-field-state';
 export { useFieldValidator } from './use-field-validator';
 export { useFieldValue } from './use-field-value';
+export { useFieldsHidden } from './use-fields-hidden';
 export { useForm } from './use-form';
 export { useFormConfig } from './use-form-config';
 export { useFormData } from './use-form-data';

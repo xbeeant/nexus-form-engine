@@ -196,7 +196,7 @@ engine.registerLayouts({ card: MyCard });
 | `getAllValues()` | 获取全部字段数据（含 hidden） |
 | `getHiddenValues()` | 仅获取 hidden 字段数据 |
 | `setValueByPath(path, value)` | 按路径设置单个字段值 |
-| `setValues(values)` | 批量设置字段值（按 bind 反向解析） |
+| `setValues(values, validate?)` | 批量设置字段值（按 bind 反向解析，可选 validate 参数控制是否触发校验，默认不校验） |
 | `setSchemaByPath(path, patch)` | 动态更新 Schema 节点 |
 | `validateFields(paths?, options?)` | 校验指定字段；`options.validateFirst` 短路 |
 | `registerValidator(path, fn)` | 注册字段级校验器（支持异步） |

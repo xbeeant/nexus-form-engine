@@ -54,6 +54,9 @@ describe('数据对象容器（NexusObject 继承）', () => {
   });
 
   it('静态布尔 disabled/readOnly/hidden 落在容器状态上', () => {
+    // 注：使用 `hidden: "{{ true }}"` 表达式（而非静态 `hidden: true`），
+    //   静态 true 会被 isSkipNode 整节点跳过、字段根本不会创建；
+    //   表达式形式走运行时 FieldState.hidden 验证容器状态初始化。
     const schema: NexusSchema = {
       type: 'object',
       properties: {
@@ -61,7 +64,7 @@ describe('数据对象容器（NexusObject 继承）', () => {
           type: 'object',
           disabled: true,
           readOnly: true,
-          hidden: true,
+          hidden: '{{ true }}',
           properties: {
             name: { type: 'string', widget: 'input' },
           },
@@ -140,12 +143,15 @@ describe('数据对象容器（NexusObject 继承）', () => {
   });
 
   it('隐藏对象容器：子树不参与 getFormData，并入 getHiddenValues', () => {
+    // 注：使用 `hidden: "{{ true }}"` 表达式（而非静态 `hidden: true`），
+    //   静态 true 会被 isSkipNode 整节点跳过；表达式走运行时 FieldState.hidden
+    //   验证隐藏对象容器的子树传染与收集行为。
     const schema: NexusSchema = {
       type: 'object',
       properties: {
         user: {
           type: 'object',
-          hidden: true,
+          hidden: '{{ true }}',
           properties: {
             name: { type: 'string', widget: 'input' },
           },

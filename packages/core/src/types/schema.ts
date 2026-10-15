@@ -9,6 +9,10 @@
 
 import type { NexusEngine } from '../engine.ts';
 import type { FormRegistry } from '../form-registry';
+import type {
+  ValidatorResponse,
+  ValidatorStatusResponse,
+} from '../utils/validator-response.ts';
 
 /** 表达式字符串，用 {{ }} 包裹 */
 export type Expression = string;
@@ -775,6 +779,8 @@ export interface BranchSchema {
   conditions?: Record<number, string>;
   /** 分支容器在父 Grid 中的宽度占比（x-render 对齐，百分比或 0~1 数值，作用于包装层） */
   width?: number | string;
+  /** 是否隐藏（统一 hidden 模型） */
+  hidden: ExpressionOr<boolean>;
 }
 
 /**
@@ -993,6 +999,15 @@ export interface FieldState {
     bind?: BindSchema;
     /** 数组节点的 items 定义（DataArraySchema.items），供 list/simpleList/tableList widget 渲染每一项 */
     items?: DataFieldSchema | DataObjectSchema;
+    /**
+     * 所属布局容器链（解析期静态记录，由外到内）
+     *
+     * 布局节点（card/tabs/collapsePanel...）的 Key 不进入数据路径（布局透明），
+     * 因此无法像数据对象那样用「路径前缀」追溯祖先。此处显式记录各层祖先布局
+     * 容器的合成状态路径（containerOnly FieldState 的 path），供引擎判定
+     * 「祖先布局面板隐藏 → 子树整体隐藏」（跳过校验 / 数据收集）。
+     */
+    layoutChain?: readonly string[];
     /**
      * 数组项子字段标记：值为所属数组的路径（如 "items"）
      * 存在时该字段是数组项的子字段（如 "items[0].name"），
@@ -1228,14 +1243,24 @@ export interface EngineHooks {
  * @param rule - 校验规则对象
  * @param formData - 整个表单数据
  * @param fieldPath - 字段路径
- * @returns 错误消息字符串，校验通过返回 null
+ * @returns
+ * 错误消息字符串，校验通过返回 null。
+ * 也支持以下扩展形式（与 `FieldValidator` 对齐）：
+ * - `string[]`：多条错误
+ * - `{ status: boolean; message?: string | string[] }`：接口响应风格
+ * - `Promise<...>`：异步结果
  */
 export type NexusFormValidator = (
   value: unknown,
   rule: ValidationRule,
   formData: Record<string, unknown>,
   fieldPath: string,
-) => string | null | Promise<string | null>;
+) =>
+  | string
+  | string[]
+  | ValidatorStatusResponse
+  | null
+  | Promise<string | string[] | ValidatorStatusResponse | null>;
 
 /**
  * 表单插件
@@ -1315,6 +1340,19 @@ export interface NexusEngineOptions {
    * 测试/隔离场景可传入 createFormRegistry() 创建的独立实例。
    */
   registry?: FormRegistry;
+  /**
+   * 反应链路调试开关：开启后在 setFieldValue / runReactionsForSource /
+   * executeReaction / applyStatePatch / syncRequiredRule /
+   * validateFieldRealtime 等节点输出 `[NexusForm][reaction]` 前缀日志
+   *
+   * 适用场景：自定义组件值变化后 required / hidden 计算异常等链路问题定位
+   * 启用方式（任一即可，无需重启）：
+   *  1) 构造选项：`new NexusEngine({ debugReactions: true })`
+   *  2) 实例方法：`engine.setDebugReactions(true)`
+   *  3) 全局开关：`(window).__NEXUS_DEBUG_REACTIONS = true` 后刷新
+   *  4) localStorage：`NEXUS_DEBUG_REACTIONS=1` 后刷新
+   */
+  debugReactions?: boolean;
 }
 
 /**
@@ -1362,7 +1400,7 @@ export interface FormEngine extends ReadonlyFormEngine {
   setSchemaByPath(path: string, patch: Record<string, unknown>): void;
   /** 获取当前 Schema */
   getSchema(): NexusSchema | null;
-  /** 设置单个字段值 */
+  /** 设置单个字段值（默认触发实时校验，传 false 可跳过） */
   setFieldValue(path: string, value: unknown): void;
   /** 批量设置字段值（根据 bind 反向解析） */
   setFieldValues(values: Record<string, unknown>): void;
@@ -1597,14 +1635,19 @@ export interface NexusFormInstance {
   /**
    * 注册字段校验逻辑
    * @param path 字段路径（如 'username'）
-   * @param validator 校验函数，返回错误消息数组
+   * @param validator 校验函数，返回值支持以下形式：
+   *   - `string[]`（规范形式，空数组 = 通过）
+   *   - `string`（单条错误消息，等价于 `[message]`）
+   *   - `{ status: boolean; message?: string | string[] }`（接口响应风格）
+   *   - `null` / `undefined`（通过）
+   *   - `Promise<...>`（异步）
    */
   registerValidator(
     path: string,
     validator: (
       value: unknown,
       formData: Record<string, unknown>,
-    ) => string[] | Promise<string[]>,
+    ) => ValidatorResponse | Promise<ValidatorResponse>,
   ): void;
   /**
    * 注销字段校验逻辑（按函数引用移除）
@@ -1615,7 +1658,7 @@ export interface NexusFormInstance {
     validator: (
       value: unknown,
       formData: Record<string, unknown>,
-    ) => string[] | Promise<string[]>,
+    ) => ValidatorResponse | Promise<ValidatorResponse>,
   ): void;
   /**
    * 实时重校验指定字段（同步，触发 trigger='change'/无 trigger 的规则与已注册校验器）

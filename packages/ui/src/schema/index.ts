@@ -7,6 +7,7 @@ import {
   autoCompleteSchema,
   remoteAutoCompleteSchema,
 } from './auto-complete-schema';
+import { cardListSchema } from './card-list-schema';
 import { cardSchema } from './card-schema';
 import { cascaderRemoteSchema, cascaderSchema } from './cascader-schema';
 import { checkboxSchema } from './checkbox-schema';
@@ -46,6 +47,7 @@ import { voidTitleSchema } from './void-title-schema';
 // ── 导出所有 Schema 定义 ─────────────────────────────────────────────────────────
 export {
   autoCompleteSchema,
+  cardListSchema,
   cardSchema,
   cascaderRemoteSchema,
   cascaderSchema,
@@ -130,6 +132,7 @@ export const widgetSchemas: PropertySchemaMap = {
   list: listSchema,
   simpleList: simpleListSchema,
   tableList: tableListSchema,
+  cardList: cardListSchema,
   card: cardSchema,
   space: spaceSchema,
 };

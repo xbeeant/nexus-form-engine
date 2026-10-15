@@ -209,3 +209,76 @@ describe('touched/dirty 字段状态（rc-field-form 对齐）', () => {
     expect(engine.isFieldDirty('info.city')).toBe(true);
   });
 });
+
+describe('setFieldValue 副作用门控（changed 门控 / 死循环防护）', () => {
+  it('同步校验器内 setFieldValue 设回原值不触发死循环', () => {
+    const engine = new NexusEngine();
+    let validatorCalls = 0;
+    let exceeded = false;
+    const schema: NexusSchema = {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          widget: 'input',
+          rules: [
+            {
+              // 幂等副作用：校验器内把字段设回当前值（模拟自动纠错 / 默认值回填）
+              validator: (_value, _rule, _formData, path) => {
+                validatorCalls++;
+                if (validatorCalls > 5) {
+                  // 回归护栏：若未做同值门控，校验会被反复触发直至此处兜底
+                  exceeded = true;
+                  return undefined;
+                }
+                engine.setFieldValue(path as string, engine.getFieldValue(path as string));
+                return undefined;
+              },
+            },
+          ],
+        },
+      },
+    };
+    engine.init(schema);
+    // 不应无限循环 / 抛错
+    expect(() => engine.setFieldValue('name', 'b')).not.toThrow();
+    expect(engine.getFieldValue('name')).toBe('b');
+    // 幂等设回原值不应重新进入校验：validator 仅被调用 1 次
+    expect(validatorCalls).toBe(1);
+    expect(exceeded).toBe(false);
+    // dirty 语义保持正确：当前值 'b' ≠ 初始值 undefined → dirty true
+    expect(engine.isFieldDirty('name')).toBe(true);
+  });
+
+  it('同值重复写入不触发校验/联动副作用（无变化）', () => {
+    const engine = new NexusEngine();
+    let validationRuns = 0;
+    const schema: NexusSchema = {
+      type: 'object',
+      properties: {
+        a: {
+          type: 'string',
+          widget: 'input',
+          rules: [
+            {
+              validator: () => {
+                validationRuns++;
+                return undefined;
+              },
+            },
+          ],
+        },
+      },
+    };
+    engine.init(schema);
+    // 首次写入不同值 → 触发校验
+    engine.setFieldValue('a', 'x');
+    const afterFirst = validationRuns;
+    expect(afterFirst).toBe(1);
+    // 再次写入相同值 → changed=false，不应再触发校验
+    engine.setFieldValue('a', 'x');
+    expect(validationRuns).toBe(afterFirst);
+    // 但 dirty 维持（值仍偏离初始值）
+    expect(engine.isFieldDirty('a')).toBe(true);
+  });
+});

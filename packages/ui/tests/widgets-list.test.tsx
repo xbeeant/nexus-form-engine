@@ -3,10 +3,34 @@ import { NexusForm, useForm } from '@xbeeant/form-engine-react';
 import { describe, expect, it } from 'vitest';
 import { registerAntdUI } from '../src';
 
-function renderWithForm(schema: unknown, props?: Record<string, unknown>) {
+// list / cardList 共用的只读 widget 标记组件
+function StubReadOnlyWidget(props: {
+  value?: unknown;
+  path?: string;
+}) {
+  return (
+    <span
+      data-testid='stub-readonly-widget'
+      data-nexus-field={props.path}
+      data-readonly-widget-value={String(props.value ?? '')}
+    >
+      只读-{String(props.value ?? '')}
+    </span>
+  );
+}
+
+function renderWithForm(
+  schema: unknown,
+  props?: Record<string, unknown>,
+  options?: { customWidgets?: Record<string, (props: any) => React.ReactNode> },
+) {
   function TestForm() {
     const [form] = useForm();
-    registerAntdUI(form._getEngine());
+    const engine = form._getEngine();
+    registerAntdUI(engine);
+    if (options?.customWidgets) {
+      engine.registerWidgets(options.customWidgets);
+    }
     return (
       <NexusForm
         form={form}
@@ -207,5 +231,218 @@ describe('listWidget 集成测试', () => {
       },
     });
     expect(container.textContent).toContain('新增条目');
+  });
+
+  it('字段配 readOnlyWidget 时，列表级 readOnly 切换到该 widget（折叠模式）', () => {
+    const { container } = renderWithForm(
+      {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            widget: 'list',
+            props: { readOnly: true, hideDelete: true },
+            items: {
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string',
+                  title: '名称',
+                  widget: 'input',
+                  readOnly: true,
+                  readOnlyWidget: 'stubReadOnlyWidget',
+                },
+              },
+            },
+          },
+        },
+      },
+      { initialValues: { items: [{ name: 'hello' }] } },
+      { customWidgets: { stubReadOnlyWidget: StubReadOnlyWidget } },
+    );
+    expect(
+      container.querySelector('[data-testid="stub-readonly-widget"]'),
+    ).not.toBeNull();
+    expect(container.querySelectorAll('input')).toHaveLength(0);
+  });
+
+  it('字段配 readOnlyWidget 时，collapsible=false 列表级 readOnly 切换到该 widget', () => {
+    const { container } = renderWithForm(
+      {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            widget: 'list',
+            props: { collapsible: false, readOnly: true, hideDelete: true },
+            items: {
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string',
+                  title: '名称',
+                  widget: 'input',
+                  readOnly: true,
+                  readOnlyWidget: 'stubReadOnlyWidget',
+                },
+              },
+            },
+          },
+        },
+      },
+      { initialValues: { items: [{ name: 'hello' }] } },
+      { customWidgets: { stubReadOnlyWidget: StubReadOnlyWidget } },
+    );
+    expect(
+      container.querySelector('[data-testid="stub-readonly-widget"]'),
+    ).not.toBeNull();
+    expect(container.querySelectorAll('input')).toHaveLength(0);
+  });
+
+  it('未配 readOnlyWidget 时列表级 readOnly 兜底为纯文本（折叠模式）', () => {
+    const { container } = renderWithForm(
+      {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            widget: 'list',
+            props: { readOnly: true, hideDelete: true },
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', title: '名称', widget: 'input' },
+              },
+            },
+          },
+        },
+      },
+      { initialValues: { items: [{ name: 'plain' }] } },
+    );
+    expect(container.textContent).toContain('plain');
+    expect(container.querySelector('.text-red-500')).toBeNull();
+  });
+});
+
+describe('cardListWidget 集成测试', () => {
+  it('字段配 readOnlyWidget 时，列表级 readOnly 切换到该 widget（默认 card 主题）', () => {
+    const { container } = renderWithForm(
+      {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            widget: 'cardList',
+            props: { readOnly: true },
+            items: {
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string',
+                  title: '名称',
+                  widget: 'input',
+                  readOnly: true,
+                  readOnlyWidget: 'stubReadOnlyWidget',
+                },
+              },
+            },
+          },
+        },
+      },
+      { initialValues: { items: [{ name: 'hello' }] } },
+      { customWidgets: { stubReadOnlyWidget: StubReadOnlyWidget } },
+    );
+    expect(
+      container.querySelector('[data-testid="stub-readonly-widget"]'),
+    ).not.toBeNull();
+    expect(container.querySelectorAll('input')).toHaveLength(0);
+  });
+
+  it('未配 readOnlyWidget 时列表级 readOnly 兜底为纯文本（card 主题）', () => {
+    const { container } = renderWithForm({
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          widget: 'cardList',
+          props: { readOnly: true },
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', title: '名称', widget: 'input' },
+            },
+          },
+        },
+      },
+      initialValues: { items: [{ name: 'plain' }] },
+    } as never);
+    expect(container.textContent).toContain('plain');
+    expect(container.querySelector('.text-red-500')).toBeNull();
+  });
+
+  it('lineTitle 主题：字段配 readOnlyWidget 时切换渲染', () => {
+    const { container } = renderWithForm(
+      {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            widget: 'cardList',
+            props: { readOnly: true, theme: 'lineTitle' },
+            items: {
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string',
+                  title: '名称',
+                  widget: 'input',
+                  readOnly: true,
+                  readOnlyWidget: 'stubReadOnlyWidget',
+                },
+              },
+            },
+          },
+        },
+      },
+      { initialValues: { items: [{ name: 'hello' }] } },
+      { customWidgets: { stubReadOnlyWidget: StubReadOnlyWidget } },
+    );
+    expect(
+      container.querySelector('[data-testid="stub-readonly-widget"]'),
+    ).not.toBeNull();
+    expect(container.querySelectorAll('input')).toHaveLength(0);
+  });
+
+  it('collapse 主题：字段配 readOnlyWidget 时切换渲染', () => {
+    const { container } = renderWithForm(
+      {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            widget: 'cardList',
+            props: { readOnly: true, theme: 'collapse' },
+            items: {
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string',
+                  title: '名称',
+                  widget: 'input',
+                  readOnly: true,
+                  readOnlyWidget: 'stubReadOnlyWidget',
+                },
+              },
+            },
+          },
+        },
+      },
+      { initialValues: { items: [{ name: 'hello' }] } },
+      { customWidgets: { stubReadOnlyWidget: StubReadOnlyWidget } },
+    );
+    expect(
+      container.querySelector('[data-testid="stub-readonly-widget"]'),
+    ).not.toBeNull();
+    expect(container.querySelectorAll('input')).toHaveLength(0);
   });
 });

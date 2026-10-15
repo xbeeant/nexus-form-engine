@@ -35,6 +35,8 @@ import type {
   ValidationTrigger,
   WidgetDescriptors,
 } from './types/schema';
+import type { ValidatorResponse } from './utils/validator-response';
+import { normalizeValidatorResponse } from './utils/validator-response';
 import {
   getPathValue,
   isDeepEqual,
@@ -75,6 +77,33 @@ function interpolateMessage(
 }
 
 /**
+ * 反应链路调试开关：定位「值变化后 required / hidden / disabled 计算异常」类问题。
+ *
+ * 启用方式（任一即可，无需重启）：
+ *  1) 浏览器控制台：`(window).__NEXUS_DEBUG_REACTIONS = true` 后刷新
+ *  2) localStorage：`NEXUS_DEBUG_REACTIONS=1` 后刷新
+ *  3) 构造选项：`new NexusEngine({ debugReactions: true })`
+ *  4) 实例方法：`engine.setDebugReactions(true)`（同时作用于同宿主的所有视图实例）
+ *
+ * 输出前缀：`[NexusForm][reaction]`，所有事件流共用同一标签便于按标签过滤。
+ * 设计目标：让排查者能从「UI 组件 onChange」一路追到「必填错误入栈」中间不丢链。
+ */
+function isGlobalReactionsDebugEnabled(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  const w = window as unknown as { __NEXUS_DEBUG_REACTIONS?: boolean };
+  if (w.__NEXUS_DEBUG_REACTIONS === true) {
+    return true;
+  }
+  try {
+    return window.localStorage?.getItem('NEXUS_DEBUG_REACTIONS') === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 单个表单实例的完整状态
  *
  * 引擎级能力（插件/组件注册/跨表单联动/表达式沙箱/消息模板）在 NexusEngine 宿主上共享，
@@ -105,14 +134,20 @@ interface EngineInstanceState {
   globalListeners: Set<Listener>;
   /** 值变更回调（由 FormController 注册，用于触发 watch） */
   onFieldValueChangeCallback: ((path: string, value: unknown) => void) | null;
-  /** 外部注册的字段校验器（由 FormController 注册），按字段路径分组 */
+  /**
+   * 外部注册的字段校验器（由 FormController.registerValidator / widget 注册）
+   *
+   * 元素函数签名遵循 {@link ValidatorResponse}：允许返回 `string[]` / `string` /
+   * `{ status, message }` / `null` / `undefined` / `Promise<...>`，
+   * 内部统一通过 `normalizeValidatorResponse` 归一化（详见 registerFieldValidator / 校验流程）。
+   */
   fieldValidators: Map<
     string,
     Array<
       (
         value: unknown,
         formData: Record<string, unknown>,
-      ) => string[] | Promise<string[]>
+      ) => ValidatorResponse | Promise<ValidatorResponse>
     >
   >;
   /** store 版本：每次状态变更时递增，React 通过比对版本号判断是否需要重渲染 */
@@ -236,6 +271,15 @@ export class NexusEngine implements IFormEngine {
   private messageTemplates: Partial<DefaultRuleMessages>;
   /** 表单语言标识（'zh-CN' / 'en-US'，UI 层消费） */
   private locale: string;
+  /**
+   * 反应链路调试开关（默认关闭）
+   *
+   * 开启后会在 setFieldValue / runReactionsForSource / executeReaction /
+   * applyStatePatch / syncRequiredRule / validateFieldRealtime 等节点
+   * 输出 `[NexusForm][reaction]` 前缀的结构化日志，便于追踪自定义组件
+   * 值变化后 required/hidden 联动的完整执行路径。
+   */
+  private debugReactions: boolean;
 
   // ── 跨表单联动（多表单实例）──
 
@@ -280,16 +324,62 @@ export class NexusEngine implements IFormEngine {
    * @param options.messages - 校验默认消息模板覆盖
    * @param options.formId - 表单实例唯一标识（配置后自动注册到注册表）
    * @param options.registry - 表单注册表（缺省 defaultFormRegistry）
+   * @param options.debugReactions - 开启反应链路调试日志（也可通过 setDebugReactions 或 window.__NEXUS_DEBUG_REACTIONS 动态开关）
    */
   constructor(options?: NexusEngineOptions) {
     this.messageTemplates = options?.messages ?? {};
     this.formId = options?.formId;
     this.registry = options?.registry ?? defaultFormRegistry;
     this.locale = options?.locale ?? 'zh-CN';
+    this.debugReactions = options?.debugReactions ?? false;
     // 源表单后注册时（先声明联动、后注册表单），延迟建立跨表单订阅
     this.registry.onRegister(() => {
       this.connectCrossFormLinks();
     });
+  }
+
+  /**
+   * 动态开关反应链路调试日志（影响同宿主的所有 instance 视图）
+   *
+   * @param enabled - true 开启，false 关闭
+   */
+  setDebugReactions(enabled: boolean): void {
+    this.debugReactions = enabled;
+  }
+
+  /**
+   * 当前实例是否开启反应链路调试
+   *
+   * 命中任一条件即视为开启：
+   *  1) 构造选项 debugReactions=true
+   *  2) 实例方法 setDebugReactions(true)
+   *  3) 全局 window.__NEXUS_DEBUG_REACTIONS=true
+   *  4) localStorage `NEXUS_DEBUG_REACTIONS=1`
+   */
+  isReactionsDebugEnabled(): boolean {
+    if (this.debugReactions) {
+      return true;
+    }
+    return isGlobalReactionsDebugEnabled();
+  }
+
+  /**
+   * 反应链路调试日志输出（受 isReactionsDebugEnabled 控制）
+   *
+   * @param event - 事件名（用于在控制台按事件类型过滤）
+   * @param payload - 结构化负载（path/oldValue/newValue/expression/resolved ...）
+   */
+  private reactionLog(event: string, payload?: unknown): void {
+    if (!this.isReactionsDebugEnabled()) {
+      return;
+    }
+    if (payload === undefined) {
+      // eslint-disable-next-line no-console
+      console.log('[NexusForm][reaction]', event);
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('[NexusForm][reaction]', event, payload);
+    }
   }
 
   /**
@@ -417,8 +507,12 @@ export class NexusEngine implements IFormEngine {
    *
    * @param path - 字段路径
    * @param value - 新值
+   * @param validate - 是否触发校验（默认 true）。传 false 时跳过
+   *   1) 当前字段的实时校验；2) 沿依赖图传播 reactions 时对目标字段
+   *   跨字段 validate 表达式的实时重校验。适用于：批量写入、初始化默认值、
+   *   watch 联动设置中间态等希望延后/统一校验的场景。
    */
-  setFieldValue(path: string, value: unknown): void {
+  setFieldValue(path: string, value: unknown, validate: boolean = true): void {
     // 引擎尚未初始化（schema 为 null）：缓冲待 init() 时应用，
     // 避免表单渲染前的 setValues 被 init 重置导致页面字段无值
     if (!this._inst().schema) {
@@ -426,15 +520,29 @@ export class NexusEngine implements IFormEngine {
         ...(this._inst().pendingValues ?? {}),
         [path]: value,
       };
+      this.reactionLog('setFieldValue: buffered (schema not ready)', {
+        path,
+        value,
+      });
       return;
     }
     const state = this._inst().fieldStates.get(path);
     if (!state) {
       console.warn(`[NexusEngine] Field not found: ${path}`);
+      this.reactionLog('setFieldValue: skip (field not found)', {
+        path,
+        value,
+      });
       return;
     }
 
-    this.applyFieldValue(path, state, value);
+    this.reactionLog('setFieldValue: enter', {
+      path,
+      oldValue: state.value,
+      newValue: value,
+      validate,
+    });
+    this.applyFieldValue(path, state, value, false);
 
     // 版本必须先递增，再通知订阅者；
     // 否则 useSyncExternalStore 在 onStoreChange 时读到旧版本会跳过重渲染
@@ -452,6 +560,7 @@ export class NexusEngine implements IFormEngine {
    * 阶段 2：一次性失效缓存 + 沿依赖图批量传播 reaction
    *
    * @param values - 转换后的数据对象，键为数据路径
+   * @param validate - 是否触发校验
    */
   setFieldValues(values: Record<string, unknown>): void {
     // 引擎尚未初始化（schema 为 null）：缓冲待 init() 时应用
@@ -529,9 +638,13 @@ export class NexusEngine implements IFormEngine {
         this.validateFieldRealtime(path, state);
       }
     }
-    // 批量触发 reaction
+
+    // 逐字段触发 reaction（与 applyFieldValue 内 deferEffects=false 时的行为一致）
     for (const path of changedPaths) {
-      this.runReactionsForSource(path);
+      const state = inst.fieldStates.get(path);
+      if (state) {
+        this.runReactionsForSource(path);
+      }
     }
 
     // 批量通知订阅者
@@ -556,12 +669,16 @@ export class NexusEngine implements IFormEngine {
    * deferEffects=true（setFieldValues 批量写入）：跳过步骤 3/4，由调用方在
    * 全部值写入后统一执行，避免中途求值读到部分字段旧值。
    *
+   * validate=false：跳过步骤 3 的实时校验与步骤 4 中跨字段 validate 表达式
+   * 的实时重校验（reactions 仍正常执行，但不会触发依赖该字段的下游字段重校验）。
+   *
    * 注意：本方法不负责 bump / notify（由调用方统一收尾）
    *
    * @param path - 字段路径
    * @param state - 字段状态对象
    * @param value - 新值
    * @param deferEffects - 是否延后校验与 reaction（批量写入时置 true）
+   *   以及沿依赖图传播时的跨字段 validate 表达式实时重校验
    */
   private applyFieldValue(
     path: string,
@@ -574,15 +691,14 @@ export class NexusEngine implements IFormEngine {
       console.warn(
         `[NexusEngine] Cannot set value on container-only path: ${path}（请写入子字段路径）`,
       );
+      this.reactionLog('applyFieldValue: skip (containerOnly)', {
+        path,
+        value,
+      });
       return;
     }
 
     const oldValue = state.value;
-
-    // formData 缓存失效必须先于任何状态变更：
-    // onFieldValueChangeCallback（FormController._onFieldValueChange）会在本方法内
-    // 读取 engine.getFormData()，若缓存未失效将拿到旧值快照
-    this.markFormDataDirty();
 
     // 插件拦截：onBeforeFieldValueChange（返回 false 可阻止更新）
     for (const plugin of this.plugins) {
@@ -592,38 +708,73 @@ export class NexusEngine implements IFormEngine {
         oldValue,
       );
       if (result === false) {
+        this.reactionLog('applyFieldValue: blocked by plugin', {
+          path,
+          plugin: plugin.constructor?.name,
+        });
         return;
       }
     }
 
     state.value = value;
 
-    // 触碰与脏标记（对齐 rc-field-form：值写入 → touched；值 ≠ 初始值 → dirty）
+    // 触碰与脏标记（对齐 rc-field-form）：
+    // - changed：值是否相对上次真正变化，仅用于下方副作用门控。
+    //   同值重复写入（如同步校验器内回调 setFieldValue 设回原值）不触发校验/联动，
+    //   可避免「校验 → setFieldValue → 校验」的死循环。
+    // - dirty：值是否偏离初始值，供「已修改」标记 / 提交差异 / devtools 展示，符合协议规范。
     state.touched = true;
+    const changed = !isDeepEqual(value, oldValue);
     state.dirty = !isDeepEqual(value, state.initialValue);
 
-    // 数组字段：同步数组项子字段状态（list[0].name 等）
-    this.syncArrayItemStates(path);
+    if (changed) {
+      // formData 缓存失效必须先于任何状态变更：
+      // onFieldValueChangeCallback（FormController._onFieldValueChange）会在本方法内
+      // 读取 engine.getFormData()，若缓存未失效将拿到旧值快照
+      this.markFormDataDirty();
 
-    // 批量写入（setFieldValues）：实时校验与 reaction 延后到全部值写入后统一执行，
-    // 确保表达式求值读取的是完整 formData 快照（对应 setFieldValues 的两阶段契约）
-    if (!deferEffects) {
-      // 实时校验：同步校验（schema rules + 同步外部校验器）
-      this.validateFieldRealtime(path, state);
+      // 数组字段：同步数组项子字段状态（list[0].name 等）
+      this.syncArrayItemStates(path);
 
-      // 触发依赖该字段的 reactions（可能修改其他字段状态）
-      this.runReactionsForSource(path);
-    }
+      this.reactionLog('applyFieldValue: committed', {
+        path,
+        oldValue,
+        newValue: value,
+        touched: state.touched,
+        dirty: state.dirty,
+        changed,
+        deferEffects,
+      });
 
-    // 插件通知：值已变更
-    for (const plugin of this.plugins) {
-      plugin.hooks?.onFieldValueChange?.(path, value);
-    }
+      // 批量写入（setFieldValues）：实时校验与 reaction 延后到全部值写入后统一执行，
+      // 确保表达式求值读取的是完整 formData 快照（对应 setFieldValues 的两阶段契约）
+      if (!deferEffects) {
+        // 触发依赖该字段的 reactions（可能修改其他字段状态）
+        // validate=false 时沿依赖图传播的反应链中跳过跨字段 validate 表达式实时重校验
+        this.runReactionsForSource(path);
+      }
 
-    // 外部 watch 回调
-    const onFieldValueChangeCallback = this._inst().onFieldValueChangeCallback;
-    if (onFieldValueChangeCallback) {
-      onFieldValueChangeCallback(path, value);
+      // 实时校验：同值写入（changed=false）但 dirty=false（值未偏离初始值）时仍需校验
+      // 同值写入但 dirty=true（已修改过）→ 不触发校验（死循环防护）
+      // validate=false 时跳过（如批量写入、watch 联动、初始化默认值等场景）
+      if (!deferEffects && (changed || !state.dirty)) {
+        this.validateFieldRealtime(path, state);
+      }
+
+      // 插件通知：值已变更（值变更 + 实时校验完成后通知，保证时间线中 value 事件排在 validate-field 之后）
+      // deferEffects=true 时也触发，保证 before/after 顺序
+      for (const plugin of this.plugins) {
+        plugin.hooks?.onFieldValueChange?.(path, value);
+      }
+
+      // 外部 watch 回调（deferEffects=true 时不触发，由 setFieldValues 统一处理）
+      if (!deferEffects) {
+        const onFieldValueChangeCallback =
+          this._inst().onFieldValueChangeCallback;
+        if (onFieldValueChangeCallback) {
+          onFieldValueChangeCallback(path, value);
+        }
+      }
     }
   }
 
@@ -687,6 +838,7 @@ export class NexusEngine implements IFormEngine {
         if (pathSet && !pathSet.has(path)) {
           continue;
         }
+
         this.applyBindToData(data, path, state);
       }
 
@@ -766,25 +918,88 @@ export class NexusEngine implements IFormEngine {
   }
 
   /**
-   * 判断字段是否存在隐藏的祖先路径
+   * 判断字段是否存在隐藏的祖先
    *
-   * 父节点 hidden=true 时，整棵子树视为隐藏
-   *（a.b.hidden=true → a.b.c.hidden=true）。
-   * 遍历字段路径的各段祖先，检查 fieldStates 中是否存在 hidden=true 的节点。
+   * 两类祖先都会导致「整个子树视为隐藏」（a.b.hidden=true → a.b.c 不可见/不校验）：
+   * 1. 数据路径祖先（数据对象容器 / 父字段）：按路径前缀逐级上溯 fieldStates
+   * 2. 布局容器祖先（card / tabs / collapsePanel / oneOf 容器等）：布局 Key 不进入
+   *    数据路径（布局透明），无法用前缀推断，改由解析期记录在 `meta.layoutChain`
+   *    中的祖先容器状态路径追溯（见 AGENTS.md §2.2）
    *
    * @param path - 字段路径（如 "user.name"）
+   * @param state - 可选的字段状态（避免调用方已知 state 时重复查表）
    * @returns 存在隐藏的祖先返回 true
    */
-  private isAncestorHidden(path: string): boolean {
+  private isAncestorHidden(path: string, state?: FieldState): boolean {
+    const inst = this._inst();
+
+    // 1. 数据路径祖先（数据对象容器 hidden → 子树隐藏）
     const segments = path.split('.');
     for (let i = segments.length - 1; i >= 1; i--) {
       const ancestor = segments.slice(0, i).join('.');
-      const state = this._inst().fieldStates.get(ancestor);
-      if (state?.hidden) {
+      if (inst.fieldStates.get(ancestor)?.hidden) {
         return true;
       }
     }
+
+    // 2. 布局容器祖先（布局 Key 不进路径，按解析期记录的容器链追溯）
+    const owner = state ?? inst.fieldStates.get(path);
+    const chain = owner?.meta.layoutChain;
+    if (chain) {
+      for (const containerPath of chain) {
+        if (inst.fieldStates.get(containerPath)?.hidden) {
+          return true;
+        }
+      }
+    }
     return false;
+  }
+
+  /**
+   * 清除「祖先隐藏」导致的陈旧校验错误
+   *
+   * 字段祖先（数据对象容器 / 布局面板）被隐藏后，其子树既不渲染也不参与提交校验，
+   * 此前遗留的 errors 若不清空，会通过 getFieldsError / getFieldError 泄漏给上层
+   * （表现为「面板已隐藏，但表单仍被认为存在错误」）。
+   *
+   * @param path - 字段路径
+   * @param state - 字段状态对象
+   * @returns 是否发生了清理（供调用方决定是否需要通知订阅者）
+   */
+  private clearStaleErrorsWhenHidden(path: string, state: FieldState): boolean {
+    if (state.errors.length > 0) {
+      state.errors = [];
+      this.notifyField(path);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * 布局/对象容器被隐藏时，清理整棵子树的陈旧校验错误并通知订阅者
+   *
+   * 仅在该容器由「可见」切「隐藏」的瞬间执行一次 O(n) 扫描（n = 字段数），
+   * 不进入 setFieldValue 热路径；无错误的字段在扫描中被直接跳过。
+   *
+   * @param containerPath - 容器的合成状态路径（containerOnly FieldState 的 path）
+   */
+  private clearHiddenDescendantErrors(containerPath: string): void {
+    const inst = this._inst();
+    let changed = false;
+    for (const [path, state] of inst.fieldStates) {
+      if (path === containerPath || state.errors.length === 0) {
+        continue;
+      }
+      if (this.isAncestorHidden(path, state)) {
+        state.errors = [];
+        this.notifyField(path);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.bumpStore();
+      this.notifyAll();
+    }
   }
 
   // =========================================================================
@@ -865,6 +1080,11 @@ export class NexusEngine implements IFormEngine {
     }
     if (patch.hidden !== undefined) {
       state.hidden = patch.hidden;
+      // 容器（数据对象 / 布局节点）隐藏 → 整棵子树视为隐藏：
+      // 子字段不再参与校验与数据收集，其陈旧错误同步清理
+      if (patch.hidden && state.meta.containerOnly) {
+        this.clearHiddenDescendantErrors(path);
+      }
       // 隐藏 → 不参与数据收集（getFormData 跳过）；显示 → 参与
       this.markFormDataDirty();
     }
@@ -945,15 +1165,35 @@ export class NexusEngine implements IFormEngine {
     state: FieldState,
     trigger: ValidationTrigger = 'change',
   ): void {
-    if (state.hidden) {
-      return;
-    }
-    if (this.isAncestorHidden(state.path)) {
+    this.reactionLog('validateFieldRealtime: enter', {
+      path,
+      trigger,
+      value: state.value,
+      required: state.required,
+      hidden: state.hidden,
+      readOnly: state.readOnly,
+      rulesCount: state.meta.rules.length,
+      errorsBefore: state.errors.length,
+    });
+
+    // 自身隐藏或祖先隐藏（数据对象容器 / 布局面板）→ 整棵子树不参与校验，
+    // 并清理此前遗留的错误，避免面板隐藏后错误仍泄漏给上层 API
+    if (state.hidden || this.isAncestorHidden(state.path, state)) {
+      this.reactionLog('validateFieldRealtime: skip (hidden subtree)', {
+        path,
+        selfHidden: state.hidden,
+        ancestorHidden: this.isAncestorHidden(state.path, state),
+      });
+      this.clearStaleErrorsWhenHidden(state.path, state);
       return;
     }
 
     // 只读字段不参与校验（值不可由用户修改，可能因联动/初始值而不满足约束）
     if (state.readOnly) {
+      this.reactionLog('validateFieldRealtime: skip (readOnly)', {
+        path,
+        value: state.value,
+      });
       return;
     }
 
@@ -962,7 +1202,14 @@ export class NexusEngine implements IFormEngine {
 
     // 0. 必填校验（required 为 true 且值为空时立即显示）
     if (state.required && isEmptyValue(state.value)) {
-      errors.push(this.getRequiredMessage(state));
+      const requiredMsg = this.getRequiredMessage(state);
+      this.reactionLog('validateFieldRealtime: required error', {
+        path,
+        required: state.required,
+        emptyValue: isEmptyValue(state.value),
+        message: requiredMsg,
+      });
+      errors.push(requiredMsg);
     }
 
     // 1. 校验 schema rules（required、min、max、pattern 等）
@@ -997,6 +1244,7 @@ export class NexusEngine implements IFormEngine {
       // - string 函数名：按注册表查同名校验器，同步返回 string 时立即生效
       // - 内联函数：直接调用，同步返回 string 时立即生效
       // Promise 返回值的异步校验由 AsyncValidatorPlugin 通过 onValidateField 钩子接管
+      // 支持规范形式之外的 { status, message } / string[] 返回
       const ruleValidator = this.resolveRuleValidator(rule);
       if (ruleValidator) {
         const result = ruleValidator(
@@ -1005,18 +1253,24 @@ export class NexusEngine implements IFormEngine {
           formData,
           path,
         ) as unknown;
-        if (typeof result === 'string') {
-          errors.push(result);
-        } else if (Array.isArray(result)) {
-          errors.push(...(result as string[]));
+        if (isThenable(result)) {
+          // 异步校验：不参与此处的实时同步路径，由 validate() 全量路径或
+          // AsyncValidatorPlugin 防抖调度后写回
+        } else {
+          const normalized = normalizeValidatorResponse(result);
+          if (normalized) {
+            errors.push(...normalized);
+          }
         }
       }
     }
 
     // 2. 外部同步校验器（registerValidator）
     // Promise 返回值的异步校验由 AsyncValidatorPlugin 通过 onValidateField 钩子接管：
-    // 同步路径只处理同步结果（string[]），thenable 结果交由插件防抖调度后写回，
-    // 与 schema 规则的默认 'change' trigger 保持一致的触发时机
+    // 同步路径只处理同步结果，thenable 结果交由插件防抖调度后写回，
+    // 与 schema 规则的默认 'change' trigger 保持一致的触发时机。
+    // 同步结果支持 string[] / string / { status, message } / null 等多种形式
+    // （由 normalizeValidatorResponse 归一化）
     const validators = this._inst().fieldValidators.get(path);
     if (validators && validators.length > 0) {
       const formData = this.getFormDataInternal();
@@ -1027,8 +1281,9 @@ export class NexusEngine implements IFormEngine {
             // 异步校验：不在此处应用结果，交给 AsyncValidatorPlugin 调度
             continue;
           }
-          if (Array.isArray(result)) {
-            errors.push(...result);
+          const normalized = normalizeValidatorResponse(result);
+          if (normalized) {
+            errors.push(...normalized);
           }
         } catch {
           // 校验器抛错，跳过
@@ -1050,7 +1305,8 @@ export class NexusEngine implements IFormEngine {
    *
    * 用途（对齐 async-validator 的 blur/change 触发语义）：
    * - 组件 onBlur 时调用 validateField(path, { trigger: 'blur' }) 执行 blur 规则
-   * - 组件 onChange 实时校验由 setFieldValue 内部自动触发（无需手动调用）
+   * - 组件 onChange 实时校验由 setFieldValue 内部自动触发（无需手动调用）；
+   *   若希望延后/关闭实时校验，传 setFieldValue(path, value, false)
    *
    * @param path - 字段路径
    * @param options - 触发时机（默认 'change'）
@@ -1295,11 +1551,12 @@ export class NexusEngine implements IFormEngine {
 
     for (const path of targetPaths) {
       const state = this._inst().fieldStates.get(path);
-      if (!state || state.hidden) {
+      if (!state) {
         continue;
       }
-
-      if (this.isAncestorHidden(path)) {
+      // 自身隐藏 / 祖先隐藏（含布局面板隐藏）→ 子树不参与提交校验，并清理陈旧错误
+      if (state.hidden || this.isAncestorHidden(path, state)) {
+        this.clearStaleErrorsWhenHidden(path, state);
         continue;
       }
 
@@ -1331,11 +1588,15 @@ export class NexusEngine implements IFormEngine {
         }
 
         // 2) 注册的自定义 validator（string 函数名或内联函数，统一解析）
+        // 与 realtime 路径保持一致的协议：支持 string / string[] /
+        // { status, message } / null / Promise<...> 多种返回形式
+        // （由 normalizeValidatorResponse 归一化为 string[]）
         const ruleValidator = this.resolveRuleValidator(rule);
         if (ruleValidator) {
-          const error = await ruleValidator(state.value, rule, formData, path);
-          if (error) {
-            errors.push(error);
+          const result = await ruleValidator(state.value, rule, formData, path);
+          const ruleErrors = normalizeValidatorResponse(result);
+          if (ruleErrors) {
+            errors.push(...ruleErrors);
           }
         }
 
@@ -1352,10 +1613,12 @@ export class NexusEngine implements IFormEngine {
       }
 
       // 外部注册的字段校验器（registerValidator）
+      // 支持 string[] / string / { status, message } / null / Promise<...> 多种形式
       const validators = this._inst().fieldValidators.get(path);
       if (validators && validators.length > 0) {
         for (const validator of validators) {
-          const extraErrors = await validator(state.value, formData);
+          const result = await validator(state.value, formData);
+          const extraErrors = normalizeValidatorResponse(result);
           if (extraErrors && extraErrors.length > 0) {
             errors.push(...extraErrors);
           }
@@ -1482,7 +1745,7 @@ export class NexusEngine implements IFormEngine {
       this.applyBindToData(data, path, state);
     }
     // 合并 extraValues
-    Object.assign(data, this._inst().extraValues);
+    Object.assign(this._inst().extraValues || {}, data);
     return data;
   }
 
@@ -1972,6 +2235,8 @@ export class NexusEngine implements IFormEngine {
   /**
    * 注册外部字段校验器（由 FormController.registerValidator 调用）
    *
+   * 校验函数支持多种返回形式（详见 {@link ValidatorResponse}）：
+   * `string[]` / `string` / `{ status, message }` / `null` / `Promise<...>`。
    * 对同一字段重复注册同一函数引用时去重，避免组件/插件在多次挂载中
    * 重复注册导致错误消息累积。
    */
@@ -1980,7 +2245,7 @@ export class NexusEngine implements IFormEngine {
     validator: (
       value: unknown,
       formData: Record<string, unknown>,
-    ) => string[] | Promise<string[]>,
+    ) => ValidatorResponse | Promise<ValidatorResponse>,
   ): void {
     const list = this._inst().fieldValidators.get(path) ?? [];
     // 同一字段重复注册同一函数引用时去重，避免组件/插件重复注册累积错误
@@ -2005,7 +2270,7 @@ export class NexusEngine implements IFormEngine {
     validator: (
       value: unknown,
       formData: Record<string, unknown>,
-    ) => string[] | Promise<string[]>,
+    ) => ValidatorResponse | Promise<ValidatorResponse>,
   ): void {
     const list = this._inst().fieldValidators.get(path);
     if (!list) {
@@ -2022,6 +2287,10 @@ export class NexusEngine implements IFormEngine {
   /**
    * 获取字段级校验器注册表（供异步校验器插件读取）
    *
+   * 返回的 Map 中元素函数返回类型为 `ValidatorResponse | Promise<ValidatorResponse>`，
+   * 与 registerFieldValidator 入参、{@link FieldValidator} 对齐，调用方在
+   * 读取后可统一使用 `normalizeValidatorResponse` 处理结果。
+   *
    * @returns 字段路径 → 校验器列表
    */
   getFieldValidators(): Map<
@@ -2030,7 +2299,7 @@ export class NexusEngine implements IFormEngine {
       (
         value: unknown,
         formData: Record<string, unknown>,
-      ) => string[] | Promise<string[]>
+      ) => ValidatorResponse | Promise<ValidatorResponse>
     >
   > {
     return this._inst().fieldValidators;
@@ -2285,6 +2554,13 @@ export class NexusEngine implements IFormEngine {
     const queue: string[] = [sourcePath];
     const processed = new Set<string>();
 
+    this.reactionLog('runReactionsForSource: start', {
+      sourcePath,
+      initialDependents: Array.from(
+        this._inst().dependencyGraph.getDependentsRef(sourcePath),
+      ),
+    });
+
     while (queue.length > 0) {
       const current = queue.shift()!;
       if (processed.has(current)) {
@@ -2293,6 +2569,9 @@ export class NexusEngine implements IFormEngine {
       processed.add(current);
       const dependents = this._inst().dependencyGraph.getDependentsRef(current);
       if (dependents.size === 0) {
+        this.reactionLog('runReactionsForSource: BFS leaf (no dependents)', {
+          current,
+        });
         return;
       }
 
@@ -2307,6 +2586,16 @@ export class NexusEngine implements IFormEngine {
 
         // 执行依赖了 current 的 reactions
         const reactions = state.reactions;
+        const matchedReactions =
+          reactions?.filter((r) => r.dependencies.includes(current)) ?? [];
+        this.reactionLog('runReactionsForSource: visit target', {
+          sourcePath: current,
+          targetPath,
+          matchedCount: matchedReactions.length,
+          totalReactions: reactions?.length ?? 0,
+          matchedAutoExpr: matchedReactions.filter((r) => r._autoExpr).length,
+        });
+
         if (reactions) {
           for (const reaction of reactions) {
             if (!reaction.dependencies.includes(current)) {
@@ -2318,6 +2607,10 @@ export class NexusEngine implements IFormEngine {
 
         // 跨字段 validate 表达式依赖：依赖字段变化时实时重校验目标字段
         if (this._inst().validateExprFields.has(targetPath)) {
+          this.reactionLog(
+            'runReactionsForSource: revalidate via validate-expr',
+            { sourcePath: current, targetPath },
+          );
           this.validateFieldRealtime(targetPath, state);
           // 错误变化需按路径通知，否则精准订阅的组件无法感知重校验结果
           this.notifyField(targetPath);
@@ -2348,6 +2641,10 @@ export class NexusEngine implements IFormEngine {
   ): void {
     // 条件分支切换 reaction（oneOf/anyOf）：依赖字段变化时重算激活分支
     if (reaction._oneOfBranch) {
+      this.reactionLog('executeReaction: oneOfBranch', {
+        targetPath,
+        dependencies: reaction.dependencies,
+      });
       this.syncBranchFromSource(targetPath);
       return;
     }
@@ -2361,6 +2658,11 @@ export class NexusEngine implements IFormEngine {
         reaction.dependencies.map((dep) => this.getFieldValue(dep));
       const data = formData ?? this.getFormDataInternal();
 
+      this.reactionLog('executeReaction: function reaction', {
+        targetPath,
+        dependencies: reaction.dependencies,
+        dependValues,
+      });
       reaction.run({
         state: targetState,
         deps: dependValues,
@@ -2374,6 +2676,9 @@ export class NexusEngine implements IFormEngine {
       return;
     }
     if (!targetState) {
+      this.reactionLog('executeReaction: skip (targetState missing)', {
+        targetPath,
+      });
       return;
     }
 
@@ -2391,9 +2696,21 @@ export class NexusEngine implements IFormEngine {
         reaction.when,
         this.buildReactionContext(targetPath, dependValues, data),
       );
+      this.reactionLog('executeReaction: when evaluated', {
+        targetPath,
+        when: reaction.when,
+        whenResult,
+        dependValues,
+        branch: whenResult ? 'fulfill' : 'otherwise',
+        autoExpr: !!reaction._autoExpr,
+      });
       if (!whenResult) {
         // when 不满足，执行 otherwise
         if (reaction.otherwise?.state) {
+          this.reactionLog('executeReaction: apply otherwise.state', {
+            targetPath,
+            keys: Object.keys(reaction.otherwise.state),
+          });
           this.applyStatePatch(
             targetPath,
             reaction.otherwise.state,
@@ -2402,6 +2719,10 @@ export class NexusEngine implements IFormEngine {
           );
         }
         if (reaction.otherwise?.schema) {
+          this.reactionLog('executeReaction: apply otherwise.schema', {
+            targetPath,
+            keys: Object.keys(reaction.otherwise.schema),
+          });
           this.applySchemaPatch(
             targetPath,
             reaction.otherwise.schema,
@@ -2415,6 +2736,11 @@ export class NexusEngine implements IFormEngine {
 
     // 执行 fulfill
     if (reaction.fulfill?.state) {
+      this.reactionLog('executeReaction: apply fulfill.state', {
+        targetPath,
+        keys: Object.keys(reaction.fulfill.state),
+        autoExpr: !!reaction._autoExpr,
+      });
       this.applyStatePatch(
         targetPath,
         reaction.fulfill.state,
@@ -2423,6 +2749,10 @@ export class NexusEngine implements IFormEngine {
       );
     }
     if (reaction.fulfill?.schema) {
+      this.reactionLog('executeReaction: apply fulfill.schema', {
+        targetPath,
+        keys: Object.keys(reaction.fulfill.schema),
+      });
       this.applySchemaPatch(
         targetPath,
         reaction.fulfill.schema,
@@ -2596,6 +2926,11 @@ export class NexusEngine implements IFormEngine {
           state.value = state.initialValue;
           state.touched = false;
           state.dirty = false;
+        }
+        // 离开分支即整棵子树隐藏：清理陈旧错误（含其容器内后代）
+        this.clearStaleErrorsWhenHidden(path, state);
+        if (state.meta.containerOnly) {
+          this.clearHiddenDescendantErrors(path);
         }
       }
     }
@@ -2919,14 +3254,36 @@ export class NexusEngine implements IFormEngine {
     // 处理只读状态（必须在 value 之前处理，否则 reaction 同时赋值时校验会跳过 readOnly 检查）
     if (patch.readOnly !== undefined) {
       state.readOnly = toBoolean(this.resolveValue(patch.readOnly, context));
+      this.reactionLog('applyStatePatch: readOnly', {
+        path,
+        expr: typeof patch.readOnly === 'string' ? patch.readOnly : '(static)',
+        resolved: state.readOnly,
+      });
     }
     // 处理禁用状态
     if (patch.disabled !== undefined) {
       state.disabled = toBoolean(this.resolveValue(patch.disabled, context));
+      this.reactionLog('applyStatePatch: disabled', {
+        path,
+        expr: typeof patch.disabled === 'string' ? patch.disabled : '(static)',
+        resolved: state.disabled,
+      });
     }
     // 处理隐藏状态
     if (patch.hidden !== undefined) {
+      const prevHidden = state.hidden;
       state.hidden = toBoolean(this.resolveValue(patch.hidden, context));
+      this.reactionLog('applyStatePatch: hidden', {
+        path,
+        expr: typeof patch.hidden === 'string' ? patch.hidden : '(static)',
+        resolved: state.hidden,
+        prev: prevHidden,
+      });
+      // 容器隐藏（如 collapsePanel hidden 表达式成立）→ 子树整体隐藏，
+      // 子字段不再校验；同步清理子树陈旧错误
+      if (state.hidden && state.meta.containerOnly) {
+        this.clearHiddenDescendantErrors(path);
+      }
       this.markFormDataDirty();
     }
 
@@ -2934,6 +3291,11 @@ export class NexusEngine implements IFormEngine {
     // 赋值 → 重建数组项子字段 → 实时重校验 → 沿依赖图继续传播
     if (patch.value !== undefined) {
       const resolved = this.resolveValue(patch.value, context);
+      this.reactionLog('applyStatePatch: value', {
+        path,
+        expr: typeof patch.value === 'string' ? patch.value : '(static)',
+        resolved,
+      });
       this.applyFieldValueChanges(path, state, resolved);
       this.validateFieldRealtime(path, state);
       this.runReactionsForSource(path);
@@ -2941,7 +3303,18 @@ export class NexusEngine implements IFormEngine {
     }
     // 处理必填状态（同时同步校验规则）
     if (patch.required !== undefined) {
-      state.required = toBoolean(this.resolveValue(patch.required, context));
+      const prevRequired = state.required;
+      const resolvedRequired = toBoolean(
+        this.resolveValue(patch.required, context),
+      );
+      this.reactionLog('applyStatePatch: required', {
+        path,
+        expr: typeof patch.required === 'string' ? patch.required : '(static)',
+        resolved: resolvedRequired,
+        prev: prevRequired,
+        value: state.value,
+      });
+      state.required = resolvedRequired;
       this.syncRequiredRule(state);
     }
     // 处理加载状态
@@ -3037,9 +3410,15 @@ export class NexusEngine implements IFormEngine {
         case 'visible':
           // 兼容映射：visible=false 等价 hidden=true
           state.hidden = !toBoolean(resolved);
+          if (state.hidden && state.meta.containerOnly) {
+            this.clearHiddenDescendantErrors(path);
+          }
           break;
         case 'hidden':
           state.hidden = toBoolean(resolved);
+          if (state.hidden && state.meta.containerOnly) {
+            this.clearHiddenDescendantErrors(path);
+          }
           break;
         case 'disabled':
           state.disabled = toBoolean(resolved);
@@ -3162,6 +3541,8 @@ export class NexusEngine implements IFormEngine {
               sub,
               obj[itemKey],
               arrayPath,
+              undefined,
+              state.meta.layoutChain,
             ),
           );
           createdPaths.push(subPath);
@@ -3177,6 +3558,8 @@ export class NexusEngine implements IFormEngine {
             items as DataFieldSchema,
             item,
             arrayPath,
+            undefined,
+            state.meta.layoutChain,
           ),
         );
         createdPaths.push(itemPath);
@@ -3233,21 +3616,41 @@ export class NexusEngine implements IFormEngine {
       return;
     }
     const rules = state.meta.rules;
+    const rulesLenBefore = rules.length;
     // 查找动态必填规则（由本方法添加的规则）
     const dynIdx = rules.findIndex((r) => r._dynamicRequired === true);
     // 检查是否存在静态必填规则（schema 中定义的 required: true）
     const hasStaticRequired = rules.some(
       (r) => r.required === true && r._dynamicRequired !== true,
     );
+
+    this.reactionLog('syncRequiredRule: enter', {
+      path: state.path,
+      required: state.required,
+      value: state.value,
+      hasStaticRequired,
+      hasDynamicRequired: dynIdx !== -1,
+      rulesCount: rules.length,
+      errorsCount: state.errors.length,
+    });
+
     // 字段为必填且没有静态必填规则且没有动态必填规则 → 添加动态规则
     if (state.required && !hasStaticRequired && dynIdx === -1) {
       rules.unshift({
         required: true,
         _dynamicRequired: true,
       });
+      this.reactionLog('syncRequiredRule: add dynamic required rule', {
+        path: state.path,
+        required: state.required,
+      });
     } else if (!state.required && dynIdx !== -1) {
       // 字段非必填且存在动态规则 → 移除该规则
       rules.splice(dynIdx, 1);
+      this.reactionLog('syncRequiredRule: remove dynamic required rule', {
+        path: state.path,
+        required: state.required,
+      });
     }
 
     // 实时必填校验：required 变化时立即显示/清除错误
@@ -3256,9 +3659,27 @@ export class NexusEngine implements IFormEngine {
     if (state.required && isEmptyValue(state.value) && !hasErr) {
       // 字段必填且值为空但错误列表中还没有该错误 → 添加
       state.errors = [...state.errors, requiredError];
+      this.reactionLog('syncRequiredRule: push required error', {
+        path: state.path,
+        requiredError,
+        errorsCount: state.errors.length,
+      });
     } else if ((!state.required || !isEmptyValue(state.value)) && hasErr) {
       // 字段非必填或值不为空且错误列表中有该错误 → 移除
       state.errors = state.errors.filter((e) => e !== requiredError);
+      this.reactionLog('syncRequiredRule: remove required error', {
+        path: state.path,
+        requiredError,
+        errorsCount: state.errors.length,
+      });
+    }
+
+    if (rules.length !== rulesLenBefore) {
+      this.reactionLog('syncRequiredRule: rules changed', {
+        path: state.path,
+        before: rulesLenBefore,
+        after: rules.length,
+      });
     }
   }
 

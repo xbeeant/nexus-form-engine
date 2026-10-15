@@ -6,17 +6,29 @@
 
 import type { NexusEngine } from './engine';
 import type { NexusPlugin } from './types/schema';
+import {
+  type ValidatorResponse,
+  normalizeValidatorResponse,
+} from './utils/validator-response';
+import { isThenable } from './utils/value-utils';
 
 /**
  * 字段级校验函数
+ *
+ * 返回值支持以下形式（与 form.registerValidator 对齐）：
+ * - `string[]`（规范形式，空数组 = 通过）
+ * - `string`（单条错误消息，等价于 `[message]`）
+ * - `{ status: boolean; message?: string | string[] }`（接口响应风格）
+ * - `null` / `undefined`（通过）
+ * - `Promise<...>`（异步）
+ *
  * @param value - 字段值
  * @param formData - 整个表单数据
- * @returns 错误消息数组（空数组表示校验通过）
  */
 export type FieldValidator = (
   value: unknown,
   formData: Record<string, unknown>,
-) => string[] | Promise<string[]>;
+) => ValidatorResponse | Promise<ValidatorResponse>;
 
 /**
  * 异步校验器配置选项
@@ -222,8 +234,15 @@ export class AsyncValidatorPlugin implements NexusPlugin {
             latest.value,
             latestFormData,
           );
-          if (Array.isArray(result) && result.length > 0) {
-            asyncErrors.push(...result);
+          // 兼容 string[] / string / { status, message } / null 等多种返回形式
+          // （规范形式是 string[]，其它形式由 normalizeValidatorResponse 归一化）
+          if (isThenable(result)) {
+            // thenable 在 withTimeout 内已经被处理；这里兜底保护
+            return;
+          }
+          const errors = normalizeValidatorResponse(result);
+          if (errors && errors.length > 0) {
+            asyncErrors.push(...errors);
           }
         };
 
@@ -252,22 +271,25 @@ export class AsyncValidatorPlugin implements NexusPlugin {
   /**
    * 执行异步校验并应用超时控制
    *
+   * 校验器可返回任何 `ValidatorResponse`（string[] / string / {status,message} / null）；
+   * 超时或异常时返回空错误（视为通过），由外层 `run` 统一归一化。
+   *
    * @param validator - 校验函数
    * @param value - 字段值
    * @param formData - 表单数据
-   * @returns 校验结果
+   * @returns 校验结果原值（未归一化，由 run 处理）
    */
   private async withTimeout(
     validator: FieldValidator,
     value: unknown,
     formData: Record<string, unknown>,
-  ): Promise<string[]> {
-    const timeoutPromise = new Promise<string[]>((resolve) => {
-      setTimeout(() => resolve([]), this.options.timeout);
+  ): Promise<unknown> {
+    const timeoutPromise = new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), this.options.timeout);
     });
     const resultPromise = Promise.resolve()
       .then(() => validator(value, formData))
-      .catch(() => [] as string[]);
+      .catch(() => null);
     return Promise.race([resultPromise, timeoutPromise]);
   }
 }

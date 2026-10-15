@@ -3,7 +3,7 @@
 // 核心职责：布局节点 Key 不进入数据路径
 // ============================================================================
 
-import { DependencyGraph } from './dependency-graph';
+import { DependencyGraph, normalizePath } from './dependency-graph';
 import type {
   BindSchema,
   BranchSchema,
@@ -46,6 +46,7 @@ import {
 import {
   getPathValue,
   isExpressionString,
+  isSkipNode,
   setPathValue,
 } from './utils/value-utils';
 
@@ -137,28 +138,6 @@ const REACTION_TEXT_FIELDS = [
   'tooltip',
 ] as const;
 
-/**
- * 解析字段的隐藏状态（统一 hidden 模型）
- * - 声明了 hidden（布尔/表达式）时，布尔值直接取声明值
- * - 未声明默认 false（可见）
- *
- * 注意：hidden 为表达式时由 collectExpressionReactions 转成 _autoExpr reaction，
- * 求值后经 applyStatePatch 写入运行时状态，因此静态解析只处理布尔值。
- *
- * @param node - Schema 节点（读取 hidden 字段）
- * @returns 解析后的隐藏状态
- */
-export function resolveHidden(node: { hidden?: unknown }): boolean {
-  const val = node.hidden;
-  if (typeof val === 'boolean') {
-    return val;
-  }
-  if (typeof val === 'string') {
-    return val === '1' || val === 'true' || val === 'on';
-  }
-  return false;
-}
-
 // ────────────────────────────────────────────────────────────────────────────
 // 通用辅助函数（消除重复的布尔解析 / 状态合并 / 规则构建逻辑）
 // ────────────────────────────────────────────────────────────────────────────
@@ -171,7 +150,13 @@ export function resolveHidden(node: { hidden?: unknown }): boolean {
  * @returns 解析后的布尔值
  */
 function boolOrDefault(value: unknown, defaultValue: boolean): boolean {
-  return typeof value === 'boolean' ? value : defaultValue;
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    return value === '1' || value === 'true' || value === 'on';
+  }
+  return defaultValue;
 }
 
 /**
@@ -238,7 +223,7 @@ function resolveInheritedState(
     hidden:
       parentObjectState?.hidden !== undefined
         ? parentObjectState.hidden
-        : resolveHidden(node),
+        : boolOrDefault(node.hidden, false),
     disabled:
       parentObjectState?.disabled !== undefined
         ? parentObjectState.disabled
@@ -355,6 +340,11 @@ interface BuildFieldMetaOptions {
   containerOnly?: boolean;
   /** 数组项子字段标记：值为所属数组路径（如 "items"） */
   itemOf?: string;
+  /**
+   * 所属布局容器链（由外到内的祖先布局容器合成状态路径）
+   * 布局 Key 不进入数据路径，需显式记录以支持祖先面板隐藏时的子树判定
+   */
+  layoutChain?: readonly string[];
   /** 条件分支容器运行时元数据（激活分支 / 分支定义 / 字段归属） */
   oneOf?: OneOfMeta;
 }
@@ -376,8 +366,16 @@ function buildFieldMeta(
   options: BuildFieldMetaOptions,
 ): FieldState['meta'] {
   const metaNode = node as unknown as MetaBuildableNode;
-  const { widget, rules, type, branchOf, containerOnly, itemOf, oneOf } =
-    options;
+  const {
+    widget,
+    rules,
+    type,
+    branchOf,
+    containerOnly,
+    itemOf,
+    layoutChain,
+    oneOf,
+  } = options;
   return {
     title: metaNode.title,
     widget,
@@ -407,6 +405,7 @@ function buildFieldMeta(
     containerOnly,
     branchOf,
     itemOf,
+    layoutChain,
     oneOf,
     schema: node,
   };
@@ -540,6 +539,7 @@ export function parse(
  * @param parentObjectState - 父级数据对象容器的继承状态（子字段继承）
  * @param widgetMetas - widget 声明级元数据
  * @param branchContext - 所在分支上下文（分支标记沿递归树传导）
+ * @param containerChain - 祖先布局容器的合成状态路径（由外到内，仅布局节点产生层级）
  */
 function walkProperties(
   properties: Record<string, SchemaNode>,
@@ -554,9 +554,16 @@ function walkProperties(
   },
   widgetMetas?: WidgetDescriptors,
   branchContext?: { branchIndex: number; isActive: boolean },
-  parentContainerPath?: string, // 父布局容器的状态路径（用于计算唯一的 containerPath）
+  containerChain?: readonly string[], // 祖先布局容器链（用于子字段 meta.layoutChain 与嵌套容器的 containerPath 计算）
 ): void {
   for (const [key, node] of Object.entries(properties)) {
+    // 静态 hidden: true → 跳过解析
+    // - 布局节点（card/tabs/grid...）：子树不解析
+    // - 数据对象容器（type: object + properties）：不进入 fieldStates
+    // - 数据字段（有 widget 或基础类型）：进入 fieldStates 供 React 渲染占位符
+    if (isSkipNode(node) && !isDataField(node)) {
+      continue;
+    }
     // ⚡ isDataArray 必须在 isDataField 之前判断：
     // 因为 { type: 'array', widget: 'list', items: {...} } 同时满足 isDataField（有 widget）
     // 和 isDataArray（type=array 且有 items），需要优先识别为 DataArray
@@ -572,6 +579,7 @@ function walkProperties(
         parentObjectState,
         widgetMetas,
         branchContext,
+        containerChain,
       );
     } else if (isBranchNode(node)) {
       // ── 条件分支容器（oneOf / anyOf，Key 不进入路径，布局透明）──
@@ -584,6 +592,7 @@ function walkProperties(
         initialValues,
         widgetMetas,
         branchContext,
+        containerChain,
       );
     } else if (isDataField(node)) {
       // ── 数据字段（叶子节点）──
@@ -597,6 +606,7 @@ function walkProperties(
         parentObjectState,
         widgetMetas,
         branchContext,
+        containerChain,
       );
     } else if (isDataObject(node)) {
       // ── 数据对象（嵌套，Key 进入路径）──
@@ -609,6 +619,7 @@ function walkProperties(
         initialValues,
         widgetMetas,
         branchContext,
+        containerChain,
       );
     } else if (isLayoutNode(node)) {
       // ── 布局节点（Key 不进入路径，透传 parentDataPath）──
@@ -621,7 +632,7 @@ function walkProperties(
         initialValues,
         widgetMetas,
         branchContext,
-        parentContainerPath, // 传递父容器路径
+        containerChain, // 传递祖先布局容器链
       );
     }
   }
@@ -685,13 +696,17 @@ export function extractDepsFromExpression(expr: string): string[] {
       // 去掉最后一段（方法名）
       const dotIdx = match[1].lastIndexOf('.');
       if (dotIdx > 0) {
-        deps.add(match[1].slice(0, dotIdx));
+        // 切掉方法名后，路径上可能残留可选链符号 `?.`
+        // （如 `a?.b?.includes` → 切到 `a?.b?`），需整体清理，否则
+        // 依赖图 key 与 setFieldValue 真实路径（始终是 `a.b`）不一致，
+        // 联动更新永远不会被触发。
+        deps.add(normalizePath(match[1].slice(0, dotIdx)));
       } else {
-        deps.add(match[1]);
+        deps.add(normalizePath(match[1]));
       }
     } else {
       // 普通路径，直接添加
-      deps.add(match[1].replace(/\?/g, ''));
+      deps.add(normalizePath(match[1]));
     }
     match = regex.exec(expr);
   }
@@ -743,7 +758,11 @@ export function collectExpressionReactions(node: {
   // 合并显式声明的 dependencies
   if (node.dependencies) {
     for (const dep of node.dependencies) {
-      allDeps.add(dep);
+      // 防御性 normalize：去掉路径里的可选链符号 `?.`
+      // （如 `"demand_definition?.requirement_definition_v2"` 应统一为
+      //  `"demand_definition.requirement_definition_v2"`，与依赖图 key 一致）。
+      // 依赖图 addDependency 也会兜底，这里双保险以减少跨模块心智负担。
+      allDeps.add(normalizePath(dep));
     }
   }
 
@@ -801,6 +820,38 @@ export function collectExpressionReactions(node: {
     fulfill: { state },
     _autoExpr: true,
   });
+
+  // 调试日志：列出本次自动生成的 _autoExpr 反应的依赖与覆盖字段，
+  // 便于排查「required 表达式写好但联动没生效」类问题（多半是依赖图没建对）。
+  if (isCollectExpressionReactionsDebugEnabled()) {
+    // eslint-disable-next-line no-console
+    console.log(
+      '[NexusForm][reaction] collectExpressionReactions: created _autoExpr',
+      {
+        stateKeys: Object.keys(state),
+        deps: Array.from(allDeps),
+      },
+    );
+  }
+}
+
+/**
+ * collectExpressionReactions 调试开关（仅读取全局 window / localStorage，
+ * 因为该函数是 schema 解析阶段的纯函数，不持有引擎实例引用）
+ */
+function isCollectExpressionReactionsDebugEnabled(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  const w = window as unknown as { __NEXUS_DEBUG_REACTIONS?: boolean };
+  if (w.__NEXUS_DEBUG_REACTIONS === true) {
+    return true;
+  }
+  try {
+    return window.localStorage?.getItem('NEXUS_DEBUG_REACTIONS') === '1';
+  } catch {
+    return false;
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -897,7 +948,7 @@ function extractDeclaredConstraintKeys(rules: ValidationRule[]): Set<string> {
     if (rule.type === 'email' || rule.type === 'url') {
       keys.add('format');
     }
-    if (rule.type !== undefined && keys.has('type') === false) {
+    if (rule.type !== undefined && !keys.has('type')) {
       keys.add('type');
     }
   }
@@ -1182,6 +1233,7 @@ function processDataField(
   },
   widgetMetas?: WidgetDescriptors,
   branchContext?: { branchIndex: number; isActive: boolean },
+  containerChain?: readonly string[], // 祖先布局容器链（写入 meta.layoutChain）
 ): void {
   const dataPath = joinPath(parentDataPath, key);
 
@@ -1231,15 +1283,13 @@ function processDataField(
   // 分支字段：hidden 统一由分支容器解析收尾时的「成员关系可见性」翻转
   // （activate 分支成员 hidden=false，其余分支成员 hidden=true）。此处仅存基础
   // 隐藏状态（不含分支判定），避免跨分支同名键被非活动分支的解析覆盖成隐藏。
-  const branchHidden = hidden;
-
   const state: FieldState = {
     path: dataPath,
     value: initialValue,
     initialValue,
     touched: false,
     dirty: false,
-    hidden: branchHidden,
+    hidden: hidden,
     disabled,
     readOnly,
     required: boolOrDefault(node.required, false),
@@ -1256,6 +1306,7 @@ function processDataField(
       widget: widgetName,
       rules,
       branchOf: branchContext?.branchIndex,
+      layoutChain: containerChain,
     }),
   };
 
@@ -1282,6 +1333,7 @@ function processDataField(
  * @param initialValues - 初始表单数据
  * @param widgetMetas - widget 声明级元数据
  * @param branchContext - 所在分支上下文
+ * @param containerChain - 祖先布局容器链
  */
 function processDataObject(
   key: string,
@@ -1292,6 +1344,7 @@ function processDataObject(
   initialValues?: Record<string, unknown>,
   widgetMetas?: WidgetDescriptors,
   branchContext?: { branchIndex: number; isActive: boolean },
+  containerChain?: readonly string[],
 ): void {
   // 数据对象的 Key 进入路径
   const objectPath = joinPath(parentDataPath, key);
@@ -1299,7 +1352,7 @@ function processDataObject(
 
   // 获取对象级别状态（从显式配置或默认值）
   // 优先使用显式配置的布尔值，表达式会通过 reactions 动态处理
-  const hidden = resolveHidden(node);
+  const hidden = boolOrDefault(node.hidden, false);
   const disabled = boolOrDefault(node.disabled, false);
   const readOnly = boolOrDefault(node.readOnly, false);
 
@@ -1336,6 +1389,7 @@ function processDataObject(
     undefined,
     widgetMetas,
     branchContext,
+    containerChain,
   );
 
   // required/disabled/readOnly/hidden 为表达式时，自动转 reactions
@@ -1364,6 +1418,7 @@ function processDataObject(
       rules: [],
       containerOnly: true,
       branchOf: branchContext?.branchIndex,
+      layoutChain: containerChain,
     }),
   } satisfies FieldState);
 
@@ -1411,13 +1466,15 @@ function processDataArray(
   },
   widgetMetas?: WidgetDescriptors,
   branchContext?: { branchIndex: number; isActive: boolean },
+  containerChain?: readonly string[], // 祖先布局容器链
 ): void {
   const arrayPath = joinPath(parentDataPath, key);
   const initialValue =
     getPathValue(initialValues, arrayPath) ?? node.default ?? [];
 
-  // widget 名称（数组缺省 'array'）与其声明级校验/联动描述
-  const widgetName = node.widget || 'array';
+  // widget 名称（数组缺省 'cardList'）与其声明级校验/联动描述
+  // 优先级：显式声明 widget > 'cardList'（x-render CardList 对齐）
+  const widgetName = node.widget || 'cardList';
   const widgetMeta = getWidgetDescriptor(widgetName, widgetMetas);
 
   const rules = buildFieldRules(node, key, widgetMeta);
@@ -1432,15 +1489,13 @@ function processDataArray(
   // 分支字段：hidden 统一由分支容器解析收尾时的「成员关系可见性」翻转
   // （activate 分支成员 hidden=false，其余分支成员 hidden=true）。此处仅存基础
   // 隐藏状态（不含分支判定），避免跨分支同名键被非活动分支的解析覆盖成隐藏。
-  const branchHidden = hidden;
-
   const state: FieldState = {
     path: arrayPath,
     value: initialValue,
     initialValue,
     touched: false,
     dirty: false,
-    hidden: branchHidden,
+    hidden: hidden,
     disabled,
     readOnly,
     required: boolOrDefault(node.required, false),
@@ -1452,6 +1507,7 @@ function processDataArray(
       widget: widgetName,
       rules,
       branchOf: branchContext?.branchIndex,
+      layoutChain: containerChain,
     }),
   };
 
@@ -1470,6 +1526,7 @@ function processDataArray(
     Array.isArray(initialValue) ? (initialValue as unknown[]) : [],
     fieldStates,
     widgetMetas,
+    containerChain,
   );
 }
 
@@ -1506,18 +1563,23 @@ function processLayoutNode(
   initialValues?: Record<string, unknown>,
   widgetMetas?: WidgetDescriptors,
   branchContext?: { branchIndex: number; isActive: boolean },
-  parentContainerPath?: string, // 父布局容器的状态路径（用于计算唯一的 containerPath）
+  containerChain?: readonly string[], // 祖先布局容器链（由外到内）
 ): void {
   const layoutNode = node as (LayoutContainerSchema | LayoutPaneSchema) & {
     type: LayoutType;
   };
 
   // 先计算当前布局容器的 containerPath（用于 fieldStates 存储和 renderTree dataPath），
-  // 再递归处理子节点：子节点通过 parentContainerPath 获取唯一路径，
+  // 再递归处理子节点：子节点通过 containerChain 追溯祖先容器链（用于祖先隐藏判定），
   // 但子节点的数据路径仍通过 parentDataPath 透传（布局透明）。
+  const parentContainerPath =
+    containerChain && containerChain.length > 0
+      ? containerChain[containerChain.length - 1]
+      : '';
   const containerPath = parentContainerPath
     ? joinPath(parentContainerPath, key)
     : key;
+  const childChain = [...(containerChain ?? []), containerPath];
 
   const children: RenderTreeNode[] = [];
 
@@ -1530,7 +1592,7 @@ function processLayoutNode(
     undefined,
     widgetMetas,
     branchContext, // 布局节点透传分支上下文（嵌套在分支内的布局字段继续标记）
-    containerPath, // 传递当前容器路径供子布局节点使用
+    childChain, // 传递含当前容器的祖先链供子孙字段/嵌套布局使用
   );
 
   // required/disabled/readOnly/hidden 为表达式时，自动转 _autoExpr reaction
@@ -1545,7 +1607,7 @@ function processLayoutNode(
     initialValue: undefined,
     touched: false,
     dirty: false,
-    hidden: resolveHidden(layoutNode),
+    hidden: boolOrDefault(layoutNode.hidden, false),
     disabled: boolOrDefault(layoutNode.disabled, false),
     readOnly: boolOrDefault(layoutNode.readOnly, false),
     required: boolOrDefault(layoutNode.required, false),
@@ -1558,6 +1620,7 @@ function processLayoutNode(
       rules: [],
       containerOnly: true,
       branchOf: branchContext?.branchIndex,
+      layoutChain: containerChain,
     }),
   } satisfies FieldState);
 
@@ -1625,6 +1688,7 @@ function extractBranchInfo(
  * @param initialValues - 初始表单数据
  * @param widgetMetas - widget 声明级元数据
  * @param branchContext - 外层分支上下文（嵌套分支时传递）
+ * @param containerChain - 祖先布局容器链
  */
 function processBranchNode(
   key: string, // 分支容器 Key 不进入数据路径（布局透明）
@@ -1635,6 +1699,7 @@ function processBranchNode(
   initialValues?: Record<string, unknown>,
   widgetMetas?: WidgetDescriptors,
   branchContext?: { branchIndex: number; isActive: boolean },
+  containerChain?: readonly string[],
 ): void {
   const branchNode = node as BranchSchema;
   const { branches, activeIndex } = extractBranchInfo(branchNode);
@@ -1663,6 +1728,9 @@ function processBranchNode(
         widgetMetas,
         // 分支标记：walkProperties 递归时传给每个子字段，标记所属分支
         { branchIndex: index, isActive: index === activeIndexClamped },
+        // 布局容器链按布局层级传导；分支容器不加入链：非活动分支成员已由
+        // setOneOfActiveIndex 直接翻转 hidden，且其合成路径沿用数据路径 scheme
+        containerChain,
       );
       return children;
     },
@@ -1761,7 +1829,7 @@ function processBranchNode(
     initialValue: undefined,
     touched: false,
     dirty: false,
-    hidden: resolveHidden(bnode),
+    hidden: boolOrDefault(bnode.hidden, false),
     disabled: boolOrDefault(bnode.disabled, false),
     readOnly: boolOrDefault(bnode.readOnly, false),
     required: false,
@@ -1775,6 +1843,7 @@ function processBranchNode(
       type: 'object', // 分支 trait（oneOf/anyOf）不进 meta，容器语义统一为 object
       containerOnly: true,
       branchOf: branchContext?.branchIndex, // 嵌套分支：标记所在外层分支
+      layoutChain: containerChain,
       oneOf: {
         activeIndex: activeIndexClamped,
         branches,
@@ -1852,7 +1921,7 @@ function finalizeReactionsAndBuildGraph(fieldStates: Map<string, FieldState>): {
       continue;
     }
 
-    const resolved = state.reactions.map((reaction) => {
+    state.reactions = state.reactions.map((reaction) => {
       if (reaction.crossForm) {
         return reaction;
       }
@@ -1870,8 +1939,6 @@ function finalizeReactionsAndBuildGraph(fieldStates: Map<string, FieldState>): {
       graph.addDependencies(path, resolvedReaction.dependencies);
       return resolvedReaction;
     });
-
-    state.reactions = resolved;
   }
 
   // 提取 validate 表达式依赖（与 reaction 遍历独立，无法合并）
@@ -1906,6 +1973,7 @@ function finalizeReactionsAndBuildGraph(fieldStates: Map<string, FieldState>): {
  * @param value - 当前值
  * @param arrayPath - 所属数组的路径（如 "items"）
  * @param widgetMetas - widget 声明级元数据（校验/联动/props）
+ * @param layoutChain - 所属布局容器链（继承自数组字段所处位置）
  * @returns 数组项子字段的 FieldState
  */
 export function createArrayItemState(
@@ -1914,6 +1982,7 @@ export function createArrayItemState(
   value: unknown,
   arrayPath: string,
   widgetMetas?: WidgetDescriptors,
+  layoutChain?: readonly string[],
 ): FieldState {
   const { widgetName, widgetMeta } = resolveWidget(node, widgetMetas);
   const rules = buildFieldRules(node, '', widgetMeta);
@@ -1928,7 +1997,7 @@ export function createArrayItemState(
     initialValue: value,
     touched: false,
     dirty: false,
-    hidden: resolveHidden(node),
+    hidden: boolOrDefault(node.hidden, false),
     disabled: boolOrDefault(node.disabled, false),
     readOnly: boolOrDefault(node.readOnly, false),
     required: boolOrDefault(node.required, false),
@@ -1945,6 +2014,7 @@ export function createArrayItemState(
       widget: widgetName,
       rules,
       itemOf: arrayPath,
+      layoutChain,
     }),
   };
 }
@@ -1956,6 +2026,8 @@ export function createArrayItemState(
  * @param node - 数组节点 Schema
  * @param arr - 数组当前值
  * @param fieldStates - 字段状态 Map（原地写入）
+ * @param widgetMetas - widget 声明级元数据
+ * @param layoutChain - 祖先布局容器链（数组字段所处位置，项子字段继承）
  */
 function processArrayItems(
   arrayPath: string,
@@ -1963,6 +2035,7 @@ function processArrayItems(
   arr: unknown[],
   fieldStates: Map<string, FieldState>,
   widgetMetas?: WidgetDescriptors,
+  layoutChain?: readonly string[],
 ): void {
   const items = node.items;
   if (!items) {
@@ -1983,6 +2056,7 @@ function processArrayItems(
             obj[itemKey],
             arrayPath,
             widgetMetas,
+            layoutChain,
           ),
         );
       }
@@ -1996,6 +2070,7 @@ function processArrayItems(
           item,
           arrayPath,
           widgetMetas,
+          layoutChain,
         ),
       );
     }

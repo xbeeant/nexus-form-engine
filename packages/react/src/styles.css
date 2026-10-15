@@ -20,6 +20,7 @@
   display: inline-block;
   vertical-align: top;
   width: 100%;
+  padding-right: 4px;
 }
 
 /* flex 布局容器内：恢复 flex item 的内容宽度语义，

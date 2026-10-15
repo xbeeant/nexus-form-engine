@@ -11,16 +11,15 @@ import type {
   DataObjectSchema,
   SchemaNode,
 } from '@xbeeant/form-engine';
-import { Button, Space, Typography } from 'antd';
+import { renderListItemField } from '@xbeeant/form-engine-react';
+import { Button, Space } from 'antd';
 import {
   arrayAdd,
   arrayCopy,
   arrayMove,
   arrayRemove,
-  formatFieldValue,
   getEmptyField,
   getEmptyObject,
-  RenderItemControl,
 } from './_list-shared';
 import type { WidgetProps } from './_shared';
 
@@ -204,7 +203,6 @@ export const simpleListWidget = ({
         >
           <div style={{ flex: 1, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {isObjectItems ? (
-              // 对象类型：渲染每个字段
               Object.entries(objProperties).map(([key, fieldNode]) => {
                 const fieldDef = fieldNode as DataFieldSchema;
                 const fieldValue = (item as Record<string, unknown>)?.[key];
@@ -216,42 +214,36 @@ export const simpleListWidget = ({
                     >
                       {fieldLabel}
                     </div>
-                    {readOnly ? (
-                      <Typography.Text>
-                        {formatFieldValue(fieldValue, fieldDef)}
-                      </Typography.Text>
-                    ) : (
-                      <RenderItemControl
-                        widget={fieldDef.widget}
-                        fieldSchema={fieldDef}
-                        path={`${dataPath}[${index}].${key}`}
-                        value={fieldValue}
-                        onChange={(v) => handleFieldChange(index, key, v)}
-                        disabled={disabled}
-                        readOnly={readOnly}
-                      />
+                    {renderListItemField(
+                      {
+                        path: `${dataPath}[${index}].${key}`,
+                        fieldSchema: fieldDef,
+                        value: fieldValue,
+                        onChange: (v) => handleFieldChange(index, key, v),
+                        readOnly,
+                        disabled,
+                      },
+                      true,
                     )}
                   </div>
                 );
               })
             ) : (
-              // 简单类型：单个输入框
               <div style={{ flex: 1 }}>
-                {readOnly ? (
-                  <span>{formatFieldValue(item, simpleSchema)}</span>
-                ) : (
-                  <RenderItemControl
-                    widget={simpleSchema?.widget}
-                    fieldSchema={
-                      simpleSchema ?? { type: 'string', widget: 'input' }
-                    }
-                    path={`${dataPath}[${index}]`}
-                    value={item}
-                    onChange={(v) => handleSimpleItemChange(index, v)}
-                    disabled={disabled}
-                    placeholder={simpleSchema?.placeholder}
-                    readOnly={readOnly}
-                  />
+                {renderListItemField(
+                  {
+                    path: `${dataPath}[${index}]`,
+                    fieldSchema: simpleSchema ?? {
+                      type: 'string',
+                      widget: 'input',
+                    },
+                    value: item,
+                    onChange: (v) => handleSimpleItemChange(index, v),
+                    readOnly,
+                    disabled,
+                    placeholder: simpleSchema?.placeholder,
+                  },
+                  true,
                 )}
               </div>
             )}

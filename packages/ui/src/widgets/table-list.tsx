@@ -9,16 +9,15 @@ import type {
   DataObjectSchema,
   SchemaNode,
 } from '@xbeeant/form-engine';
-import { Button, Popconfirm, Space, Table, Typography } from 'antd';
+import { renderListItemField } from '@xbeeant/form-engine-react';
+import { Button, Popconfirm, Space, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   arrayAdd,
   arrayCopy,
   arrayMove,
   arrayRemove,
-  formatFieldValue,
   getEmptyObject,
-  RenderItemControl,
 } from './_list-shared';
 import type { WidgetProps } from './_shared';
 
@@ -26,6 +25,14 @@ interface TableItemType {
   [key: string]: unknown;
   __index?: number;
 }
+
+/**
+ * 空数组时的占位行数据（纯 UI 行）
+ * ⚠️ 占位行本身不属于数据：不会进 engine fieldStates（Core 不为它造 item 状态），
+ * 也不会变成 [{}] 脏空行——在占位行内的首次输入会被 handleFieldChange 转成
+ * 第一行真实数据（[getEmptyObject(items) + 本次输入]）。
+ */
+const PLACEHOLDER_ROW: Record<string, unknown> = {};
 
 export const tableListWidget = ({
   value,
@@ -71,11 +78,13 @@ export const tableListWidget = ({
     | Record<string, unknown>
     | undefined;
 
-  const array = Array.isArray(value)
-    ? value.length === 0
-      ? [{}]
-      : value
-    : [{}];
+  // 数据行：严格取自数组字段值，是所有 onChange 的唯一数据来源
+  const realItems: unknown[] = Array.isArray(value) ? value : [];
+  // 渲染行：数组为空时补一行占位行（纯 UI 行，本身不进数据；
+  // 在其中输入会由 handleFieldChange 直接落为第一行真实数据）
+  const rows: unknown[] =
+    realItems.length === 0 ? [PLACEHOLDER_ROW] : realItems;
+  const isPlaceholderRow = () => realItems.length === 0;
 
   const itemSchema = items as DataObjectSchema | undefined;
 
@@ -84,7 +93,7 @@ export const tableListWidget = ({
   const handleAdd = () => {
     onChange(
       arrayAdd(
-        array,
+        realItems,
         getEmptyObject({
           type: 'object',
           widget: 'object',
@@ -95,19 +104,19 @@ export const tableListWidget = ({
   };
 
   const handleRemove = (index: number) => {
-    onChange(arrayRemove(array, index));
+    onChange(arrayRemove(realItems, index));
   };
 
   const handleMoveUp = (index: number) => {
-    onChange(arrayMove(array, index, index - 1));
+    onChange(arrayMove(realItems, index, index - 1));
   };
 
   const handleMoveDown = (index: number) => {
-    onChange(arrayMove(array, index, index + 1));
+    onChange(arrayMove(realItems, index, index + 1));
   };
 
   const handleCopy = (index: number) => {
-    onChange(arrayCopy(array, index));
+    onChange(arrayCopy(realItems, index));
   };
 
   const handleFieldChange = (
@@ -115,7 +124,23 @@ export const tableListWidget = ({
     fieldKey: string,
     fieldValue: unknown,
   ) => {
-    const newArr = [...array];
+    // 占位行首次输入：按 items schema 生成完整空对象并落为第一行真实数据。
+    // 既不会向数据写入 [{}] 脏空行，也让 hideAdd 场景（无「添加一行」按钮）
+    // 仍能从占位行直接开始录入。占位行随之消失（realItems.length > 0）。
+    if (realItems.length === 0) {
+      onChange([
+        {
+          ...getEmptyObject({
+            type: 'object',
+            widget: 'object',
+            properties: itemProperties,
+          }),
+          [fieldKey]: fieldValue,
+        },
+      ]);
+      return;
+    }
+    const newArr = [...realItems];
     newArr[index] = { ...(newArr[index] as object), [fieldKey]: fieldValue };
     onChange(newArr);
   };
@@ -137,23 +162,34 @@ export const tableListWidget = ({
         dataIndex: key,
         width: 160,
         render: (_val: unknown, record: TableItemType, index: number) => {
-          if (readOnly) {
-            return (
-              <Typography.Text>
-                {formatFieldValue(record[key], fieldDef)}
-              </Typography.Text>
+          // 占位行里 schema 声明 readOnly 的字段必须只读展示：
+          // Core 不为占位行造项状态（查不到 fieldState，联动无法求值），因此只能读
+          // schema 静态值；renderListItemField 内部 suppressFieldItemLayout=true
+          // 抑制了 console.warn，此处传 undefined path 确保占位行无 fieldState。
+          const phReadOnly = isPlaceholderRow() && fieldDef.readOnly === true;
+          if (readOnly || phReadOnly) {
+            return renderListItemField(
+              {
+                path: undefined,
+                fieldSchema: fieldDef,
+                value: record[key],
+                readOnly: true,
+              },
+              true,
             );
           }
-          return (
-            <RenderItemControl
-              widget={fieldDef.widget}
-              fieldSchema={fieldDef}
-              path={`${dataPath}[${index}].${key}`}
-              value={record[key]}
-              onChange={(v) => handleFieldChange(index, key, v)}
-              disabled={disabled}
-              readOnly={readOnly}
-            />
+          // 占位行其余单元格保持可编辑：首次输入由 handleFieldChange 落为第一行真实数据，
+          // 保证 hideAdd（无「添加一行」按钮）场景仍可开始录入
+          return renderListItemField(
+            {
+              path: `${dataPath}[${index}].${key}`,
+              fieldSchema: fieldDef,
+              value: record[key],
+              onChange: (v) => handleFieldChange(index, key, v),
+              readOnly,
+              disabled,
+            },
+            true,
           );
         },
       };
@@ -169,58 +205,62 @@ export const tableListWidget = ({
       width: 200,
       fixed: 'right' as const,
       ...restColumnProps,
-      render: (_val: unknown, _record: TableItemType, index: number) => (
-        <Space size='small'>
-          {!hideMove && (
-            <>
+      render: (_val: unknown, _record: TableItemType, index: number) => {
+        // 占位行不可操作（行结构性操作仅对真实数据行生效）
+        const rowDisabled = disabled || isPlaceholderRow();
+        return (
+          <Space size='small'>
+            {!hideMove && (
+              <>
+                <Button
+                  type='text'
+                  size='small'
+                  disabled={rowDisabled || index === 0}
+                  onClick={() => handleMoveUp(index)}
+                >
+                  上移
+                </Button>
+                <Button
+                  type='text'
+                  size='small'
+                  disabled={rowDisabled || index === rows.length - 1}
+                  onClick={() => handleMoveDown(index)}
+                >
+                  下移
+                </Button>
+              </>
+            )}
+            {!hideCopy && (
               <Button
                 type='text'
                 size='small'
-                disabled={disabled || index === 0}
-                onClick={() => handleMoveUp(index)}
+                disabled={rowDisabled}
+                onClick={() => handleCopy(index)}
               >
-                上移
+                复制
               </Button>
-              <Button
-                type='text'
-                size='small'
-                disabled={disabled || index === array.length - 1}
-                onClick={() => handleMoveDown(index)}
+            )}
+            {!hideDelete && (
+              <Popconfirm
+                title='确认删除该行？'
+                onConfirm={() => handleRemove(index)}
+                okText='删除'
+                cancelText='取消'
+                disabled={rowDisabled}
               >
-                下移
-              </Button>
-            </>
-          )}
-          {!hideCopy && (
-            <Button
-              type='text'
-              size='small'
-              disabled={disabled}
-              onClick={() => handleCopy(index)}
-            >
-              复制
-            </Button>
-          )}
-          {!hideDelete && (
-            <Popconfirm
-              title='确认删除该行？'
-              onConfirm={() => handleRemove(index)}
-              okText='删除'
-              cancelText='取消'
-              disabled={disabled}
-            >
-              <Button type='text' size='small' danger disabled={disabled}>
-                删除
-              </Button>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+                <Button type='text' size='small' danger disabled={rowDisabled}>
+                  删除
+                </Button>
+              </Popconfirm>
+            )}
+          </Space>
+        );
+      },
     });
   }
 
   // 为每行添加 key
-  const dataSource = array.map((item, index) => ({
+  const dataSource = rows.map((item, index) => ({
     ...(item as object),
     __index: index,
   })) as TableItemType[];

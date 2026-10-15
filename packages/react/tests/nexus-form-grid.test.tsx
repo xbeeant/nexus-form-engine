@@ -154,7 +154,36 @@ describe('NexusForm 24 栅格布局', () => {
     expect(fields[1]).toMatchObject({ style: { gridColumn: 'span 24' } });
   });
 
-  it('点击对象标题折叠时内层内容隐藏但保留在 DOM（保持字段状态）', () => {
+  it('对象容器内字段 width 百分比换算为 24 栅格跨度（与表单顶层同语义）', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        group: {
+          type: 'object',
+          title: '分组',
+          properties: {
+            a: { type: 'string', widget: 'input', width: '33%' },
+            b: { type: 'string', widget: 'input', width: '50%' },
+          },
+        },
+      },
+    };
+    const { container } = render(<TestForm schema={schema} />);
+    // 对象内容本身就是 24 栅格容器，子字段 width → span round(24×比例)
+    const objectEl = container.querySelector(
+      '[data-nexus-object]',
+    ) as HTMLDivElement;
+    const content = objectEl.querySelector(
+      'div[style*="repeat(24"]',
+    ) as HTMLDivElement;
+    expect(content.style.display).toBe('grid');
+    const fields = container.querySelectorAll('[data-nexus-field]');
+    // 33% → span 8；50% → span 12
+    expect((fields[0] as HTMLDivElement).style.gridColumn).toBe('span 8');
+    expect((fields[1] as HTMLDivElement).style.gridColumn).toBe('span 12');
+  });
+
+  it('点击对象标题折叠时内层内容隐藏（class 控制），grid 容器样式不被覆盖', () => {
     const schema = {
       type: 'object',
       properties: {
@@ -171,18 +200,61 @@ describe('NexusForm 24 栅格布局', () => {
     const objectEl = container.querySelector(
       '[data-nexus-object]',
     ) as HTMLDivElement;
-    // 对象内容以 antd Collapse 承载：默认展开（ant-collapse-panel-active）
+    // 内层内容 div（唯一带 gridTemplateColumns 内联样式的子元素）
+    const content = objectEl.querySelector(
+      'div[style*="repeat(24"]',
+    ) as HTMLDivElement;
+    expect(content.style.display).toBe('grid');
+    // 点击折叠面板标题 → antd 以 hidden class 隐藏面板内容（CSS 生效，
+    // jsdom 无 CSS，故断言 class 而非计算样式）
+    act(() => {
+      (
+        objectEl.querySelector('.ant-collapse-header') as HTMLDivElement
+      ).click();
+    });
     const panel = objectEl.querySelector(
       '.ant-collapse-panel',
     ) as HTMLDivElement;
-    expect(panel.className).toContain('ant-collapse-panel-active');
+    expect(panel.className).toContain('ant-collapse-panel-hidden');
+    // 折叠不改写内容容器的栅格样式（重新展开后布局保持一致）
+    expect(content.style.display).toBe('grid');
+    // 内层字段仍存在（未卸载，保持状态）
     expect(objectEl.querySelector('[data-nexus-field]')).toBeTruthy();
-    // 点击标题折叠（ant-collapse-header 是标题行）
-    act(() => {
-      (objectEl.querySelector('.ant-collapse-header') as HTMLDivElement).click();
-    });
-    expect(panel.className).not.toContain('ant-collapse-panel-active');
-    // 折叠后内层字段仍存在（未卸载，保持状态）
-    expect(objectEl.querySelector('[data-nexus-field]')).toBeTruthy();
+  });
+
+  it('分支容器内字段 width 百分比换算为 24 栅格跨度', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        container: {
+          oneOf: [
+            {
+              properties: {
+                fieldA: { type: 'string', widget: 'input', width: '50%' },
+                fieldB: { type: 'string', widget: 'input', width: '25%' },
+              },
+            },
+          ],
+        },
+      },
+    };
+    const { container } = render(<TestForm schema={schema} />);
+    const branch = container.querySelector(
+      '[data-nexus-branch]',
+    ) as HTMLDivElement;
+    // 分支内容同样是 24 栅格容器，width 才能换算为 span 生效
+    const content = branch.querySelector(
+      'div[style*="repeat(24"]',
+    ) as HTMLDivElement;
+    expect(content.style.display).toBe('grid');
+    const fieldA = container.querySelector(
+      '[data-nexus-field="fieldA"]',
+    ) as HTMLDivElement;
+    const fieldB = container.querySelector(
+      '[data-nexus-field="fieldB"]',
+    ) as HTMLDivElement;
+    // 50% → span 12；25% → span 6
+    expect(fieldA.style.gridColumn).toBe('span 12');
+    expect(fieldB.style.gridColumn).toBe('span 6');
   });
 });

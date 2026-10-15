@@ -22,14 +22,16 @@
 // ```
 // ────────────────────────────────────────────────────────────────────────────
 
-import type { NexusEngine, NexusFormInstance } from '@xbeeant/form-engine';
+import type {
+  FieldValidator,
+  NexusEngine,
+  NexusFormInstance,
+} from '@xbeeant/form-engine';
 import { useEffect, useRef } from 'react';
 import { useNexusContext } from '../contexts/nexus-context';
 
-export type FieldValidator = (
-  value: unknown,
-  formData: Record<string, unknown>,
-) => string[] | Promise<string[]>;
+// 重新导出 core 层的 FieldValidator，保留向后兼容
+export type { FieldValidator };
 
 export interface UseFieldValidatorOptions {
   /**

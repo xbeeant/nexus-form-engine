@@ -5,6 +5,8 @@
 // 路径操作、深比较、类型转换、空值过滤等。
 // ============================================================================
 
+import type { DataNode, LayoutNode } from '../types/schema.ts';
+
 /**
  * 判断值是否为空
  *
@@ -187,6 +189,19 @@ export function toBoolean(value: unknown): boolean {
   return Boolean(value);
 }
 
+/**
+ * 判断节点是否不应被跳过（即需要正常处理）
+ *
+ * 硬编码 hidden 值直接过滤掉该节点：
+ * - `hidden: true` / `hidden: "true"` / `hidden: "1"` → 跳过
+ * - 其他值 → 不跳过
+ *
+ * @param node - 数据节点或布局节点
+ * @returns true 表示正常处理，false 表示应跳过
+ */
+export function isSkipNode(node: DataNode | LayoutNode) {
+  return node.hidden === 'true' || node.hidden === '1' || node.hidden === true;
+}
 /**
  * 判断字符串是否为完整的 `{{ }}` 模板表达式
  *

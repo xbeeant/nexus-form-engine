@@ -13,6 +13,17 @@
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
 /**
+ * 规范化依赖图 key：去掉路径中的可选链符号 `?.`
+ *
+ * 调用方可能在表达式 / reactions / dependencies 中残留 `a?.b` 这种写法，
+ * 与 setFieldValue 通知路径（始终是 `a.b`）不一致会导致依赖边查不到。
+ * 在 add/remove 入口统一清理，保留 `.` 层级语义。
+ */
+export function normalizePath(path: string): string {
+  return path.replace(/\?/g, '');
+}
+
+/**
  * 依赖图结构：
  * - dependenciesOf: target → Set<source>（target 依赖哪些源字段）
  * - dependentsOf:   source → Set<target>（哪些字段依赖 source，即 getDependents 查询结果）
@@ -30,17 +41,18 @@ export class DependencyGraph {
    * @param source - 源字段路径（被依赖的字段）
    */
   addDependency(target: string, source: string): void {
+    const normalizedSource = normalizePath(source);
     let set = this.dependenciesOf.get(target);
     if (!set) {
       set = new Set();
       this.dependenciesOf.set(target, set);
     }
-    set.add(source);
+    set.add(normalizedSource);
 
-    set = this.dependentsOf.get(source);
+    set = this.dependentsOf.get(normalizedSource);
     if (!set) {
       set = new Set();
-      this.dependentsOf.set(source, set);
+      this.dependentsOf.set(normalizedSource, set);
     }
     set.add(target);
   }
@@ -68,19 +80,20 @@ export class DependencyGraph {
    * @param source - 源字段路径
    */
   removeDependency(target: string, source: string): void {
+    const normalizedSource = normalizePath(source);
     const depSet = this.dependenciesOf.get(target);
     if (depSet) {
-      depSet.delete(source);
+      depSet.delete(normalizedSource);
       if (depSet.size === 0) {
         this.dependenciesOf.delete(target);
       }
     }
 
-    const depSet2 = this.dependentsOf.get(source);
+    const depSet2 = this.dependentsOf.get(normalizedSource);
     if (depSet2) {
       depSet2.delete(target);
       if (depSet2.size === 0) {
-        this.dependentsOf.delete(source);
+        this.dependentsOf.delete(normalizedSource);
       }
     }
   }

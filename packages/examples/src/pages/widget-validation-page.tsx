@@ -11,6 +11,7 @@ import { CodeBlock } from '../site/code-block';
 import { MainArea } from '../site/main-area';
 import {
   confirmPasswordWidget,
+  inviteCodeWidget,
   usernameUniqueWidget,
 } from '../site/widget-validation-widgets';
 
@@ -36,6 +37,11 @@ const demoWidgetSchema = {
       widget: 'confirmPassword',
       title: '确认密码',
       required: true,
+    },
+    inviteCode: {
+      type: 'string',
+      widget: 'inviteCode',
+      title: '邀请码',
     },
   },
 } as const;
@@ -76,6 +82,29 @@ engine.registerWidgets({
   },
 }`;
 
+// 另一种写法：widget 通过 addons.fieldRef 命令式暴露校验器
+const imperativeCode = `export const inviteCodeWidget = (props: WidgetProps) => {
+  const { addons, value, onChange, dependValues: _dv, path: _p, ...rest } = props;
+
+  useImperativeHandle(addons?.fieldRef, () => {
+    // 将校验方法暴露出去，方便外部表单提交时触发校验
+    return {
+      validator: (val: unknown) => {
+        const v = String(val ?? '').trim();
+        if (!v) return [];
+        return /^NX-\\d{4}$/.test(v) ? [] : ['邀请码格式应为 NX-1234'];
+      },
+    };
+  });
+
+  return <Input value={value} onChange={(e) => onChange(e.target.value)} {...rest} />;
+};
+
+// 说明：
+// - 校验器签名与 form.registerValidator 一致：(value, formData) => string[] | Promise<string[]>
+// - 渲染层在 widget 挂载后把 validator 注册到引擎，实时校验（change / blur）与提交校验均会触发
+// - 句柄可重建，引擎始终调用最新闭包的 validator（可安全读取组件 state）`;
+
 export default function WidgetValidationPage() {
   const [form] = useForm();
   const [submitted, setSubmitted] = useState<Record<string, unknown> | null>(
@@ -90,6 +119,7 @@ export default function WidgetValidationPage() {
     engine.registerWidgets({
       confirmPassword: confirmPasswordWidget,
       usernameUnique: usernameUniqueWidget,
+      inviteCode: inviteCodeWidget,
     });
   }, [form]);
 
@@ -112,6 +142,9 @@ export default function WidgetValidationPage() {
               <br />
               <b>usernameUnique</b>：内部注册异步唯一性校验（root/admin/system
               为保留名）
+              <br />
+              <b>inviteCode</b>：通过 <code>addons.fieldRef</code> +{' '}
+              <code>useImperativeHandle</code> 暴露校验方法
             </Text>
             <Button
               size='small'
@@ -136,7 +169,12 @@ export default function WidgetValidationPage() {
             console.error(errors);
             setErrorCount(errors.size);
           }}
-          initialValues={{ username: '', password: '', confirmPassword: '' }}
+          initialValues={{
+            username: '',
+            password: '',
+            confirmPassword: '',
+            inviteCode: '',
+          }}
           footer={
             <Space style={{ marginTop: 16 }}>
               <Button type='primary' htmlType='submit'>
@@ -176,6 +214,21 @@ export default function WidgetValidationPage() {
           实现方式
         </Title>
         <CodeBlock lang='tsx' title='组件内注册校验' code={exampleCode} />
+
+        <Title level={3} style={{ marginTop: 32 }}>
+          addons.fieldRef 命令式注册
+        </Title>
+        <Paragraph type='secondary'>
+          widget 也可以把校验方法通过 <code>addons.fieldRef</code> +{' '}
+          <code>useImperativeHandle</code> 暴露给渲染层：注册后与{' '}
+          <code>form.registerValidator</code> 等价，实时校验（change / blur）与
+          提交校验均会触发，且始终调用最新闭包的校验器。
+        </Paragraph>
+        <CodeBlock
+          lang='tsx'
+          title='命令式暴露校验器'
+          code={imperativeCode}
+        />
       </div>
     </MainArea>
   );

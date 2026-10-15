@@ -19,6 +19,9 @@ export {
 export { spaceLayout } from './space';
 export { stepsLayout } from './steps';
 export { tabsLayout } from './tabs';
+// ── 移动端布局组件导出 ───────────────────────────────────────────────────────
+export { cardMobileLayout } from './card-mobile'; // 移动端卡片布局
+export { collapseMobileLayout } from './collapse-mobile'; // 移动端折叠布局
 
 // ── 布局组件映射表 ─────────────────────────────────────────────────────────────
 // antdLayouts 对象将布局名称映射到对应的布局组件实现

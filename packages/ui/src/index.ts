@@ -6,7 +6,32 @@ import './styles.css';
 
 import type { NexusEngine, NexusPlugin } from '@xbeeant/form-engine';
 import { antdLayouts } from './layouts';
-import { antdWidgets, FieldWrapper, textAreaWidget } from './widgets';
+import {
+  antdWidgets,
+  cascaderMobileWidget,
+  checkboxMobileWidget,
+  checkboxesMobileWidget,
+  dateMobileWidget,
+  FieldWrapper,
+  inputMobileWidget,
+  numberMobileWidget,
+  pickerMobileWidget,
+  radioMobileWidget,
+  rateMobileWidget,
+  segmentedMobileWidget,
+  sliderMobileWidget,
+  switchMobileWidget,
+  textareaMobileWidget,
+  textAreaWidget,
+  timeMobileWidget,
+} from './widgets';
+import { cardMobileLayout, collapseMobileLayout } from './layouts';
+import { type IsMobileOptions, isMobile } from './utils/device';
+import {
+  type PickByDeviceOptions,
+  pickAntdLayouts,
+  pickAntdWidgets,
+} from './widgets/device';
 
 // ── 布局组件导出 ───────────────────────────────────────────────────────────────
 export { antdLayouts } from './layouts';
@@ -37,6 +62,7 @@ export type { PropertySchemaMap } from './schema';
 // ── Schema 定义导出 ─────────────────────────────────────────────────────────────
 // 每个组件的 Schema 定义，用于定义组件的配置结构、验证规则和渲染行为
 export {
+  cardListSchema, // 卡片列表 Schema（x-render CardList 对齐）
   cardSchema, // 卡片组件 Schema
   checkboxesSchema, // 复选框组 Schema
   checkboxSchema, // 单个复选框 Schema
@@ -79,6 +105,7 @@ export {
   withFormItem, // 公共包裹方法 - 为任意组件包装表单验证功能
 } from './widgets/_shared';
 export { autoCompleteWidget } from './widgets/auto-complete';
+export { cardListWidget } from './widgets/card-list';
 export { cascaderWidget } from './widgets/cascader';
 export { checkboxWidget } from './widgets/checkbox';
 export { checkboxesWidget } from './widgets/checkboxes';
@@ -96,6 +123,7 @@ export { multiSelectWidget } from './widgets/multi-select';
 export { passwordWidget } from './widgets/password';
 export type {
   AutoCompleteWidgetProps,
+  CardListWidgetProps,
   CascaderWidgetProps,
   CheckboxesWidgetProps,
   CheckboxWidgetProps,
@@ -148,19 +176,88 @@ export { voidTitleWidget } from './widgets/void-title';
  * Ant Design UI 注册函数
  * 将所有 Ant Design UI 组件（widgets 和 layouts）注册到表单引擎中
  * @param engine - 表单引擎实例，用于注册组件
+ * @param options - 可选配置，支持设备检测
  * @description
  * 自动注册 antdWidgets、antdLayouts 及 FieldWrapper 到引擎中，
  * 使引擎可以使用这些组件构建表单。此函数会覆盖已注册的同名组件。
  * FieldWrapper 注册后，NexusForm 渲染层默认包裹所有 widget
  * （Form.Item 布局/校验展示），仅当 label === false 时不包裹。
  */
-export function registerAntdUI(engine: NexusEngine): void {
+export function registerAntdUI(
+  engine: NexusEngine,
+  options?: RegisterAntdUIOptions,
+): void {
   engine.registerFieldWrapper(FieldWrapper);
-  engine.registerWidgets(antdWidgets);
-  engine.registerLayouts(antdLayouts);
+
+  const isMobileFlag = resolveMobileFlag(options);
+
+  const mobileOverrides: Record<string, any> = {
+    cascader: cascaderMobileWidget,
+    input: inputMobileWidget,
+    textarea: textareaMobileWidget,
+    number: numberMobileWidget,
+    select: pickerMobileWidget,
+    radio: radioMobileWidget,
+    segmented: segmentedMobileWidget,
+    date: dateMobileWidget,
+    time: timeMobileWidget,
+    switch: switchMobileWidget,
+    slider: sliderMobileWidget,
+    rate: rateMobileWidget,
+    checkbox: checkboxMobileWidget,
+    checkboxes: checkboxesMobileWidget,
+  };
+
+  const widgetPickOpts: PickByDeviceOptions = {
+    isMobile: isMobileFlag,
+    mobileOverrides: isMobileFlag ? mobileOverrides : undefined,
+    deviceOptions: options?.deviceOptions,
+  };
+
+  const layoutPickOpts: PickByDeviceOptions = {
+    isMobile: isMobileFlag,
+    mobileOverrides: isMobileFlag
+      ? { card: cardMobileLayout, collapse: collapseMobileLayout }
+      : undefined,
+    deviceOptions: options?.deviceOptions,
+  };
+
+  engine.registerWidgets(pickAntdWidgets(widgetPickOpts));
+  engine.registerLayouts(pickAntdLayouts(layoutPickOpts));
   // 附带编辑器（sideEffects.editor 引用，x-render editor 对齐）：
   // textarea —— 多行文本编辑器（默认回退实现，FieldWrapper 也内置一份兜底）
   engine.registerEditors({ textarea: textAreaWidget });
+}
+
+/**
+ * 解析设备标志
+ */
+function resolveMobileFlag(options?: RegisterAntdUIOptions): boolean {
+  if (!options) {
+    return false;
+  }
+  if (typeof options.isMobile === 'boolean') {
+    return options.isMobile;
+  }
+  if (options.device === 'mobile') {
+    return true;
+  }
+  if (options.device === 'desktop') {
+    return false;
+  }
+  return isMobile(options.deviceOptions);
+}
+
+/**
+ * RegisterAntdUI 可选配置
+ */
+export interface RegisterAntdUIOptions {
+  /** 设备类型：自动检测 / 强制移动端 / 强制桌面端 */
+  device?: 'auto' | 'mobile' | 'desktop';
+  /** 透传给 isMobile() 的选项 */
+  deviceOptions?: IsMobileOptions;
+  /** 是否移动端（直接使用布尔值，覆盖 device 和 isMobile()） */
+  isMobile?: boolean;
 }
 
 /**

@@ -15,10 +15,50 @@ import { FieldInheritContext } from '../contexts/field-inherit-context';
 import { GridContext } from '../contexts/grid-context';
 import { LayoutConfigContext } from '../contexts/layout-config-context';
 import { useNexusContext } from '../contexts/nexus-context';
+import {
+  type NexusFieldRefObject,
+  useImperativeValidator,
+} from '../hooks/use-imperative-validator';
 import { buildWidgetProps } from '../utils/build-widget-props';
 import { reactNodeFromString } from '../utils/react-node-from-string';
 import { resolveGridSpan } from '../utils/resolve-grid-span';
 import { resolveReadOnlyWidget } from '../utils/resolve-readonly-widget';
+
+/**
+ * UI→Core 入口调试开关（与 Core 反应链路同标签 `[NexusForm][reaction]`，方便串联日志）
+ *
+ * 启用方式（任一即可）：
+ *  1) `(window).__NEXUS_DEBUG_REACTIONS = true` 后刷新
+ *  2) localStorage `NEXUS_DEBUG_REACTIONS=1` 后刷新
+ *  3) `new NexusEngine({ debugReactions: true })`
+ */
+function isReactionsDebugEnabled(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  const w = window as unknown as { __NEXUS_DEBUG_REACTIONS?: boolean };
+  if (w.__NEXUS_DEBUG_REACTIONS === true) {
+    return true;
+  }
+  try {
+    return window.localStorage?.getItem('NEXUS_DEBUG_REACTIONS') === '1';
+  } catch {
+    return false;
+  }
+}
+
+function reactionLog(event: string, payload?: unknown): void {
+  if (!isReactionsDebugEnabled()) {
+    return;
+  }
+  if (payload === undefined) {
+    // eslint-disable-next-line no-console
+    console.log('[NexusForm][reaction]', event);
+  } else {
+    // eslint-disable-next-line no-console
+    console.log('[NexusForm][reaction]', event, payload);
+  }
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // NexusAddons — x-render addons 对齐
@@ -76,6 +116,12 @@ export interface NexusAddons {
   setSchemaByPath(path: string, patch: Record<string, unknown>): void;
   /** 获取 Schema */
   getSchema(): Record<string, unknown> | null;
+  /**
+   * 命令式句柄挂载点（引用稳定）。
+   * widget 通过 `useImperativeHandle(addons.fieldRef, () => ({ validator }))`
+   * 暴露校验器，渲染层注册到引擎后参与实时校验与提交校验。
+   */
+  fieldRef: NexusFieldRefObject;
 }
 
 /**
@@ -148,6 +194,12 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
     dataPath,
   );
 
+  // widget 命令式校验器：widget 内部 useImperativeHandle(addons.fieldRef, () => ({ validator }))
+  // 暴露的校验方法在此注册到引擎（widget 挂载后的首个 passive effect 即可读到句柄），
+  // 注册后与 form.registerValidator 等价，参与实时校验与提交校验。
+  // 必须在所有 early return 之前调用（Hooks 顺序规则）。
+  const fieldRef = useImperativeValidator(form, dataPath, fieldVersion);
+
   const handleChange = useCallback(
     (value: Event | unknown) => {
       // 变更前旧值（钩子接收；setFieldValue 会覆盖 state.value）
@@ -161,6 +213,11 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
         ).target.value;
       }
 
+      reactionLog('handleChange: bridge from widget onChange', {
+        dataPath,
+        oldValue,
+        newValue: fieldValue,
+      });
       engine.setFieldValue(dataPath, fieldValue);
       //
       runFieldHook('onChange', fieldValue, oldValue);
@@ -171,15 +228,18 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
   // 失焦触发 blur 规则校验（trigger: 'blur'）：
   // React onBlur 冒泡（focusout 语义），包裹层统一处理内部控件失焦；
   // 焦点仍在字段内部（如 dateRange 双输入框间切换）时跳过。
+  // suppressFieldItemLayout=true 时（如 renderListItemField 调用）跳过 blur validation
   const handleBlur = useCallback(
     (e: FocusEvent<HTMLDivElement>) => {
       if (e.currentTarget.contains(e.relatedTarget as Node)) {
         return;
       }
-      engine.validateField(dataPath, { trigger: 'blur' });
+      if (!layoutConfig.suppressFieldItemLayout) {
+        engine.validateField(dataPath, { trigger: 'blur' });
+      }
       runFieldHook('onBlur', engine.getFieldValue(dataPath));
     },
-    [engine, dataPath, runFieldHook],
+    [engine, dataPath, layoutConfig, runFieldHook],
   );
 
   // 字段聚焦时触发 onFocus 钩子（冒泡语义：内部控件聚焦即触发）
@@ -248,7 +308,8 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
   if (!state) {
     // 仅当引擎已初始化（version > 0）但字段仍未找到时才发出警告
     // 初始化过程中的短暂空状态不应报警
-    if (engine.getSnapshot() > 0) {
+    // suppressFieldItemLayout=true 时（如 renderListItemField 调用）跳过警告
+    if (engine.getSnapshot() > 0 && !layoutConfig.suppressFieldItemLayout) {
       console.warn(`[NexusField] Field not found: ${dataPath}`);
     }
     return null;
@@ -328,7 +389,10 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
   // 默认包裹：所有 widget 统一由 FieldWrapper 包裹（引擎注册，UI 层提供），
   // 仅当 label === false（字段级或表单级）时 FieldWrapper 不包裹 Form.Item。
   // 未注册 FieldWrapper（纯 react 无 ui 层）时直接渲染裸 widget。
-  const FieldWrapper = engine.getFieldWrapper();
+  // suppressFieldItemLayout=true 时（如 renderListItemField 调用）抑制 FieldWrapper
+  const FieldWrapper = layoutConfig.suppressFieldItemLayout
+    ? null
+    : engine.getFieldWrapper();
 
   // Form.Item 消费的元数据 props 剥离给 FieldWrapper，避免透传到底层 antd 控件：
   // - required: 会让 <input required> 触发浏览器原生校验
@@ -396,6 +460,7 @@ export function NexusField({ node }: NexusNodeProps<RenderFieldNode>) {
         addonsValue: state?.value,
         addonsIndex: index,
         addonsItemOf: arrayPath,
+        addonsFieldRef: fieldRef,
       },
       {
         dataPath,

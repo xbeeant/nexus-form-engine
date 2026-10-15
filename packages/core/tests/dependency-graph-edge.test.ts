@@ -153,4 +153,61 @@ describe('DependencyGraph - remove/clear', () => {
       expect(graph.getDependentsRef('username').has('hacked')).toBe(true);
     });
   });
+
+  // 回归：依赖图 add/remove 入口兜底 normalize 可选链符号
+  // 任何上层（reactions / validate 表达式 / 手写 dependencies）残留 `a?.b`
+  // 都会被规整为 `a.b`，与 setFieldValue 通知路径保持一致。
+  describe('add/remove normalize optional chaining in path', () => {
+    it('addDependency 入口去掉 source 路径中的 ?', () => {
+      const graph = new DependencyGraph();
+      graph.addDependency('target', 'a?.b?.c');
+
+      // 存储 key 应为 normalized 的 a.b.c
+      expect(graph.getDependencies('target').has('a.b.c')).toBe(true);
+      expect(graph.getDependencies('target').has('a?.b?.c')).toBe(false);
+      // 反向边也按 normalized key 入索引
+      expect(graph.getDependents('a.b.c').has('target')).toBe(true);
+      expect(graph.getDependents('a?.b?.c').size).toBe(0);
+    });
+
+    it('removeDependency 必须用同一份 normalized key', () => {
+      const graph = new DependencyGraph();
+      graph.addDependency(
+        'target',
+        'demand_definition?.requirement_definition_v2',
+      );
+      graph.removeDependency(
+        'target',
+        'demand_definition?.requirement_definition_v2',
+      );
+
+      // 移除后边应被清空
+      expect(graph.hasNode('target')).toBe(false);
+      expect(graph.hasNode('demand_definition.requirement_definition_v2')).toBe(
+        false,
+      );
+    });
+
+    it('addDependencies / removeDependencies 批量也走 normalize', () => {
+      const graph = new DependencyGraph();
+      graph.addDependencies('target', ['a?.x', 'b?.y', 'c']);
+      expect(graph.getDependencies('target').has('a.x')).toBe(true);
+      expect(graph.getDependencies('target').has('b.y')).toBe(true);
+      expect(graph.getDependencies('target').has('c')).toBe(true);
+
+      graph.removeDependencies('target', ['a?.x', 'b?.y']);
+      expect(graph.getDependencies('target').has('a.x')).toBe(false);
+      expect(graph.getDependencies('target').has('b.y')).toBe(false);
+      expect(graph.getDependencies('target').has('c')).toBe(true);
+    });
+
+    it('混合带 ? 与不带 ? 的 source 入图后合并到同一 key', () => {
+      const graph = new DependencyGraph();
+      graph.addDependency('t1', 'a.b');
+      graph.addDependency('t2', 'a?.b');
+      // Set 去重，? 形式规整后与无 ? 形式视为同一 source
+      expect(graph.getDependents('a.b').has('t1')).toBe(true);
+      expect(graph.getDependents('a.b').has('t2')).toBe(true);
+    });
+  });
 });

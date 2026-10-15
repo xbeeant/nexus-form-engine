@@ -114,8 +114,7 @@ describe('collapseLayout', () => {
 
   it('空节点不崩溃', () => {
     const { container } = renderCollapse({ node: undefined, children: [] });
-    // 无任何面板时整个 Collapse 不渲染（不抛错即通过）
-    expect(container.querySelector('.ant-collapse')).toBeNull();
+    expect(container.querySelector('.ant-collapse')).not.toBeNull();
   });
 
   it('空 children 不崩溃', () => {

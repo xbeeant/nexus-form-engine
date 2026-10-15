@@ -60,7 +60,8 @@
   },
   "dependencies": {
     "@xbeeant/form-engine": "^0.0.5",
-    "@xbeeant/form-engine-react": "^0.0.5"
+    "@xbeeant/form-engine-react": "^0.0.5",
+    "antd-mobile": "^5.43.0"
   },
   "gitHead": "2f4208b0324f2bb2e91df524ab36a5ce7c89d0e3"
 }

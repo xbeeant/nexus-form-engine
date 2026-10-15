@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import { useContext, useSyncExternalStore } from 'react';
 
 import { FieldInheritContext } from '../contexts/field-inherit-context';
-import { GridContext } from '../contexts/grid-context';
+import { GRID_TOTAL, GridContext } from '../contexts/grid-context';
 import { useNexusContext } from '../contexts/nexus-context';
 import { renderTreeNode } from '../utils/render-tree-node';
 import { resolveGridSpan } from '../utils/resolve-grid-span';
@@ -26,7 +26,7 @@ import { resolveGridSpan } from '../utils/resolve-grid-span';
  *   与 NexusObject 语义一致（父级已激活的状态不可被子级覆盖）
  */
 export function NexusBranch({ node }: NexusNodeProps<RenderBranchNode>) {
-  const { engine } = useNexusContext();
+  const { engine, config } = useNexusContext();
   const parentInherit = useContext(FieldInheritContext);
 
   // 按容器路径精准订阅：分支切换（activeIndex）与容器状态（hidden/disabled/readOnly）变化时重渲染
@@ -64,6 +64,16 @@ export function NexusBranch({ node }: NexusNodeProps<RenderBranchNode>) {
     ...(effectiveSpan ? { gridColumn: `span ${effectiveSpan}` } : {}),
   };
 
+  // 分支内容置于 24 栅格容器（与表单顶层 / 数据对象内容一致）：
+  // 子字段的 width（占比）在此换算为 gridColumn span 才真正生效，
+  // 否则 span 无栅格容器承载、字面 width 又被抑制 → width 完全失效
+  const branchColumn = Math.max(1, config.column ?? 1);
+  const branchGridStyle: CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${GRID_TOTAL}, minmax(0, 1fr))`,
+    gap: '0 16px',
+  };
+
   return (
     <FieldInheritContext.Provider value={inherit}>
       <div
@@ -72,7 +82,11 @@ export function NexusBranch({ node }: NexusNodeProps<RenderBranchNode>) {
         className={`${hidden ? 'hidden' : ''}`}
         style={Object.keys(wrapperStyle).length > 0 ? wrapperStyle : undefined}
       >
-        {activeChildren.map((child, index) => renderTreeNode(child, index))}
+        <GridContext.Provider value={{ column: branchColumn }}>
+          <div style={branchGridStyle}>
+            {activeChildren.map((child, index) => renderTreeNode(child, index))}
+          </div>
+        </GridContext.Provider>
       </div>
     </FieldInheritContext.Provider>
   );

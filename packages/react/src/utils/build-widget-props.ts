@@ -5,6 +5,7 @@ import type {
   NexusSchema,
   SchemaNode,
 } from '@xbeeant/form-engine';
+import type { NexusFieldRefObject } from '../hooks/use-imperative-validator';
 
 /**
  * x-render addons — 为 widget 组件提供统一的表单数据访问、校验、Schema 操作入口
@@ -31,6 +32,7 @@ interface WidgetAddons {
     options?: { omitNil?: boolean },
   ): Record<string, unknown>;
   setValue(path: string, value: unknown): void;
+  setValueByPath(path: string, value: unknown): void;
   onItemChange(path: string, value: unknown): void;
   validate(path?: string): Promise<void>;
   validateFields(paths?: string[]): Promise<void>;
@@ -39,6 +41,12 @@ interface WidgetAddons {
   setSchema(schema: Record<string, unknown>): void;
   setSchemaByPath(path: string, patch: Record<string, unknown>): void;
   getSchema(): NexusSchema | null;
+  /**
+   * 命令式句柄挂载点（由渲染层创建，引用稳定）。
+   * widget 通过 `useImperativeHandle(addons.fieldRef, () => ({ validator }))`
+   * 暴露校验器，渲染层读取后注册到引擎，参与实时校验与提交校验。
+   */
+  fieldRef: NexusFieldRefObject;
 }
 
 /**
@@ -153,6 +161,12 @@ export function buildWidgetProps(
     addonsIndex?: number;
     /** addons 的 itemOf（所属数组路径，如 "items"，用于 parentValues） */
     addonsItemOf?: string;
+    /**
+     * addons 的 fieldRef（由渲染层 useImperativeValidator 创建）。
+     * widget 通过 `useImperativeHandle(addons.fieldRef, () => ({ validator }))`
+     * 暴露校验器；未传入时使用空 ref（不参与校验注册）。
+     */
+    addonsFieldRef?: NexusFieldRefObject;
   },
   base: {
     dataPath?: string;
@@ -185,6 +199,7 @@ export function buildWidgetProps(
     getValue: (p: string) => form.getValueByPath(p),
     getValueByPath: (p: string) => form.getValueByPath(p),
     setValue: (p: string, v: unknown) => form.setValueByPath(p, v),
+    setValueByPath: (p: string, v: unknown) => form.setValueByPath(p, v),
     onItemChange: (p: string, v: unknown) => form.setValueByPath(p, v),
     validate: async (p?: string) => {
       if (p) {
@@ -211,6 +226,7 @@ export function buildWidgetProps(
     setSchemaByPath: (p: string, patch: Record<string, unknown>) =>
       form.setSchemaByPath(p, patch),
     getSchema: () => form.getSchema(),
+    fieldRef: opts.addonsFieldRef ?? { current: null },
   };
 
   const raw: Record<string, unknown> = {

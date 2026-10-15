@@ -481,7 +481,7 @@ export function useFormItem(props: WidgetProps): UseFormItemResult {
         help={formItemHelp}
         validateStatus={formItemStatus}
         extra={props.extra}
-        tooltip={props.tooltip}
+        tooltip={props.tooltip ? props.tooltip : undefined}
         style={Object.keys(mergedStyle).length > 0 ? mergedStyle : undefined}
         labelCol={formItemProps.labelCol}
         wrapperCol={formItemProps.wrapperCol}

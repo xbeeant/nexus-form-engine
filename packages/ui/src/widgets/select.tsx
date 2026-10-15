@@ -1,5 +1,10 @@
 import { Select } from 'antd';
-import { EnumDisplay, mapOptions, useRemoteOptions, type WidgetProps } from './_shared';
+import {
+  EnumDisplay,
+  mapOptions,
+  useRemoteOptions,
+  type WidgetProps,
+} from './_shared';
 
 // 本地数据版本
 export const selectWidget = ({

@@ -15,6 +15,7 @@ import type {
   DataObjectSchema,
   SchemaNode,
 } from '@xbeeant/form-engine';
+import { renderListItemField } from '@xbeeant/form-engine-react';
 import { Button, Collapse, Space, Typography } from 'antd';
 import { useCallback, useRef, useState } from 'react';
 import {
@@ -22,9 +23,7 @@ import {
   arrayCopy,
   arrayMove,
   arrayRemove,
-  formatFieldValue,
   getEmptyObject,
-  RenderItemControl,
 } from './_list-shared';
 import type { WidgetProps } from './_shared';
 
@@ -293,7 +292,6 @@ export const listWidget = ({
                     const fieldDef = fieldNode as DataFieldSchema;
                     const fieldValue = (item as Record<string, unknown>)?.[key];
                     const fieldLabel = fieldDef.title ?? key;
-
                     return (
                       <div
                         key={key}
@@ -306,23 +304,19 @@ export const listWidget = ({
                         >
                           {fieldLabel}
                         </Typography.Text>
-                        {readOnly ? (
-                          <Typography.Text>
-                            {formatFieldValue(fieldValue, fieldDef)}
-                          </Typography.Text>
-                        ) : (
-                          <div style={{ flex: 1 }}>
-                            <RenderItemControl
-                              widget={fieldDef.widget}
-                              fieldSchema={fieldDef}
-                              path={`${dataPath}[${index}].${key}`}
-                              value={fieldValue}
-                              onChange={(v) => handleFieldChange(index, key, v)}
-                              disabled={disabled}
-                              readOnly={readOnly}
-                            />
-                          </div>
-                        )}
+                        <div style={{ flex: 1 }}>
+                          {renderListItemField(
+                            {
+                              path: `${dataPath}[${index}].${key}`,
+                              fieldSchema: fieldDef,
+                              value: fieldValue,
+                              onChange: (v) => handleFieldChange(index, key, v),
+                              readOnly,
+                              disabled,
+                            },
+                            true,
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -416,7 +410,6 @@ export const listWidget = ({
                 const fieldDef = fieldNode as DataFieldSchema;
                 const fieldValue = (item as Record<string, unknown>)?.[key];
                 const fieldLabel = fieldDef.title ?? key;
-
                 return (
                   <div key={key} style={{ display: 'flex', marginBottom: 8 }}>
                     <Typography.Text
@@ -425,23 +418,19 @@ export const listWidget = ({
                     >
                       {fieldLabel}
                     </Typography.Text>
-                    {readOnly ? (
-                      <Typography.Text>
-                        {formatFieldValue(fieldValue, fieldDef)}
-                      </Typography.Text>
-                    ) : (
-                      <div style={{ flex: 1 }}>
-                        <RenderItemControl
-                          widget={fieldDef.widget}
-                          fieldSchema={fieldDef}
-                          path={`${dataPath}[${index}].${key}`}
-                          value={fieldValue}
-                          onChange={(v) => handleFieldChange(index, key, v)}
-                          disabled={disabled}
-                          readOnly={readOnly}
-                        />
-                      </div>
-                    )}
+                    <div style={{ flex: 1 }}>
+                      {renderListItemField(
+                        {
+                          path: `${dataPath}[${index}].${key}`,
+                          fieldSchema: fieldDef,
+                          value: fieldValue,
+                          onChange: (v) => handleFieldChange(index, key, v),
+                          readOnly,
+                          disabled,
+                        },
+                        true,
+                      )}
+                    </div>
                   </div>
                 );
               })}

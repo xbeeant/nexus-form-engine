@@ -35,8 +35,11 @@ function isPanelHidden(panel: CollapsePanelNode, engine?: NexusEngine) {
   const state = panel.dataPath
     ? engine?.getFieldState(panel.dataPath)
     : undefined;
+  // 优先引擎实时状态（表达式联动 / reactions 覆盖后的值）；
+  // 面板静态 hidden: true 时引擎 FieldState.hidden 可能为默认 false，
+  // 此时回退静态 Schema 判定保证正确隐藏
   if (state) {
-    return state.hidden;
+    return state.hidden || panel.meta?.schema?.hidden === true;
   }
   return panel.meta?.schema?.hidden === true;
 }
@@ -122,7 +125,9 @@ export const collapseLayout = ({
     }));
 
   // 全部面板隐藏（且确实声明了面板）时整个 Collapse 不显示，避免留下容器空壳
-  if (items.length === 0) {
+  // - 有 collapse 节点但面板数组为空：说明面板全被 hidden 过滤，返回 null
+  // - 无 collapse 节点（node 为 undefined）：渲染空壳（兼容独立布局渲染）
+  if (node && panels.length === 0) {
     return null;
   }
 

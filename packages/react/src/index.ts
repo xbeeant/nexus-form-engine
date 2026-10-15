@@ -32,21 +32,26 @@ export { useEngine } from './hooks/use-engine';
 export { useFieldState } from './hooks/use-field-state';
 export { useFieldValidator } from './hooks/use-field-validator';
 export { useFieldValue } from './hooks/use-field-value';
+export { useFieldsHidden } from './hooks/use-fields-hidden';
 export { useForm } from './hooks/use-form';
 export { useFormConfig } from './hooks/use-form-config';
 export { useFormData } from './hooks/use-form-data';
 export { useFormSubmitting } from './hooks/use-form-submitting';
+export type {
+  NexusFieldRefHandle,
+  NexusFieldRefObject,
+} from './hooks/use-imperative-validator';
+export { useImperativeValidator } from './hooks/use-imperative-validator';
 export { useWatch } from './hooks/use-watch';
 export { useWatchAll } from './hooks/use-watch-all';
 export { useWatchMultiple } from './hooks/use-watch-multiple';
 export { useWatchState } from './hooks/use-watch-state';
-
-// ── 工具函数 ────────────────────────────────────────────────────────────────
 export { buildWidgetProps } from './utils/build-widget-props';
-
 export {
   pureHtmlString,
   reactNodeFromString,
 } from './utils/react-node-from-string';
+// ── 工具函数 ────────────────────────────────────────────────────────────────
+export { renderListItemField } from './utils/render-list-item';
 
 export { resolveReadOnlyWidget } from './utils/resolve-readonly-widget';

@@ -27,6 +27,8 @@ describe('hidden 统一隐藏模型', () => {
   });
 
   it('hidden: true → 不收集（值进入 getHiddenValues）', () => {
+    // 注：使用 `hidden: "{{ true }}"` 表达式（而非静态 `hidden: true`），
+    //   静态 true 会被 isSkipNode 整节点跳过；表达式走运行时 FieldState.hidden。
     const engine = new NexusEngine();
     engine.init({
       type: 'object',
@@ -36,7 +38,7 @@ describe('hidden 统一隐藏模型', () => {
           type: 'string',
           widget: 'input',
           default: 'removed',
-          hidden: true,
+          hidden: '{{ true }}',
         },
       },
     });

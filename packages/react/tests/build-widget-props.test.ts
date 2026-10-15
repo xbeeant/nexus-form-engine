@@ -314,6 +314,23 @@ describe('buildWidgetProps addons 构造', () => {
     const schema = props.addons.getSchema();
     expect(schema).toEqual({ type: 'object' });
   });
+
+  it('fieldRef 缺省为空 ref（widget 不暴露 validator）', () => {
+    const props = buildWidgetProps(
+      {},
+      { dataPath: 'a', value: 1, onChange: vi.fn(), form },
+    );
+    expect(props.addons.fieldRef).toEqual({ current: null });
+  });
+
+  it('fieldRef 透传 addonsFieldRef（引用保持一致）', () => {
+    const fieldRef = { current: null };
+    const props = buildWidgetProps(
+      { addonsFieldRef: fieldRef },
+      { dataPath: 'a', value: 1, onChange: vi.fn(), form },
+    );
+    expect(props.addons.fieldRef).toBe(fieldRef);
+  });
 });
 
 // ── 数组字段 ──────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import type {
   FieldState,
   NexusFormInstance,
   NexusSchema,
+  ValidatorResponse,
 } from '@xbeeant/form-engine';
 import {
   AsyncValidatorPlugin,
@@ -480,15 +481,23 @@ export class FormController implements NexusFormInstance {
 
   /**
    * 注册字段校验逻辑
+   *
+   * 校验函数返回值支持以下形式（详见 {@link ValidatorResponse}）：
+   * - `string[]`（规范形式，空数组 = 通过）
+   * - `string`（单条错误消息，等价于 `[message]`）
+   * - `{ status: boolean; message?: string | string[] }`（接口响应风格）
+   * - `null` / `undefined`（通过）
+   * - `Promise<...>`（异步，由 AsyncValidatorPlugin 防抖调度后写回）
+   *
    * @param path - 字段路径（如 'username'）
-   * @param validator - 校验函数，接收 (value, formData)，返回错误消息数组（空数组表示通过）
+   * @param validator - 校验函数，接收 (value, formData)
    */
   registerValidator(
     path: string,
     validator: (
       value: unknown,
       formData: Record<string, unknown>,
-    ) => string[] | Promise<string[]>,
+    ) => ValidatorResponse | Promise<ValidatorResponse>,
   ): void {
     // 注册到各实例引擎（validate 与 实时校验 统一由 Engine 执行）
     for (const view of this.resolveViews()) {
@@ -505,7 +514,7 @@ export class FormController implements NexusFormInstance {
     validator: (
       value: unknown,
       formData: Record<string, unknown>,
-    ) => string[] | Promise<string[]>,
+    ) => ValidatorResponse | Promise<ValidatorResponse>,
   ): void {
     for (const view of this.resolveViews()) {
       view.unregisterFieldValidator(path, validator);

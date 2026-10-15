@@ -6,7 +6,7 @@
 import { useFieldValidator } from '@xbeeant/form-engine-react';
 import type { WidgetProps } from '@xbeeant/form-engine-ui';
 import { Input } from 'antd';
-import { useState } from 'react';
+import { useImperativeHandle, useState } from 'react';
 
 // ────────────────────────────────────────────────────────────────────────────
 // confirmPassword — 确认密码
@@ -111,6 +111,49 @@ export const usernameUniqueWidget = (props: WidgetProps) => {
       }}
       disabled={Boolean(disabled)}
       placeholder='输入用户名（root/admin/system 为保留名）'
+      {...rest}
+    />
+  );
+};
+
+// ────────────────────────────────────────────────────────────────────────────
+// inviteCode — 通过 addons.fieldRef 命令式暴露校验器
+// 渲染层把 addons.fieldRef 交给 widget，widget 用 useImperativeHandle 把
+// validator 暴露出去；注册后与 form.registerValidator 等价，
+// 实时校验（change / blur）与提交校验都会触发（支持返回 Promise 的异步校验）
+// ────────────────────────────────────────────────────────────────────────────
+
+export const inviteCodeWidget = (props: WidgetProps) => {
+  const {
+    addons,
+    value,
+    disabled,
+    loading,
+    onChange,
+    dependValues: _dv,
+    path: _p,
+    ...rest
+  } = props;
+
+  useImperativeHandle(addons?.fieldRef, () => {
+    // 将校验方法暴露出去，方便外部表单提交时触发校验
+    return {
+      validator: (val: unknown) => {
+        const v = String(val ?? '').trim();
+        if (!v) {
+          return [];
+        }
+        return /^NX-\d{4}$/.test(v) ? [] : ['邀请码格式应为 NX-1234'];
+      },
+    };
+  });
+
+  return (
+    <Input
+      value={(value as string) ?? ''}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={Boolean(disabled || loading)}
+      placeholder='邀请码（如 NX-1234）'
       {...rest}
     />
   );

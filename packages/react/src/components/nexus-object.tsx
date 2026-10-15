@@ -4,7 +4,7 @@ import type { CSSProperties } from 'react';
 import { useContext, useSyncExternalStore } from 'react';
 
 import { FieldInheritContext } from '../contexts/field-inherit-context';
-import { GridContext } from '../contexts/grid-context';
+import { GRID_TOTAL, GridContext } from '../contexts/grid-context';
 import { useNexusContext } from '../contexts/nexus-context';
 import { renderTreeNode } from '../utils/render-tree-node';
 import { resolveGridSpan } from '../utils/resolve-grid-span';
@@ -44,6 +44,14 @@ export function NexusObject({ node }: NexusNodeProps<RenderObjectNode>) {
   // 对象内容统一置于 24 栅格：子字段按 width（占比）/ colSpan 换算跨度，
   // 未设置时按表单级 column 均分默认占位（span = round(24/column)）
   const objectColumn = Math.max(1, config.column ?? 1);
+  // 内容容器必须是真正的 24 栅格容器：GridContext 下发后子字段会把 width
+  // 换算为 gridColumn span 并抑制字面 width，若此处不是 grid 容器则两者
+  // 同时失效（width 完全不生效）。与表单顶层 form grid 保持同一套栅格语义。
+  const objectGridStyle: CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${GRID_TOTAL}, minmax(0, 1fr))`,
+    gap: '0 16px',
+  };
 
   // 合并继承属性：父级已激活的状态不可被当前容器覆盖；
   // disabled/readOnly 仅携带 true（父级关闭状态不压制子级显式启用）
@@ -81,7 +89,9 @@ export function NexusObject({ node }: NexusNodeProps<RenderObjectNode>) {
               label: panelTitle,
               children: (
                 <GridContext.Provider value={{ column: objectColumn }}>
-                  <div className='p-1'>{children}</div>
+                  <div className='p-1' style={objectGridStyle}>
+                    {children}
+                  </div>
                 </GridContext.Provider>
               ),
             },

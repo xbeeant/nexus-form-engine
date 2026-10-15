@@ -357,6 +357,30 @@ export interface TableListWidgetProps extends ListActionsProps {
   };
 }
 
+/** CardList widget props（x-render CardList 对齐） */
+export interface CardListWidgetProps extends ListActionsProps {
+  /** 主题：'card'（默认 antd Card）| 'collapse' | 'lineTitle' */
+  theme?: 'card' | 'collapse' | 'lineTitle';
+  /** 操作按钮样式：'text'（图标+文字 + 竖线分隔，默认）/ 'icon'（仅图标） */
+  operateBtnType?: 'text' | 'icon';
+  /** 是否显示卡片背景（仅 card 主题生效） */
+  hasBackground?: boolean;
+  /** 列表最大项数（超过后隐藏新增按钮） */
+  max?: number;
+  /** 新增按钮透传 antd Button props */
+  addBtnProps?: Record<string, unknown>;
+  /** 删除按钮透传 antd Button props */
+  deleteBtnProps?: Record<string, unknown>;
+  /** 复制按钮透传 antd Button props */
+  copyBtnProps?: Record<string, unknown>;
+  /** 上移按钮透传 antd Button props */
+  moveUpBtnProps?: Record<string, unknown>;
+  /** 下移按钮透传 antd Button props */
+  moveDownBtnProps?: Record<string, unknown>;
+  /** 删除二次确认 Popconfirm 透传 props */
+  delConfirmProps?: Record<string, unknown>;
+}
+
 // ── 新增 antd 组件（AutoComplete / Cascader / Mentions / Segmented / Transfer / File）──
 
 /** AutoComplete widget 可透传给 antd 的 props */
@@ -476,6 +500,8 @@ declare module '@xbeeant/form-engine' {
     simpleList: SimpleListWidgetProps;
     /** TableList 表格列表 */
     tableList: TableListWidgetProps;
+    /** CardList 卡片列表（x-render CardList 对齐） */
+    cardList: CardListWidgetProps;
     /** AutoComplete 自动完成 */
     autoComplete: AutoCompleteWidgetProps;
     /** Cascader 级联选择 */

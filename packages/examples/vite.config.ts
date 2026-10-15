@@ -36,7 +36,7 @@ function skipLibStyles(): PluginOption {
 
 // GitHub Pages 部署在仓库子路径：https://<user>.github.io/nexus-form-engine/
 // 可通过环境变量 NEXUS_BASE 覆盖（如自定义域名时传 "/"）
-const base = process.env.NEXUS_BASE || '/nexus-form-engine/';
+const base = process.env.NEXUS_BASE || '/mirror/nexus-form-engine/';
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), fumadocsMdx(), skipLibStyles()],

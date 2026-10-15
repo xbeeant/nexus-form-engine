@@ -8,6 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { NexusEngine } from '../src/engine';
 import * as SchemaParser from '../src/schema-parser';
 import type { NexusSchema } from '../src/types/schema';
 
@@ -213,7 +214,9 @@ describe('SchemaParser', () => {
       // 布局容器的 containerPath 需保持唯一性，嵌套布局按路径层级拼接（例如 container.tab1）。
       expect(fieldStates.get('container')?.meta.containerOnly).toBe(true);
       expect(fieldStates.get('container.tab1')?.meta.containerOnly).toBe(true);
-      expect(fieldStates.get('container.tab1.nested')?.meta.containerOnly).toBe(true);
+      expect(fieldStates.get('container.tab1.nested')?.meta.containerOnly).toBe(
+        true,
+      );
 
       // 数据字段 Key 正确进入路径（所有布局 Key 被透传丢弃）
       expect(fieldStates.has('field')).toBe(true);
@@ -273,17 +276,22 @@ describe('SchemaParser', () => {
       // 子字段数据路径不应受布局容器影响（透传父路径）
       expect(fieldStates.has('experience_domain')).toBe(true);
       expect(fieldStates.has('is_related')).toBe(true);
-      expect(fieldStates.get('experience_domain')?.path).toBe('experience_domain');
+      expect(fieldStates.get('experience_domain')?.path).toBe(
+        'experience_domain',
+      );
       expect(fieldStates.get('is_related')?.path).toBe('is_related');
     });
 
     it('collapse 容器的 hidden 属性生效', () => {
+      // 注：使用 `hidden: "{{ true }}"` 表达式（而非静态 `hidden: true`），
+      //   静态 true 会被 isSkipNode 整节点跳过；表达式走运行时 FieldState.hidden
+      //   验证布局容器的 hidden 状态能被正确初始化。
       const schema: NexusSchema = {
         type: 'object',
         properties: {
           collapse1: {
             type: 'collapse',
-            hidden: true,
+            hidden: '{{ true }}',
             properties: {
               panel1: {
                 type: 'collapsePanel',
@@ -307,7 +315,10 @@ describe('SchemaParser', () => {
         },
       };
 
-      const { fieldStates } = SchemaParser.parse(schema);
+      // 用 Engine.init 触发 _autoExpr reaction 求值（Parser 阶段不求值表达式）
+      const engine = new NexusEngine();
+      engine.init(schema);
+      const fieldStates = engine.getAllFieldStates();
 
       // collapse1 的 hidden 状态为 true
       const collapse1State = fieldStates.get('collapse1');
@@ -523,7 +534,7 @@ describe('SchemaParser', () => {
           // format 推断
           birthday: { type: 'string', format: 'date' },
           content: { type: 'string', format: 'textarea' },
-          // 数组缺省 'array'
+          // 数组缺省 'cardList'（x-render CardList 对齐）
           tags: {
             type: 'array',
             items: { type: 'string' },
@@ -539,7 +550,7 @@ describe('SchemaParser', () => {
       expect(fieldStates.get('active')?.meta.widget).toBe('switch');
       expect(fieldStates.get('birthday')?.meta.widget).toBe('date');
       expect(fieldStates.get('content')?.meta.widget).toBe('textarea');
-      expect(fieldStates.get('tags')?.meta.widget).toBe('array');
+      expect(fieldStates.get('tags')?.meta.widget).toBe('cardList');
     });
 
     it('显式声明 widget 优先于推断', () => {

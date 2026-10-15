@@ -10,12 +10,12 @@ export type { WidgetProps } from './_shared';
 
 // ── 工具函数和组件导出 ─────────────────────────────────────────────────────────
 export {
+  EnumDisplay, // 只读显示组件 - 选项枚举值映射展示
   FieldWrapper, // 字段包裹组件 - NexusForm 渲染层默认包裹所有 widget（label=false 时不包裹）
   mapOptions, // 将选项数据转换为 Select/Option 格式
+  ObjectDisplay, // 只读显示组件 - 结构化值（对象/对象数组）键值块展示
   ReadOnlyDisplay, // 只读显示组件 - 用于展示非编辑状态的数据
   SimpleDisplay, // 只读显示组件 - 原始值（文本/数字/日期）纯文本展示
-  EnumDisplay, // 只读显示组件 - 选项枚举值映射展示
-  ObjectDisplay, // 只读显示组件 - 结构化值（对象/对象数组）键值块展示
   useFormItem, // 公共 Hook - 默认包裹 Form.Item（label=false 时不包裹）
   useFormItemProps, // Hook - 获取 Ant Design FormItem 所需的属性
   withFormItem, // 公共包裹方法 - 仅需在 NexusForm 之外渲染时使用
@@ -26,10 +26,16 @@ export {
   autoCompleteWidget,
   remoteAutoCompleteWidget,
 } from './auto-complete'; // 自动完成
+export { cardListWidget } from './card-list'; // 卡片列表渲染器（x-render CardList 对齐）
 export { cascaderWidget, remoteCascaderWidget } from './cascader'; // 级联选择
+// ── 移动端组件导出 ───────────────────────────────────────────────────────────
+export { cascaderMobileWidget } from './cascader-mobile'; // 移动端级联选择
 export { checkboxWidget } from './checkbox'; // 单个复选框
+export { checkboxMobileWidget } from './checkbox-mobile'; // 移动端复选框
 export { checkboxesWidget } from './checkboxes'; // 复选框组
+export { checkboxesMobileWidget } from './checkboxes-mobile'; // 移动端复选框组
 export { colorWidget } from './color'; // 颜色选择器
+export { dateMobileWidget } from './date-mobile'; // 移动端日期选择器
 export { datePickerWidget } from './date-picker'; // 日期选择器
 export { dateRangeWidget } from './date-range'; // 日期范围选择器
 // 图片和 HTML 组件
@@ -37,23 +43,32 @@ export { fileWidget } from './file'; // 通用文件上传
 export { htmlWidget } from './html'; // HTML 内容渲染
 export { imageInputWidget } from './image-input'; // 图片上传组件
 export { inputWidget } from './input'; // 文本输入框
+export { inputMobileWidget } from './input-mobile'; // 移动端输入框
 export { inputNumberWidget } from './input-number'; // 数字输入框
 // 列表组件（x-render 兼容）
 export { listWidget } from './list'; // 列表渲染器
-
 export { mentionsWidget, remoteMentionsWidget } from './mentions'; // 提及
 export { multiSelectWidget, remoteMultiSelectWidget } from './multi-select'; // 多选下拉框
+export { numberMobileWidget } from './number-mobile'; // 移动端数字输入框
 export { passwordWidget } from './password'; // 密码输入框
+export { pickerMobileWidget } from './picker-mobile'; // 移动端选择器
 export { radioWidget } from './radio'; // 单选框
+export { radioMobileWidget } from './radio-mobile'; // 移动端单选框
 export { rateWidget } from './rate'; // 评分
+export { rateMobileWidget } from './rate-mobile'; // 移动端评分
 export { segmentedWidget } from './segmented'; // 分段控制器
+export { segmentedMobileWidget } from './segmented-mobile'; // 移动端分段控制器
 export { remoteSelectWidget, selectWidget } from './select'; // 下拉选择器
 export { SideEffectsEditor } from './side-effects-editor'; // 附带编辑器/点击动作组件（x-render sideEffects 对齐）
 export { simpleListWidget } from './simple-list'; // 简单列表渲染器
 export { sliderWidget } from './slider'; // 滑块选择器
+export { sliderMobileWidget } from './slider-mobile'; // 移动端滑块
 export { switchWidget } from './switch'; // 开关
+export { switchMobileWidget } from './switch-mobile'; // 移动端开关
 export { tableListWidget } from './table-list'; // 表格列表渲染器
 export { textAreaWidget } from './textarea'; // 多行文本输入框
+export { textareaMobileWidget } from './textarea-mobile'; // 移动端多行输入
+export { timeMobileWidget } from './time-mobile'; // 移动端时间选择器
 export { timePickerWidget } from './time-picker'; // 时间选择器
 export { timeRangeWidget } from './time-range'; // 时间范围选择器
 export { transferWidget } from './transfer'; // 穿梭框
@@ -63,6 +78,7 @@ export { voidTitleWidget } from './void-title'; // 无标题空白组件
 
 import type { WidgetProps } from './_shared';
 import { autoCompleteWidget, remoteAutoCompleteWidget } from './auto-complete';
+import { cardListWidget } from './card-list';
 import { cascaderWidget, remoteCascaderWidget } from './cascader';
 import { checkboxWidget } from './checkbox';
 import { checkboxesWidget } from './checkboxes';
@@ -150,4 +166,5 @@ export const antdWidgets: Record<string, (props: WidgetProps) => ReactNode> = {
   list: listWidget,
   simpleList: simpleListWidget,
   tableList: tableListWidget,
+  cardList: cardListWidget,
 };
